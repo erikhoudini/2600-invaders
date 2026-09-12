@@ -25,3 +25,4 @@ ndstool
 dist/
 build/
 *.log
+node_modules/
