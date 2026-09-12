@@ -1,52 +1,8 @@
-# Dependencies
-grit/
-
-# Compiled and build artifacts
-*.pyc
-__pycache__/
-*.o
-*.obj
-*.class
-*.exe
-*.dll
-*.so
-*.a
-*.out
-
-# Package managers
-node_modules/
-venv/
-.venv/
-.env
-.env.local
-*.env.*
-
-# Build systems
+```
+# Executables and binaries
+ndstool
+```node_modules/
+.next/
 dist/
 build/
-target/
-.gradle/
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Logs and temp files
 *.log
-*.tmp
-
-# System files
-.DS_Store
-Thumbs.db
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Python specific
-.mypy_cache/
-.pytest_cache/.next/
-.next/
