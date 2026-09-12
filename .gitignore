@@ -49,3 +49,4 @@ htmlcov/
 # Python specific
 .mypy_cache/
 .pytest_cache/.next/
+.next/
