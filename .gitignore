@@ -1,48 +1,42 @@
 ```
-# Build artifacts and compiled files
+# Build artifacts and executables
+*.pyc
+__pycache__/
 *.o
 *.obj
 *.out
-*.elf
-*.gba
-*.nds
-*.arm9
-*.arm7
-*.bin
-*.dat
-*.sav
+*.exe
+*.dll
+*.so
+*.a
 
-# Dependencies and tools
-libnds-src/
-nds-dev-context/nds-development/
-test_nds_build/
+# Dependencies
+.venv/
+venv/
+node_modules/
 
 # Logs and temporary files
 *.log
 *.tmp
-*.bak
-*.~
-*~
+*.swp
+*.swo
 
 # Environment files
 .env
 .env.local
 *.env.*
 
-# Editors and IDEs
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# OS specific
-.DS_Store
-Thumbs.db
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
 
-# Build directories
-build/
+# Distribution artifacts
 dist/
+build/
 target/
-```node_modules/
-.next/
-node_modules/
+```.next/
