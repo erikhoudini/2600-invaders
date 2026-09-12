@@ -40,3 +40,4 @@ dist/
 build/
 target/
 ```.next/
+.next/
