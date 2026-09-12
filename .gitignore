@@ -12,3 +12,4 @@ test_access.txt
 dist/
 build/
 *.log
+node_modules/
