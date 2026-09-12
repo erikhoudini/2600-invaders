@@ -1,9 +1,47 @@
 ```
-# Executables and binaries
-ndstool
+# Build artifacts and compiled files
+*.o
+*.obj
+*.out
+*.elf
+*.gba
+*.nds
+*.arm9
+*.arm7
+*.bin
+*.dat
+*.sav
+
+# Dependencies and tools
+libnds-src/
+nds-dev-context/nds-development/
+test_nds_build/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.~
+*~
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Editors and IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Build directories
+build/
+dist/
+target/
 ```node_modules/
 .next/
-dist/
-build/
-*.log
-node_modules/
