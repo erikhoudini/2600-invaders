@@ -1,0 +1,671 @@
+
+============================================================
+PACK: HOUDINI | Shem Shelley's Questions from the Gristle
+DESC: A provocative set of existential, absurd, and darkly humorous questions designed to unsettle and provoke deep reflection. Written by Shem Shelley for HOUDINI Magazine.
+============================================================
+
+1. If you came across the Fountain of Youth, would you piss in it?
+2. Imagine everyone you'd ever known was a construct created specifically to alter your true path. How would you react?
+3. What would be the cruelest punishment you would devise for yourself?
+4. If all actions are reactions, what action have you taken recently that was born from the most petty reaction?
+5. Can the blood of a god rejuvenate the ill minds of humankind, or would it take something less fantastical?
+6. If we swapped bodies, how many acts of kindness would it take for you to get bored of kindness, knowing it wasn't you receiving the thanks?
+7. Do you believe that not believing is itself a form of believing?
+8. Will the call of the bird in the dusk of the mind expunge all imaginary disease?
+9. The earth is plagued with violent invaders that exist only to devastate all they touch. Do you agree these invaders should be eradicated?
+10. How much would you pay someone to always say, "You probably don't need to waste money on this," every time you are about to purchase something?
+11. You wouldn't willingly eat poison, so why don't you treat your mind like your stomach and be far more careful in what you consume?
+12. If a device was invented that reset all of humankind except you, what would be the first system you set in place to govern them?
+13. Which god would you choose to have a fistfight with?
+14. Put your music on shuffle and ask, "What sound will I make when I die?"
+15. What is the worst sentence you can think of?
+16. If you had to destroy all art mediums (painting, film, books, games, etc.) to ensure only one survives, what would you choose?
+17. What's your favorite issue of FROM UTOPIA?
+
+============================================================
+PACK: HOUDINI | Late Night Talks With Your Best Friend
+DESC: A heart-to-heart set of questions meant for those deep, 2 a.m. conversations with someone who knows you best. Perfect for reminiscing, reflecting, and deepening the bond. Written by [Hap.e] for HOUDINI Magazine.
+============================================================
+
+1. Do you think romantic relationships last longer, or platonic relationships?
+2. What do you think paved the way for our friendship to last this long?
+3. Where and how do you envision us in the future?
+4. When talking about me to others, what describing words do you often use?
+5. What's a memory that you think about fondly?
+6. What would you describe as being the peak of our friendship?
+7. What would you describe as being the lowest pit of our friendship?
+8. In what ways would your life be different if we were not this close?
+9. What's a quality, feeling, or emotion in you that often comes about when we're together?
+10. How does our friendship differ from your other friendships?
+11. What's something we definitely need to carry on doing in our friendship?
+12. What's a weakness in our friendship that we should tackle?
+13. Do you think we're opposites or the same (in terms of personality, values, morals, etc.)?
+14. What are some things you can do with me, but not others?
+15. What are some things you can't do with me, but can with others?
+16. In a moment of weakness, how would you want me to support you?
+17. In a moment of strength, how would you want me to celebrate with you?
+18. In a moment of conflict, how would you want me to approach you?
+
+============================================================
+PACK: HOUDINI | Work Chat Icebreakers
+DESC: Simple questions designed to spark engaging conversations at work and avoid boring or awkward moments. Written by [Hap.e] for HOUDINI Magazine.
+============================================================
+
+1. How often are you around or come in?
+2. Do you live close by? If so, is it a nice walk? If not, how long does it take you to arrive?
+3. What mode of transport do you use to get here?
+4. How are you spending your lunch break today?
+5. How do you deal with long shifts?
+6. What's your favourite go-to break snack?
+7. What's the worst customer you've dealt with today?
+8. What's the best customer you've dealt with today?
+9. Did today feel slow, or was it quite busy?
+10. What's something you still haven't got the hang of at work, and what's something you think you've mastered?
+
+============================================================
+PACK: HOUDINI | On the Romantic Side
+DESC: A deeper dive into love, expectations, and the emotional rhythms of a relationship. These questions are for romantic partners ready to explore each other on a more vulnerable and reflective level. Written by [Hap.e] for HOUDINI Magazine.
+============================================================
+
+1. What's something you expected in our relationship? Did those expectations become fulfilled? Did they change?
+2. What common emotions do you feel when we're together?
+3. What boundaries do you wish were in our relationship?
+4. In what ways am I similar to your past relationships?
+5. In what ways do I differ from your past relationships?
+6. In what ways am I similar or different to your 'ideal partner'?
+7. What do you believe to be our next milestone, if any?
+8. Do you believe in marriage?
+9. How would you describe the healthiest romantic relationship?
+10. What are some negative aspects of other relationships you have seen that you are glad are not a part of ours?
+11. What are some positive aspects of other relationships you have seen that you hope to adopt into ours?
+12. What was the driving point that convinced you to have a relationship with me? Has that changed?
+13. Do you believe in love? If so, what characteristics tell you that you are in love? If not, why?
+14. How would you define love?
+15. How has your definition and experience of love been shaped throughout your life?
+16. Do you feel as if you are in love with me? Why or why not?
+
+============================================================
+PACK: Questions for small-talk condition
+DESC: These questions are used for the small-talk condition in the research paper 'The Experimental Generation of Interpersonal Closeness: A Procedure and Some Preliminary Findings' from 1997 by Arthur Aron, Edward Melinat, Elaine N. Aron, Robert Darrin Vallone and Renee J. Bator. It is recommended by the authors that each participant should answer the questions and share it with each others.
+============================================================
+
+1. When was the last time you walked for more than an hour? Describe where you went and what you saw.
+2. What was the best gift you ever received and why?
+3. If you had to move from your current city where would you go, and what would you miss the most about it?
+4. How did you celebrate last Halloween?
+5. Do you read a newspaper often and which do you prefer? Why?
+6. What is a good number of people to have in a student household and why?
+7. If you could invent a new flavor of ice cream, what would it be?
+8. What is the best restaurant you've been to in the last month that you partner hasn't been to? Tell your partner about it.
+9. Describe the last pet you owned.
+10. What is your favorite holiday? Why?
+11. Tell your partner the funniest thing that ever happened to you when you were with a small child.
+12. What gifts did you receive on your last birthday?
+13. Describe the last time you went to the zoo.
+14. Tell the names and ages of your family members, including grandparents, aunts and uncles, and where they were born (to the extent you know this information).
+15. One of you say a word, the next say a word that starts with the last letter of the word just said. Do this until you have said 50 words. Any words will do - you aren't making a sentence.
+16. Do you like to get up early or stay up late? Is there anything funny that has resulted from this?
+17. Where are you from? Name all of the places you've lived.
+18. What is your favorite class at any school so far? Why?
+19. What did you do this summer?
+20. What gifts did you receive last Christmas/Hanukkah?
+21. Who is your favorite actor of your own gender? Describe a favorite scene in which this person has acted.
+22. What was your impression of at any school the first time you ever visited?
+23. What is the best TV show you've seen in the last month that your partner hasn't seen? Tell your partner about it.
+24. What is your favorite holiday? Why?
+25. Where did you go to high school? What was your high school like?
+26. What is the best book you've read in the last three month that you partner hasn't read? Tell your partner about it.
+27. What foreign country would you most like to visit? What attracts you to this place?
+28. Do you prefer digital watches and clocks or the kind with hands? Why?
+29. Describe your mother's best friend.
+30. What are the advantages and disadvantages of artificial Christmas trees?
+31. How often do you get your hair cut? Where do you go? Have you ever had a really bad haircut experience?
+32. Did you have a class pet when you were in elementary school? Do you remember the pet's name?
+33. Do you think left-handed people are more creative than right-handed people?
+34. What is the last concert you saw? How many of that band's albums do you own? Had you seen them before? Where?
+35. Do you subscribe to any magazines? Which ones? What have you subscribed to in the past?
+36. Were you ever in a school play? What was your role? What was the plot of the play? Did anything funny ever happen when you were on stage?
+
+============================================================
+PACK: 21 questions game
+DESC: The 21 Questions Game is basically a way of getting to know someone better. At its core the the game is just asking and answering questions. So if you want to simply ask and answer the questions below, that works. But you can also use these questions for a gamified conversation.
+============================================================
+
+1. What do most people think about you that is absolutely not true?
+2. What is the TLDR version of your life?
+3. Do you think the convenience of technology is worth the loss of privacy that comes with it?
+4. Is it okay to sacrifice one life to save ten? If you said yes, would you change answer if the one life was a friend's life and the ten were strangers? If no, why not?
+5. What are the consequences of everyone having instant distraction at their fingertips?
+6. What should they teach in high school but don't?
+7. Which movie or book do you think is ridiculously overrated?
+8. Who would you most like to sit next to on a 10 hour flight and why?
+9. What are two things you know you should how to do but don't?
+10. You have $100 to burn, all your friends are busy and you have the whole day to yourself, what do you do?
+11. What makes you say "What was I thinking?" when you look back on your life?
+12. How useful would you be in a zombie apocalypse? What skills do you have that would help you and others survive?
+13. What is something you've done that you wish you could undo?
+14. What inscription do you want on your gravestone?
+15. What is something that can't be taught and can only be learned with age?
+16. If you could be born again and choose what nationality, gender, and race to be, what would you choose? Why?
+17. If you could live your life again knowing what you do now, what would you change?
+18. How much do you change when you know no one is around?
+19. How much do you know about the world outside your country?
+20. What is a cause that is worth dedicating your life to?
+21. What should parents stop teaching their children?
+
+============================================================
+PACK: Proust Questionnaire
+DESC: In the 19th century answering these type of questions as part of a questionnaire were popular as society plays for the educated society. They should encourage conversation, help to learn about the interviewee and hear about their character.
+============================================================
+
+1. Their motto?
+2. Where do you want to live?
+3. What is your idea of perfect happiness?
+4. Which faults are you most?
+5. What is the greatest misfortune for you?
+6. Your favorite fictional hero?
+7. Your favorite figure in history?
+8. Your favorite hero in reality?
+9. Your favorite painter?
+10. Your favorite author?
+11. Your favorite composer?
+12. What qualities do you appreciate in a woman the most?
+13. What qualities do you appreciate in a man the most?
+14. Your favorite virtue?
+15. Your favorite activity?
+16. Who or what would you like to be?
+17. Your main character trait?
+18. What do you appreciate the most in your friends?
+19. Your biggest mistake?
+20. Your favorite color?
+21. Your favorite flower?
+22. Your favorite bird?
+23. My favorite poet?
+24. Your heroines in history?
+25. Your favorite name?
+26. What do you most dislike?
+27. What historical figures do you despise the most?
+28. What reform do you most admire?
+29. What natural gift would you like to have?
+30. How would you like to die?
+31. Your current state of mind?
+
+============================================================
+PACK: Conversation Starters (personal questions)
+DESC: These questions should make it possible to start a conversation about personal topics
+============================================================
+
+1. What's your life motto?
+2. Where do you want to live?
+3. What is perfect earthly happiness to you?
+4. What mistakes do you most likely excuse?
+5. What's your biggest misfortune?
+6. If you had the choice, would you rather have a fit body or a healthy mind in old age?
+7. Do you have a secret premonition about how you're probably going to die?
+8. What is most important to you in a friendship?
+9. What is your most beautiful memory?
+10. What are you grateful for?
+11. What are you good at?
+12. What are you afraid of?
+13. What do you do when you want to do something good for yourself?
+14. Your favourite virtue?
+15. Your favorite thing?
+16. Who or what would you like to be?
+17. Your main character trait?
+18. What do you value most about your friends?
+19. Your biggest mistake?
+20. Your dream of happiness?
+21. What would be your biggest misfortune?
+22. What do you want to be?
+23. Your favorite color?
+24. Your favorite flower?
+25. What's your favorite food and drink?
+26. Which item do you have with you?
+27. What kind of sport do you do? Which sport have you always wanted to try?
+28. How does a cosy evening with friends look like?
+29. Do you like to argue or are you more in need of harmony?
+30. Your favorite names?
+31. What do you loathe most?
+32. Suppose you suddenly win a million euros in the lottery. What would you do with it?
+33. Did you ever donate money and if so, for what?
+34. What natural gift would you like to possess?
+35. How would you like to die?
+36. Your current state of mind?
+37. What's your habit of making your life easier?
+38. Were you ever proud of something you created with your own hands?
+39. Do you have pets? Did you ever have pets? Do you ever want to have pets again?
+40. Where have you always wanted to go on holiday?
+
+============================================================
+PACK: Who Am I and If So How Many?
+DESC: These questions were borrowed from the chapter headings from 'Who Am I and If So How Many?' by Richard David Precht.
+============================================================
+
+1. What is truth?
+2. Where do we come from?
+3. How does my brain function?
+4. How do I know who I am?
+5. Who is 'I'?
+6. What are feelings?
+7. What is my subconscious?
+8. What is memory?
+9. What is language?
+10. Do we need other people?
+11. Why do we help others?
+12. Can I will what I will?
+13. Is there morality in the brain?
+14. Does it pay to be good?
+15. Is morality innate?
+16. Are we entitled to kill?
+17. Is abortion moral?
+18. Should euthanasia be allowed?
+19. May we eat animals?
+20. How should we treat great apes?
+21. Why should we protect nature?
+22. Can people be copied?
+23. Where is reproductive medicine heading?
+24. How far can neuroscience go?
+25. Does god exist?
+26. Does nature have meaning?
+27. What is love?
+28. What is freedom?
+29. Do we need possessions?
+30. What is just?
+31. What is a happy life?
+32. Can happiness be learnt?
+33. Does life have meaning?
+
+============================================================
+PACK: All Souls College Entrance Exam Questions (before 2008)
+DESC: Entrance Exam Questions of the All Souls College from University of Oxford. These questions come from tests before 2008.
+============================================================
+
+1. Is it immoral to buy a GBP 10,000 handbag?
+2. 'I don't care if anyone reads my books; I write for myself,' said the author of a half-dozen published novels. Is there anything wrong with this statement as a theory of art?
+3. 'Every act you have ever performed since the day you were born was performed because you wanted something' [Andrew Carnegie]. Do you agree?
+4. Is dislike of politicians a sensible default position?
+5. Why is a leather jacket more acceptable than a fur coat?
+6. Can any public and political institutions be trusted to reform themselves?
+7. Is it an extremely unnatural condition for a male and female to live continuously together?
+8. Is student mobility in Europe merely a form of subsidised tourism?
+9. Do children's games involving blindfolds reveal an essential cruelty in human nature?
+10. Why does the UN tolerate so many bad regimes?
+11. Is there a breakdown of family values in the west, and if so should the state attempt to redress it?
+12. Should governments support scientific research when there may be no technological benefit?
+13. Does the moral character of an orgy change when the participants wear Nazi uniforms?
+14. What should the west learn from China?
+15. Does celebrity entail a loss of dignity?
+16. Is the desire for posthumous fame irrational?
+17. Why has Africa done so badly economically?
+18. Can the world afford not to grow genetically modified crops?
+19. Can architects and urban planners design out crime and social breakdown?
+20. Do very large salaries for sports professionals alter the character of the games played?
+21. It has been said that architecture is 'frozen music'. Does this make any sense?
+22. Is string theory science?
+23. Can a painting change the world?
+24. Can (and should) Europe maintain its relatively high standard of living as compared with emerging economies?
+25. Can you love someone if you don't respect them?
+26. Should we distinguish between persons, human beings, and their bodies?
+27. Can computers think?
+28. Does any ancient philosopher have something to teach moral philosophers today?
+29. Does beauty lie in the eye of the beholder?
+
+============================================================
+PACK: All Souls College Entrance Exam Questions (after 2008)
+DESC: Entrance Exam Questions of the All Souls College from University of Oxford. These questions come from tests after 2008.
+============================================================
+
+1. Did the left or right win the twentieth century?
+2. Should intellectuals tweet?
+3. Should states control the border?
+4. Is vegetarianism the future?
+5. Should all citizens receive a basic income from the state?
+6. Should airlines be permitted to charge passengers according to their weight?
+7. 'Secure people dare.' Do they
+8. Should prisoners be allowed to watch television?
+9. What, if anything, is wrong with using drones in warfare?
+10. What are universities for?
+11. Do we police disciplinary boundaries too rigorously?
+12. Have historical novelists done more than historians to recover the life and texture of the past?
+13. Is the UN correct to identify linguistic diversity as a basic human good?
+14. Is the financial sector larger than it should be?
+15. 'Changes in attitudes towards the human body have been vastly exaggerated.' Discuss.
+16. Can we be forced to be free?
+17. 'Human behaviour remains the same, but vices change.' Discuss.
+18. Should the judiciary be representative of the society which it serves?
+19. Can policy rely on human rationality?
+20. Can a privately-supplied currency, such as Bitcoin, be viable in the long run?
+21. What economic issues have the potential to be resolved through the use of 'Big Data'?
+22. Should the state restrict what people do with their pension savings?
+23. Is homelessness a reflection of a badly functioning economy?
+24. Is a person's gender socially constructed? Is a person's sex?
+25. Does anger have a legitimate role to play in politics?
+26. Does the status quo have an moral privilege?
+27. Can emotions be reasons for decisions?
+28. How do apologies work?
+29. Can there be substantive disagreement in the absence of fact?
+30. What is the connection between knowing something and being certain of it?
+31. Are names synonymous with definite description?
+32. Was there an ethical dimension to Roman foreign policy?
+33. To what extent do inscriptions reflect the extent of multilingualism in the Roman empire?
+34. Are the geographical writings of the Roman imperial period more about geopgraphy or about empire?
+35. Which technological innovations had the greatest economic impact during the nineteenth century?
+36. Had European women's movement formulated an identity and achieved anything significant by 1914?
+37. Has the political power of the press and/or broadcasting been exaggerated?
+38. Who should pay for the costs of educating and bringing up children?
+39. Is the deliberate targeting of named civilian leaders ever justified in wartime?
+40. Under what circumstances if any do international institutions possess legitimate authority?
+41. Is it always wrong to introduce religious arguments into politics?
+42. What should be centrally controlled and what should be locally controlled in a democracy?
+43. Why has a military coup never occurred in Communist China?
+44. How can we explain the differences between Euroscepticism within Europe and scepticism towards north-south integration in the Americas?
+45. How useful is the concept of 'civic engagement' in political analysis?
+46. Under what circumstances if any should people be expected to undergo genetic testing?
+47. Do primary schools need a national curriculum?
+48. Improve the rules of any one sport.
+49. Do religions have to be theistic?
+50. Ought human beauty to be healthy
+51. Can you still be an explorer?
+52. What wouldn't you photograph?
+53. Should all debts be repaid?
+54. Should politics be exciting?
+55. Are some sports necessarily class-specific?
+56. 'Work is the source of nearly all the misery in the world'. So, should we abolish work?
+57. In what ways might music be usefully compared to language?
+58. Why prefer an original painting to an excellent copy?
+59. Can someone with a 21st-century sensibility understand the literature of past ages?
+60. Why do we go out of our way to watch sad films or plays?
+61. Why do women and men not receive equal pay?
+62. Can you be a feminist and get married in a white wedding dress?
+63. Is it time for schools to replace the teaching of foreign languages with instruction in computer coding languages?
+64. Make a robust case against keeping calm and carrying on.
+65. Does the internet bring out the worst in people?
+66. What, if anything, is wrong with risk?
+67. What is the most important law of nature?
+68. Do we now have too much data?
+69. Did the ancients have any concept of rights?
+70. How important was tourism in the ancient world?
+71. 'What have the Romans ever done for us?' [Monty Python]. Discuss.
+72. Should governments pay ransom to hostage-takers?
+73. Who should rescue asylum seekers stranded at sea?
+74. Is freedom of choice best served by compelling people to make a choice?
+75. 'Stories of imagination tend to upset those without one.' [Terry Pratchett]. Discuss.
+76. 'It might be possible to formulate a law of increasing Philistinism: the more money involved in art, the more it is adulterated, and the less real art is produced.' Discuss
+77. Make the case for fan fiction.
+78. 'History is properly studied in order to give back to the past the uncertainty that characterises the future.' Discuss.
+79. 'There is no place for ritual and ceremony in a modern legal system.' Discuss.
+80. How is the relationship between you and your body different from that between you and your online avatar?
+81. Is it possible to cheat yourself?
+82. When are apologies meaningful?
+83. When we make contact with an extra-terrestrial civilization, what should we tell them is humanity's greatest achievement?
+84. Have email, blogs and tweets restored the primacy of writing?
+85. Do we need borders?
+86. Should there be such a thing as intellectual property?
+87. Is hip-hop/rap more political than the Eurovision Song Contest?
+88. Why do autocrats oppress?
+89. Is Edward Snowden a hero or a villain?
+90. What accounts for the success of the gay rights movement in the West?
+91. Are cooperatives doomed to fail?
+92. Must an idol have died young?
+93. Is it possible to dress rationally?
+94. Is cosmetic surgery wrong?
+95. Did Eve make the right choice?
+96. Why, seemingly, does the public have a taste for abstract art but not for atonal music?
+97. Are sting operations defensible?
+98. Is rising life expectancy a good thing?
+99. Some languages, for example French and Italian, do not distinguish clearly between 'history' and 'story'. Should we be warned?
+100. What is, or should be, 'global history'?
+101. Does the teaching of economics need a radical overhaul?
+102. Should the richest part of a country have the right to secede?
+103. How should we measure the cost of climate change?
+104. Should prisoners have the right to vote?
+105. Does it matter what a judge had for breakfast?
+106. Privatization of public services: solution or problem?
+107. Is the abortion debate separable from issues of gender?
+108. Does multilingualism mean multiple identities?
+109. Is English the new Latin?
+110. Should scientific progress make us optimistic?
+111. Is gardening art?
+112. Is globalization undermining democracy?
+113. Is it wrong to change your accent?
+114. Is the middle class a force for good?
+115. Defend kitsch.
+116. Should tackling corruption be the first priority for developing countries?
+117. Can there be a purely aesthetic appreciation of religious art?
+118. Who is the most overrated figure in your discipline?
+119. What is the most important unanswered question in philosophy?
+120. How flexible should a constitution be?
+121. Do future generations have rights?
+122. Should creative talents be well paid?
+123. Should governments 'nudge' their citizens?
+124. In Renaissance Venice, it was illegal for a merchant to dress as a peasant to fool buyers that the offered produce was home grown. What kinds of regulation are needed to control modern retailers?
+125. What is the Euro's most fundamental problem?
+126. How should the press be regulated?
+127. When should insurance premiums not be based on actuarial risk?
+128. Which is more important in the law, certainty or justice?
+129. Are exceptions part of the rule?
+130. Can conservatism be a force for good in an academic institution?
+131. What's so good about creativity?
+132. Why should we value privacy?
+133. How do you know whether you are happy?
+134. What is most likely to bring about the extinction of the human race?
+135. Should public servants get bonuses?
+136. Are all Internet users equal?
+137. Is the brain a computer?
+138. Do we learn more about the world from fiction than from non-fiction?
+139. Can something be beautiful if it is not fit for purpose?
+140. Is jazz America's classical music?
+141. Examine the intellectual relationship, if any, between history and economics.
+142. Are reparations a form of punishment?
+143. Is it rational to fear your own death?
+144. Assess the significance of dictionaries and encyclopaedias for the study of history.
+145. Of what value is truth?
+146. If this were the last piece of paper available, what would you write on it?
+147. Should there be a maximum, as well as a minimum, wage?
+148. What is the future of the printed book?
+149. What is wrong with plagiarism?
+150. Should we encourage the re-introduction of locally extinct species?
+151. Is the internet changing the ways in which we think?
+152. 'One of the under-appreciated tragedies of our time has been the sundering of our society from its past' [Michael Gove, 2010]. Discuss.
+153. Is boredom unfairly maligned?
+154. There is evidence that people give more to charity when asked by someone wearing a designer label. What should we make of this?
+155. Why are the deaf members of a given society more likely to develop a distinct subculture than its blind members?
+156. Can assassination ever be a proper instrument of foreign policy?
+157. Is caricature an act of aggression?
+158. Is militant atheism just another form of religious extremism?
+159. Can we afford to support science at the cost of the humanities?
+160. What would the ancient world have made of the recent financial crisis?
+161. Is there any reason why films about the ancient world should be studied in a classics department rather than a film studies department?
+162. What can game theory teach us about international relations?
+163. Did economics save us from another Great Depression?
+164. Should there be a legal remedy for persons who suffer losses as a result of the abandonment of election promises made by a political party elected into government?
+165. How do we know whether or not prison works?
+166. Should sex offenders remain for life on the sex offenders register?
+167. Discuss what philosophy can learn from and contribute to some other academic discipline.
+168. Should philosophers aim to provide a world view?
+169. Should ethics make us better people?
+170. Must historians make moral judgements?
+171. Is it possible to write a history of homosexuality?
+172. Is technology the enemy of history?
+173. How would your subject be different if women had always been equal in power to men?
+174. Is higher education a public service or a business?
+175. Should governments aspire to make their citizens happy?
+
+============================================================
+PACK: NYT 36 Questions for Closeness - Set I
+DESC: The first set of questions from the 36 Questions for Increasing Closeness study
+============================================================
+
+1. Given the choice of anyone in the world, whom would you want as a dinner guest?
+2. Would you like to be famous? In what way?
+3. Before making a telephone call, do you ever rehearse what you are going to say? Why?
+4. What would constitute a "perfect" day for you?
+5. When did you last sing to yourself? To someone else?
+6. If you were able to live to the age of 90 and retain either the mind or body of a 30-year-old for the last 60 years of your life, which would you want?
+7. Do you have a secret hunch about how you will die?
+8. Name three things you and your partner appear to have in common.
+9. For what in your life do you feel most grateful?
+10. If you could change anything about the way you were raised, what would it be?
+11. Take four minutes and tell your partner your life story in as much detail as possible.
+12. If you could wake up tomorrow having gained any one quality or ability, what would it be?
+
+============================================================
+PACK: NYT 36 Questions for Closeness - Set II
+DESC: The second set of questions from the 36 Questions for Increasing Closeness study by the NYT
+============================================================
+
+1. If a crystal ball could tell you the truth about yourself, your life, the future or anything else, what would you want to know?
+2. Is there something that you've dreamed of doing for a long time? Why haven't you done it?
+3. What is the greatest accomplishment of your life?
+4. What do you value most in a friendship?
+5. What is your most treasured memory?
+6. What is your most terrible memory?
+7. If you knew that in one year you would die suddenly, would you change anything about the way you are now living? Why?
+8. What does friendship mean to you?
+9. What roles do love and affection play in your life?
+10. Alternate sharing something you consider a positive characteristic of your partner. Share a total of five items.
+11. How close and warm is your family? Do you feel your childhood was happier than most other people's?
+12. How do you feel about your relationship with your mother?
+13. Make three true "we" statements each. For instance, "We are both in this room feeling ... "
+14. Complete this sentence: "I wish I had someone with whom I could share ... "
+15. If you were going to become a close friend with your partner, please share what would be important for him or her to know.
+16. Tell your partner what you like about them; be very honest this time, saying things that you might not say to someone you've just met.
+17. Share with your partner an embarrassing moment in your life.
+18. When did you last cry in front of another person? By yourself?
+19. Tell your partner something that you like about them already.
+20. What, if anything, is too serious to be joked about?
+21. If you were to die this evening with no opportunity to communicate with anyone, what would you most regret not having told someone? Why haven't you told them yet?
+22. Your house, containing everything you own, catches fire. After saving your loved ones and pets, you have time to safely make a final dash to save any one item. What would it be? Why?
+23. Of all the people in your family, whose death would you find most disturbing? Why?
+24. Share a personal problem and ask your partner's advice on how he or she might handle it. Also, ask your partner to reflect back to you how you seem to be feeling about the problem you have chosen.
+
+============================================================
+PACK: Questions from closeness-generation procedure
+DESC: These questions are used for the closeness-generating procedure in the research paper 'The Experimental Generation of Interpersonal Closeness: A Procedure and Some Preliminary Findings' from 1997 by Arthur Aron, Edward Melinat, Elaine N. Aron, Robert Darrin Vallone and Renee J. Bator. It is recommended by the authors that each participant should answer the questions and share it with each others.
+============================================================
+
+1. Given the choice of anyone in the world, whom would you want as a dinner guest?
+2. Would you like to be famous? In what way?
+3. Before making a telephone call, do you ever rehearse what you are going to say? Why?
+4. What would constitute a 'perfect' day for you?
+5. When did you last sing to yourself? To someone else?
+6. If you were able to live to the age of 90 and retain either the mind, or body of a 30-year-old for the last 60 years of life, which would you want?
+7. Do you have a secret hunch about how you will die?
+8. Name three things you and your partner appear to have in common.
+9. For what in your life do you feel most grateful?
+10. If you could change anything about the way you were raised, what could it be?
+11. Take 4 minutes and tell your partner your life story in as much detail as possible.
+12. If you could wake up tomorrow having gained any one quality or ability, what would it be?
+13. If a crystal ball could tell you the truth about yourself, your life, the future, or anything else, what would you want to know?
+14. Is there something that you've dreamed of doing for a long time? Why haven't you done it?
+15. What is the greatest accomplishment of your life?
+16. What do you value most in a friendship?
+17. What is your most treasured memory?
+18. What is your most terrible memory?
+19. If you knew that in one year you would die suddenly, would you change anything about the way you are now living? Why?
+20. What does friendship mean to you?
+21. What roles do love and affection play in your life?
+22. Alternate sharing something you consider a positive characteristic of your partner. Share a total of 5 items.
+23. How close and warm is your family? Do you feel your childhood was happier than most other people's?
+24. How do you feel about your relationship with your mother?
+25. Make 3 true 'we' statements each. For instance 'We are both in this room feeling...'.
+26. Complete this sentence: 'I wish I had someone with whom I could share...'
+27. If you were going to become a close friend with your partner, please share what would be important for him or her to know.
+28. Tell your partner what you like about them; be very honest this time saying things that you might not say to someone you've just met.
+29. Share with your partner an embarrasing moment in your life.
+30. When did you last cry in front of other people? By yourself?
+31. Tell your partner something that you like about them already.
+32. What, if anything, is too serious to be joked about?
+33. If you were to die this evening with no opportunity to communicate with anyone, what would you most regret not having told someone? Why haven't you told them yet?
+34. Your house, containing everything you own, catches fire. After saving your loved ones and pets, you have time to safety make a final dash to save any one item. what would it be? Why?
+35. Of all the people in your family, whose death would you find most disturbing? Why?
+36. Share a personal problem and ask your partner's advice on how he or she might handle it. Also, ask your partner to reflect back to you how you seem to be feeling about the problem you have chosen.
+
+============================================================
+PACK: Working Class Connections
+DESC: A questionnaire designed to build solidarity and understanding among working people through shared experiences and values
+============================================================
+
+1. What's the hardest job you've ever had, and what did it teach you?
+2. What's one thing about your work that people outside your field never seem to understand?
+3. Describe a time when you felt truly respected at work. What made it different?
+4. What's your "secret skill" that makes your job easier that you wish more people knew about?
+5. If you could change one thing about standard workplace policies to better serve workers, what would it be?
+6. What's something you've learned from a coworker that changed how you approach your work?
+7. Describe a time when you and your coworkers came together to solve a problem. What happened?
+8. What's the most ridiculous thing you've been expected to do for minimum wage?
+9. What's one small pleasure that gets you through a tough workday?
+10. If you could create a union for all workers, what would its first priority be?
+11. What's something you wish the "boss class" understood about your daily reality?
+12. Describe a time when you felt proud to be working class.
+13. What's the best piece of working-class wisdom you've received from an elder?
+14. How has your work changed the way you see your community?
+15. What's something you can fix or make that makes you feel self-sufficient?
+16. Describe a time when you felt the system was stacked against workers like you.
+17. What's one small act of solidarity you've witnessed or participated in that gave you hope?
+18. If you could design the perfect break room, what would it include?
+19. What's something about your work that requires more skill than people realize?
+20. How do you define "a fair day's wage" for what you do?
+21. What's the most important lesson you've learned about money from being working class?
+22. Describe a time when you had to choose between what's right and what pays the bills.
+23. What's one law or policy that would make the biggest difference for workers like you?
+24. How has being working class shaped your values or worldview?
+25. What's something you're tired of explaining to people who've never lived paycheck to paycheck?
+
+============================================================
+PACK: Questions for children between the ages of 7 and 14
+DESC: This questionnaire helps to start a conversation with children between the ages of 7 and 14.
+============================================================
+
+1. Where do you feel at home?
+2. What movie to watch when you're in a bad mood?
+3. Do you dream of being famous?
+4. Who would you like to be someday?
+5. What's the best game you've ever played?
+6. Do you have a favorite song?
+7. What happened in the last dream you remember?
+8. Do you have a favorite hero or a favorite heroine?
+9. What is most important to you in a friendship?
+10. What are you good at?
+11. What would you like to invent?
+12. What are you afraid of?
+13. When do you listen to music?
+14. If you could change your upbringing: What would that be?
+15. What's the longest book you've read? Was it good?
+16. Have you seen a movie several times and if so, which one?
+17. Do you like sports?
+18. How do you see your future?
+19. Would you like to change your name?
+20. What have you ever been very ashamed of?
+
+============================================================
+PACK: Culture conversation starters
+DESC: This collection of questions should help to start a conversation about culture.
+============================================================
+
+1. Suppose you could invite anyone to dinner with you: Who would that be?
+2. What movie to watch when you're in a bad mood?
+3. Do you dream of being famous?
+4. What's your favorite play?
+5. What's the most intense game you've ever played?
+6. Your favorite novel heroes?
+7. Your favorite character in history?
+8. Your favourite heroes in reality?
+9. Your favorite painter?
+10. Your favorite author?
+11. Your favorite composer?
+12. When do you listen to music?
+13. What religious building has impressed you most in your life?
+14. What is the most comprehensive book you have ever read? Was it good?
+15. Have you ever seen a movie several times and if so, which one?
+16. What kind of music do you listen to when you're sad?
+17. Have you ever seen a painting that touched you emotionally? If so, which painting was it?
+18. What are the characteristics of a good movie?
+19. What is your favorite opera and why is it?
+20. Should we spend more money on museums?
+21. Do museums still have a right to exist in the age of the Internet?
+22. Is there an artistic genre or direction you don't understand?
+23. What is your greatest artistic talent? Have you ever tried to let off steam in this area?
+24. What does art mean to you?
+25. What is'beautiful' to you and what do you find'ugly'?
+26. Does art have to be harmonious for you?

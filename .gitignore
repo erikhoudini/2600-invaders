@@ -1,28 +1,55 @@
 ```
-# Compressed archives
-*.tar.gz
-*.gz
-
-# Build artifacts and generated files
-*.bin
-*.dat
-*.png
-*.js
-
-# Generated source files
-extracted_assets/
-smokebreak_src/data/gen_data.py
-smokebreak_src/fontgen2/build_ext.py
-smokebreak_src/source/font5x7_data.h
-smokebreak_src/source/gfx.c
-smokebreak_src/source/gfx.h
-
-# Tools
+# Executables
 grit
 ndstool
-```node_modules/
-.next/
+
+# Temporary and backup files
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.julia/
+zig*/
+target/
+.gradle/
+
+# Build artifacts
 dist/
 build/
-*.log
-node_modules/
+*.o
+*.obj
+*.out
+*.exe
+*.dll
+*.so
+*.a
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Editors
+.vscode/
+.idea/
+```.next/
