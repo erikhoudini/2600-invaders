@@ -1,4 +1,13 @@
-node_modules/
+```
+# Build artifacts and tools
+buildscripts/
+devkitarm.tar.bz2
+devkitarm.tar.xz
+devkitpro_pacman.deb
+libnds/
+ndstool/
+test_access.txt
+```node_modules/
 .next/
 dist/
 build/
