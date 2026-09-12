@@ -1,43 +1,27 @@
 ```
-# Build artifacts and executables
-*.pyc
-__pycache__/
-*.o
-*.obj
-*.out
-*.exe
-*.dll
-*.so
-*.a
+# Compressed archives
+*.tar.gz
+*.gz
 
-# Dependencies
-.venv/
-venv/
-node_modules/
+# Build artifacts and generated files
+*.bin
+*.dat
+*.png
+*.js
 
-# Logs and temporary files
-*.log
-*.tmp
-*.swp
-*.swo
+# Generated source files
+extracted_assets/
+smokebreak_src/data/gen_data.py
+smokebreak_src/fontgen2/build_ext.py
+smokebreak_src/source/font5x7_data.h
+smokebreak_src/source/gfx.c
+smokebreak_src/source/gfx.h
 
-# Environment files
-.env
-.env.local
-*.env.*
-
-# Editors
-.vscode/
-.idea/
-
-# Coverage reports
-coverage/
-htmlcov/
-.coverage
-
-# Distribution artifacts
+# Tools
+grit
+ndstool
+```node_modules/
+.next/
 dist/
 build/
-target/
-```.next/
-.next/
+*.log
