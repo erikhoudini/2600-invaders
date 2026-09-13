@@ -1,55 +1,56 @@
 ```
-# Executables
-grit
-ndstool
+# Build artifacts
+*.o
+*.obj
+*.out
+build/
+dist/
 
-# Temporary and backup files
+# Dependencies
+.libs/
+deps/
+
+# Temp files
 *.tmp
-*.bak
 *.swp
-*.swo
 
 # Logs
 *.log
 
-# Environment files
+# Environment
 .env
 .env.local
 *.env.*
 
-# OS generated files
-.DS_Store
-Thumbs.db
-
-# Dependencies
-node_modules/
-.venv/
-venv/
-__pycache__/
-.mypy_cache/
-.pytest_cache/
-.julia/
-zig*/
-target/
-.gradle/
-
-# Build artifacts
-dist/
-build/
-*.o
-*.obj
-*.out
-*.exe
-*.dll
-*.so
-*.a
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
 # Editors
 .vscode/
 .idea/
-```.next/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Compression artifacts
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+```
