@@ -195,7 +195,7 @@ function onPress(code){
   }
 
   if (menuState === 'stats'){
-    if (code === 'ArrowLeft' || code === 'ArrowRight'){ statsPage = (statsPage + (code === 'ArrowRight' ? 1 : 3)) % 4; sfx('move'); }
+    if (code === 'ArrowLeft' || code === 'ArrowRight'){ statsPage = (statsPage + (code === 'ArrowRight' ? 1 : STATS_PAGES - 1)) % STATS_PAGES; sfx('move'); }
     if (code === 'Enter' || code === 'Space' || code === 'Escape') goToTitle();
     return;
   }
@@ -324,7 +324,7 @@ cvs.addEventListener('pointerdown',ev=>{
     return;
   }
   if (menuState === 'stats'){
-    if (p.y < 30){ statsPage = (statsPage + (p.x < W/2 ? 3 : 1)) % 4; sfx('move'); }
+    if (p.y < 30){ statsPage = (statsPage + (p.x < W/2 ? STATS_PAGES - 1 : 1)) % STATS_PAGES; sfx('move'); }
     else if (p.y > SH - 30){ goToTitle(); }
     return;
   }

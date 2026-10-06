@@ -366,7 +366,7 @@ function drawTopScreen(t){
   drawTopFx(t);
   drawStars(t);
   if (saturnFrames.length > 0){
-    const frameIdx = Math.floor(t * 4) % SAT_FRAMES;
+    const frameIdx = Math.floor(t * 3) % SAT_FRAMES;
     const frame = saturnFrames[frameIdx];
     if (frame){
       const drawSize = Math.round(SAT_OFF * currentEnv.saturnScale);
@@ -774,13 +774,8 @@ function drawTurret(t,barrel,activeTurret,gyArg){
 
 function drawBezel(t){
   ctx.fillStyle=P.blk;ctx.fillRect(0,SH,W,GAP);
-  ctx.fillStyle=currentEnv.ground0;ctx.fillRect(0,SH,W,3);
-  ctx.fillStyle=currentEnv.ground1;ctx.fillRect(0,SH+3,W,3);
   ctx.fillStyle=currentEnv.ground0;ctx.fillRect(0,BOT-6,W,6);
-  ctx.fillStyle=currentEnv.ground0;
-  ctx.fillRect(0,0,W,1);ctx.fillRect(0,SH-1,W,1);
   ctx.fillRect(0,BOT,W,1);ctx.fillRect(0,H-1,W,1);
-  ctx.fillRect(0,0,1,SH);ctx.fillRect(W-1,0,1,SH);
   ctx.fillRect(0,BOT,1,SH);ctx.fillRect(W-1,BOT,1,SH);
 }
 

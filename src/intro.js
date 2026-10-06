@@ -23,14 +23,42 @@ function wrapText(str, maxChars){
   if (line) out.push(line);
   return out;
 }
-function drawIntroImg(i){
-  const im = INTRO_IMG[i];
-  if (im.complete && im.naturalWidth) ctx.drawImage(im, 0, 0);
-  else { ctx.fillStyle = P.dred; ctx.fillRect(0, 0, W, SH); }
+// The art is four flat colours. To give it a 2600 raster feel, a banded tint is multiplied over it
+// (the way a 2600 kernel changes colour between scanlines), with fine scanlines and a slow sweep.
+// Only compositing is used, so it also works from file:// where reading pixels back is blocked.
+const INTRO_BANDS = [
+  ['#ffffff', '#fff6d0', '#ffe9a8', '#ffd98a', '#f2bf74', '#e8a362'],
+  ['#e8a362', '#f2bf74', '#ffd98a', '#ffe9a8', '#fff6d0', '#ffffff'],
+];
+const introTint = [];
+function introTintFor(i){
+  if (introTint[i]) return introTint[i];
+  const c = document.createElement('canvas'); c.width = W; c.height = SH;
+  const g = c.getContext('2d');
+  const bands = INTRO_BANDS[i], bh = SH / bands.length;
+  for (let b = 0; b < bands.length; b++){ g.fillStyle = bands[b]; g.fillRect(0, Math.round(b * bh), W, Math.ceil(bh)); }
+  g.fillStyle = 'rgba(0,0,0,0.10)';
+  for (let y = 1; y < SH; y += 2) g.fillRect(0, y, W, 1);        // scanlines
+  return (introTint[i] = c);
 }
-function drawPressTop(t){ drawIntroImg(0); }
+function drawIntroImg(i, t){
+  const im = INTRO_IMG[i];
+  if (!(im.complete && im.naturalWidth)){ ctx.fillStyle = P.dred; ctx.fillRect(0, 0, W, SH); return; }
+  ctx.drawImage(im, 0, 0);
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(introTintFor(i), 0, 0);
+  ctx.globalCompositeOperation = 'screen';                       // a soft highlight sweeping down the screen
+  const sy = Math.floor(((t || 0) * 38) % (SH + 60)) - 30;
+  for (let k = 0; k < 6; k++){
+    ctx.fillStyle = 'rgba(255,230,160,' + (0.05 - k * 0.007).toFixed(3) + ')';
+    ctx.fillRect(0, sy + k * 2, W, 2);
+  }
+  ctx.restore();
+}
+function drawPressTop(t){ drawIntroImg(0, t); }
 function drawPressBottom(t){
-  drawIntroImg(1);
+  drawIntroImg(1, t);
   if (Math.sin(t * 5) > -0.2){
     const s = 'PRESS START';
     drawText2x(s, Math.round((W - textW2x(s)) / 2), 172, P.blk);
@@ -56,7 +84,7 @@ function drawBriefTop(t){
   drawText(pg, W - 8 - textW(pg), SH - 14, P.gry);
 }
 function drawBriefBottom(t){
-  drawIntroImg(1);
+  drawIntroImg(1, t);
   if (Math.sin(t * 5) > -0.2){
     const s = briefPage < BRIEF_PAGES.length - 1 ? 'NEXT' : 'BEGIN';
     drawText2x(s, Math.round((W - textW2x(s)) / 2), 172, P.blk);

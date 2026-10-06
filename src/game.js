@@ -6,7 +6,7 @@
 const GROUND = H - 16;
 const HORIZON = BOT + 60;
 const SHARED_MAX = 30;
-const ENDLESS_AMMO_REGEN = 0.5;      // seconds per round regained in Endless
+const ENDLESS_AMMO_REGEN = 0.18;     // seconds per round regained in Endless
 const BONUS_CITY_STEP = 10000;       // score interval for a restored city
 let sharedAmmo = SHARED_MAX;
 
@@ -54,22 +54,16 @@ let runStats = { kills:0, shots:0, perfect:false, time:0 };
 let nameEntry = { letters: ['A','A','A'], cursor: 0 };
 let pendingScore = null;
 
-function createWorldCanvas(){
-  const top = HORIZON - 20;
-  const h = GROUND - top;
-  const c = document.createElement('canvas');
-  c.width = W; c.height = h;
-  const wc = c.getContext('2d');
-  const oy = 20;
-  wc.fillStyle=P.wht; wc.fillRect(0,oy,W,1);
-  wc.fillStyle=currentEnv.mountNear.lit; wc.fillRect(0,oy+1,W,1);
+// Two ranges of jagged peaks, lit on the left and shaded on the right. The far range sits at
+// oy+2 and the near range at oy+6; used by the playfield and by the cover screen.
+function drawMountains(wc, env, oy){
   const farPeaks=[]; let x=-30;
   while(x<W+30){const pw=rndi(22,42),ph=rndi(6,13);farPeaks.push({x,pw,ph});x+=pw-Math.floor(pw*0.35);}
   const nearPeaks=[]; x=-30;
   while(x<W+30){const pw=rndi(16,32),ph=rndi(10,20);nearPeaks.push({x,pw,ph});x+=pw-Math.floor(pw*0.30);}
   const layers = [
-    {peaks:farPeaks, lit:currentEnv.mountFar.lit, shd:currentEnv.mountFar.shd, yBase:oy+2},
-    {peaks:nearPeaks,lit:currentEnv.mountNear.lit,shd:currentEnv.mountNear.shd,yBase:oy+6},
+    {peaks:farPeaks, lit:env.mountFar.lit, shd:env.mountFar.shd, yBase:oy+2},
+    {peaks:nearPeaks,lit:env.mountNear.lit,shd:env.mountNear.shd,yBase:oy+6},
   ];
   for(const layer of layers){
     for(const peak of layer.peaks){
@@ -90,6 +84,17 @@ function createWorldCanvas(){
       }
     }
   }
+}
+function createWorldCanvas(){
+  const top = HORIZON - 20;
+  const h = GROUND - top;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = h;
+  const wc = c.getContext('2d');
+  const oy = 20;
+  wc.fillStyle=P.wht; wc.fillRect(0,oy,W,1);
+  wc.fillStyle=currentEnv.mountNear.lit; wc.fillRect(0,oy+1,W,1);
+  drawMountains(wc, currentEnv, oy);
   const snowTop = oy + 2;
   const snowH = GROUND - HORIZON - 2;
   const bands = currentEnv.snowBands.length;
@@ -129,7 +134,7 @@ function startGame(mode, wi){
   runVictory = false;
   resetGame();
   setWorld(wi);
-  orbTimer = (mode === 'endless') ? 6 : 14;
+  orbTimer = (mode === 'endless') ? 6 : 9;
   runStats = { kills:0, shots:0, perfect:true, time:0 };
   if (mode === 'endless'){
     wave = 1;
@@ -352,8 +357,8 @@ function spawnCluster(pool, dw, forceN, forcePattern){
 }
 
 function typePool(w, env){
-  const p=['ipbm','ipbm','ipbm'];
-  if(w>=2){p.push('smart');p.push('smart');p.push('smart');p.push('scout');}
+  const p=['ipbm','ipbm','ipbm','smart','scout','platform'];
+  if(w>=2){p.push('smart');p.push('smart');p.push('scout');p.push('platform');}
   if(w>=3){p.push('splitter'); p.push('splitter');}
   if(w>=3){p.push('chute');}
   if(w>=4){p.push('heavy'); p.push('multi');}
@@ -651,7 +656,10 @@ function endlessMoonShift(){
   setBanner(currentEnv.name, 'ENDLESS', 2.4);
   sfx('worldClear');
   flashT = Math.max(flashT, 0.4);
-  for (const inst of installations){ if (!inst.alive){ inst.alive = true; baseHP = Math.min(maxBaseHP, baseHP + 1); break; } }
+  // A new moon starts with every city rebuilt and a full magazine
+  for (const inst of installations) inst.alive = true;
+  baseHP = maxBaseHP;
+  sharedAmmo = ammoCap;
   spawnOrbital();
   edir.phase = 'lull'; edir.t = 0; edir.len = 4.5; edir.timer = 1;
 }
@@ -872,9 +880,18 @@ function update(dt){
         sfx('dropHeavy');
       }
     }
-    if (e.y > SH && e.vy > 0){
-      if (e.x < 16 && e.vx < 0) e.vx = Math.abs(e.vx) * 0.5;
-      if (e.x > W - 16 && e.vx > 0) e.vx = -Math.abs(e.vx) * 0.5;
+    if (falling){
+      // Missiles rebound off the side walls of both screens
+      if (e.bounceCd > 0) e.bounceCd -= dt;
+      const hitL = e.x < 0, hitR = e.x > W;
+      if (hitL || hitR){
+        e.x = hitL ? -e.x : 2 * W - e.x;
+        e.vx = (hitL ? 1 : -1) * (Math.abs(e.vx) + 6);
+        if (!(e.bounceCd > 0)){
+          e.bounceCd = 0.25;
+          for (let i = 0; i < 3; i++) spawnParticle(hitL ? 1 : W - 1, e.y, (hitL ? 1 : -1) * rnd(10, 40), rnd(-20, 20), rnd(0.15, 0.3), P.wht, 1);
+        }
+      }
     }
     e.trailTimer+=dt;
     if(e.trailTimer>0.035){

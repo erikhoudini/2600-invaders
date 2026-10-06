@@ -6,6 +6,16 @@
 const MENU_STARS = [];
 for(let i=0;i<60;i++) MENU_STARS.push({x:(i*47)%W, y:(i*89)%SH, b:(i*31)%7});
 
+const menuMountainCache = {};
+function menuMountains(env){
+  let c = menuMountainCache[env.id];
+  if (!c){
+    c = document.createElement('canvas'); c.width = W; c.height = 30;
+    drawMountains(c.getContext('2d'), env, 22);          // near range ends at y=28, on the floor line
+    menuMountainCache[env.id] = c;
+  }
+  return c;
+}
 function menuEnv(){
   if (menuState === 'deploy') return WORLDS[clamp(deploySel, 0, WORLDS.length - 1)];
   if (menuState === 'gameover' || menuState === 'nameentry') return currentEnv;
@@ -24,7 +34,7 @@ function drawMenuBackdrop(t, env){
   if (menuState !== 'loadout'){ const pa = ctx.globalAlpha; ctx.globalAlpha = 0.55; ctx.drawImage(getSunburst(), 0, 0); ctx.globalAlpha = pa; }
   activateSaturn(env);
   if (saturnFrames.length > 0){
-    const frame = saturnFrames[Math.floor(t * 2) % SAT_FRAMES];
+    const frame = saturnFrames[Math.floor(t * 1.5) % SAT_FRAMES];
     if (frame){
       const size = Math.round(SAT_OFF * env.menuPlanet);
       ctx.drawImage(frame, 0, 0, SAT_OFF, SAT_OFF, Math.round(166 - size/2), Math.round(98 - size/2), size, size);
@@ -32,11 +42,7 @@ function drawMenuBackdrop(t, env){
   }
   const bottomY = SH - 36;
   const mn = env.menu;
-  ctx.fillStyle = mn.hill;
-  for (let x=0;x<W;x++){
-    const h = 12 + Math.sin(x*0.07)*4 + Math.sin(x*0.19)*3;
-    ctx.fillRect(x, bottomY - h, 1, h);
-  }
+  ctx.drawImage(menuMountains(env), 0, bottomY - 28);
   ctx.fillStyle = mn.floor; ctx.fillRect(0, bottomY, W, mn.floorH);
   ctx.fillStyle = mn.deep; ctx.fillRect(0, bottomY + mn.floorH, W, SH - bottomY - mn.floorH);
   if (mn.deep2){ ctx.fillStyle = mn.deep2; ctx.fillRect(0, bottomY + mn.floorH + 12, W, SH - bottomY - mn.floorH - 12); }
@@ -45,8 +51,6 @@ function drawMenuBackdrop(t, env){
 
   // Bezel between screens
   ctx.fillStyle=P.blk;ctx.fillRect(0,SH,W,GAP);
-  ctx.fillStyle=env.ground0;ctx.fillRect(0,SH,W,3);
-  ctx.fillStyle=env.ground1;ctx.fillRect(0,SH+3,W,3);
   ctx.fillStyle=env.ground0;ctx.fillRect(0,BOT-6,W,6);
 
   // Bottom screen panel
@@ -59,9 +63,7 @@ function drawMenuBackdrop(t, env){
 
   // Screen outlines
   ctx.fillStyle=env.ground0;
-  ctx.fillRect(0,0,W,1);ctx.fillRect(0,SH-1,W,1);
   ctx.fillRect(0,BOT,W,1);ctx.fillRect(0,H-1,W,1);
-  ctx.fillRect(0,0,1,SH);ctx.fillRect(W-1,0,1,SH);
   ctx.fillRect(0,BOT,1,SH);ctx.fillRect(W-1,BOT,1,SH);
 }
 
@@ -299,7 +301,7 @@ function drawStatsScreen(t){
   const title = statsPage === 0 ? 'STATISTICS' : 'ACHIEVEMENTS';
   const tw = textW2x(title);
   menuHeader(title);
-  const nav = '< LEFT / RIGHT >  ' + (statsPage + 1) + '/4';
+  const nav = '< LEFT / RIGHT >  ' + (statsPage + 1) + '/' + STATS_PAGES;
   drawText(nav, Math.round((W-textW(nav))/2), 22, P.gry);
 
   if (statsPage === 0) drawStatsPage(); else drawAchievementsPage(statsPage - 1);
@@ -339,6 +341,7 @@ function drawStatsPage(){
 }
 
 const ACH_PER_PAGE = 14;
+const STATS_PAGES = 1 + Math.ceil(ACHIEVEMENTS.length / ACH_PER_PAGE);   // one stats page, then the achievements
 function drawAchievementsPage(page){
   const ids = ACHIEVEMENTS.map(a => a.id);
   const unlocked = unlockedAch.filter(id => ids.includes(id)).length;

@@ -81,7 +81,7 @@ function updateCrates(dt){
   if (menuState === 'game' && !(boss && boss.state === 'warn') && waveState !== 'cleared' && waveState !== 'worldclear'){
     orbTimer -= dt;
     if (orbTimer <= 0){
-      orbTimer = gameMode === 'endless' ? 11 + Math.random() * 5 : 24 + Math.random() * 8;
+      orbTimer = gameMode === 'endless' ? 9 + Math.random() * 4 : 16 + Math.random() * 6;
       spawnOrbital();
     }
   }
@@ -137,7 +137,17 @@ function crateHits(){
   }
   crates = crates.filter(c => c.t < 999);
 }
-// Powerups are tiny Sputniks: a polished sphere with swept-back antennae, tinted by what it carries
+// Powerups are Sputniks drawn like a 2600 sprite: a blocky body in one flat colour whose
+// scanlines alternate with white, a pixel icon cut out of it, and swept-back antennae.
+const SPUTNIK_BODY = ['..XXX..', '.XXXXX.', 'XXXXXXX', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..'];
+const CRATE_ICONS = {
+  blast:  ['X.X', '.X.', 'X.X'],
+  rapid:  ['.XX', 'XX.', '.X.'],
+  shield: ['XXX', 'X.X', '.X.'],
+  repair: ['.X.', 'XXX', '.X.'],
+  slow:   ['XXX', '.X.', 'XXX'],
+  nuke:   ['.X.', 'X.X', '.X.'],
+};
 function drawCrates(t){
   for (const c of crates){
     if (c.state !== 'fly') continue;
@@ -145,25 +155,38 @@ function drawCrates(t){
     const prevA = ctx.globalAlpha;
     const lastPass = c.pass === POWERUP_PASSES - 1;
     const fade = (lastPass && c.t > POWERUP_PASS - 2.5) ? (Math.sin(t * 18) > 0 ? 1 : 0.4) : 1;
-    for (let i = 0; i < c.trail.length; i++){
-      ctx.globalAlpha = prevA * fade * (i + 1) / (c.trail.length + 2) * 0.7;
+    ctx.globalAlpha = prevA * fade;
+    for (let i = 0; i < c.trail.length; i += 2){
       ctx.fillStyle = def.col;
       ctx.fillRect(Math.round(c.trail[i].x), Math.round(c.trail[i].y), 1, 1);
     }
-    ctx.globalAlpha = prevA * fade;
-    const x = Math.round(c.x), y = Math.round(c.y);
+    const x = Math.round(c.x) - 3, y = Math.round(c.y) - 3;
     const back = -c.dir;                                   // antennae sweep away from the direction of travel
-    ctx.fillStyle = P.wht;
-    for (let k = 2; k <= 8; k++){
-      ctx.fillRect(x + back * k, y - Math.round(k * 0.4), 1, 1);
-      ctx.fillRect(x + back * k, y + Math.round(k * 0.4), 1, 1);
+    const flick = Math.floor(t * 8) & 1;                   // scanlines swap colours a few times a second
+    // antennae: black shadow first, then the white lines
+    for (let pass = 0; pass < 2; pass++){
+      ctx.fillStyle = pass ? P.wht : P.blk;
+      const o = pass ? 0 : 1;
+      for (let k = 4; k <= 11; k++){
+        const dy = k >= 8 ? 3 : (k >= 6 ? 2 : 1);
+        ctx.fillRect(x + 3 + back * k + o, y + 3 - dy + o, 1, 1);
+        ctx.fillRect(x + 3 + back * k + o, y + 3 + dy + o, 1, 1);
+      }
     }
-    fillCircle(x, y, 5, P.blk);
-    fillCircle(x, y, 4, def.col);
-    ctx.fillStyle = P.wht;
-    ctx.fillRect(x - 2, y - 2, 2, 1);                      // highlight
-    if (Math.sin(t * 7 + c.sway) > 0.2){ ctx.fillStyle = P.rrd; ctx.fillRect(x + back * 8, y - 3, 1, 1); }
-    drawText(def.letter, x - 1, y - 2, P.blk);
+    // body: shadow, then colour by scanline
+    for (let j = 0; j < 7; j++){
+      for (let i = 0; i < 7; i++) if (SPUTNIK_BODY[j][i] === 'X'){ ctx.fillStyle = P.blk; ctx.fillRect(x + i + 1, y + j + 1, 1, 1); }
+    }
+    for (let j = 0; j < 7; j++){
+      ctx.fillStyle = ((j + flick) & 1) ? P.wht : def.col;
+      for (let i = 0; i < 7; i++) if (SPUTNIK_BODY[j][i] === 'X') ctx.fillRect(x + i, y + j, 1, 1);
+    }
+    const icon = CRATE_ICONS[c.type];
+    if (icon){
+      ctx.fillStyle = P.blk;
+      for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) if (icon[j][i] === 'X') ctx.fillRect(x + 2 + i, y + 2 + j, 1, 1);
+    }
+    if (Math.sin(t * 7 + c.sway) > 0.2){ ctx.fillStyle = P.rrd; ctx.fillRect(x + 3 + back * 11, y + 3 - 3, 1, 1); }
     ctx.globalAlpha = prevA;
   }
 }
