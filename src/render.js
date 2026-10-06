@@ -71,7 +71,7 @@ function drawGameplay(t){
     ctx.fillRect(Math.round(last.x),Math.round(last.y),1,1);
     ctx.globalAlpha = prevA;
   }
-  if(boss){ drawBossBackdrop(); ctx.save(); ctx.translate(0, boss.offY || 0); boss.draw(t); ctx.restore(); }
+  if(boss){ drawBossBackdrop(); ctx.save(); ctx.translate(0, boss.offY || 0); boss.draw(t); ctx.restore(); drawBossMist(t); }
   for(const b of booms)b.draw();
   drawParticles();
   for(const s of shots){
@@ -1096,6 +1096,14 @@ function drawAttract(t, env){
   currentEnv = prevEnv;
 }
 // A small satellite on a lazy loop around the planet
+// Bosses hover in the cloud band: lay the clouds back over them so they read as inside it
+function drawBossMist(t){
+  if (boss.state === 'away') return;
+  const prevA = ctx.globalAlpha;
+  ctx.globalAlpha = prevA * 0.45 * clamp(1 + (boss.offY || 0) / BOSS_AWAY, 0, 1);
+  drawCloudBand(t);
+  ctx.globalAlpha = prevA;
+}
 // Parachute canopy over a chute missile, striped and gently swaying
 function drawCanopy(e, t, alpha){
   const prevA = ctx.globalAlpha;

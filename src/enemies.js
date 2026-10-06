@@ -3,7 +3,12 @@
 const MISSILE_BOOST = 0.35;     // falling missiles end their fall this much faster than they start
 const WIND_DRIFT = 1.1;         // px/s of sideways drift per unit of wind
 const SHIELD_PATTERN = [[1, 1.5], [0, 0.85], [1, 0.6], [0, 0.85]];   // [shield up?, seconds]
-const CHUTE_SLOW = 11;          // descent speed under the canopy
+const CHUTE_SLOW = 11;
+const SHIP_SPEED = 1.5;         // ships (fliers, smart ships and platforms) move this much faster from the start
+const WIND_BOTTOM = 2.5;        // wind strength on the bottom screen, relative to the top
+const BOSS_TEMPO = 1.5;         // bosses attack this much faster
+const BOSS_MISSILE = 1.3;       // and their missiles fall this much faster
+const BOSS_DROP = 62;           // bosses hover this far lower, in the cloud band          // descent speed under the canopy
 // =====================================================================
 //  ENEMY TYPES
 // =====================================================================
@@ -14,7 +19,7 @@ const ETYPES={
   bomber:  { spr:'bomber',  vy:0,  vx:24,  homing:0,    death:'flak',    r:24, pts:100, trailCol:P.gry,  trailDim:P.blk,  passing:true, drops:[0.35,0.5,0.65], lowChance:0.4 },
   gunner:  { spr:'gunner',  vy:0,  vx:18,  homing:0,    death:'burst',    r:22, pts:150, trailCol:P.pnk,  trailDim:P.dmag, passing:true, drops:[0.25,0.4,0.55,0.7,0.85], lowChance:0.4 },
   carrier: { spr:'carrier', vy:0,  vx:14,  homing:0,    death:'nova',     r:40, pts:250, trailCol:P.lpur, trailDim:P.dpur, passing:true, drops:[0.28,0.42,0.56,0.70], dropsHeavy:true, lowChance:0.4 },
-  bandit:  { spr:'bandit',  vy:0,  vx:80,  homing:0,    death:'bandit',   r:30, pts:2000,trailCol:P.mag,  trailDim:P.dmag, passing:true, drops:[], lowChance:0.4 },
+  bandit:  { spr:'bandit',  vy:0,  vx:80,  homing:0,    death:'bandit',   r:30, pts:2000,trailCol:P.mag,  trailDim:P.dmag, passing:true, drops:[], lowChance:0.4, noShipBoost:true },
   splitter:{ spr:'splitter',vy:22, vx:4,   homing:0.55, death:'split',    r:18, pts:40,  trailCol:P.grn,  trailDim:P.dgrn },
   shrapnel:{ spr:'shrapnel',vy:24, vx:6,   homing:0.55, death:'shrapnel', r:16, pts:40,  trailCol:P.mag,  trailDim:P.dmag },
   icbm:    { spr:'icbm',    vy:18, vx:3,   homing:0.85, death:'mirv',     r:24, pts:75,  trailCol:P.org,  trailDim:P.dorg },

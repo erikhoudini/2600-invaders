@@ -8,6 +8,7 @@
 // =====================================================================
 const BOSS_NAMES = ['WARDEN', 'LEVIATHAN', 'CYCLOPS', 'HYDRA', 'ARBITER'];
 const easeOut = u => 1 - (1 - u) * (1 - u);
+const BOSS_AWAY = 170 + BOSS_DROP;       // how far a boss climbs to leave the screen
 
 // Rows of [halfWidth, color, innerHalfWidth, innerColor]: one color per scanline, like a 2600 sprite
 function drawRows(cx, cy, rows, flash){
@@ -96,9 +97,9 @@ function updateBossPlan(){
   }
 }
 function bossOffset(b){
-  if (b.state === 'leave') return -170 * easeOut(clamp(b.moveT / 1.3, 0, 1));
-  if (b.state === 'away') return -170;
-  if (b.state === 'enter') return -170 * (1 - easeOut(clamp(b.moveT / 1.3, 0, 1)));
+  if (b.state === 'leave') return -BOSS_AWAY * easeOut(clamp(b.moveT / 1.3, 0, 1));
+  if (b.state === 'away') return -BOSS_AWAY;
+  if (b.state === 'enter') return -BOSS_AWAY * (1 - easeOut(clamp(b.moveT / 1.3, 0, 1)));
   return 0;
 }
 function updateBoss(dt){
@@ -115,7 +116,9 @@ function updateBoss(dt){
   if (b.state === 'fight'){
     b.offY = 0;
     b.visitT += dt;
-    b.update(dt);
+    bossFiring = true;
+    b.update(dt * BOSS_TEMPO);
+    bossFiring = false;
     const final = b.visit >= BOSS_VISITS.length;
     if (!final && (b.visitT >= b.visitLen || b.barFrac() <= 1 - b.visit / BOSS_VISITS.length + 0.02)){
       b.state = 'leave'; b.moveT = 0;
@@ -131,7 +134,7 @@ function updateBoss(dt){
     for (const p of b.parts) p.wy += b.offY;
     if (b.moveT >= 1.3){
       if (b.state === 'leave'){
-        b.state = 'away'; b.offY = -170; b.awayT = 0;
+        b.state = 'away'; b.offY = -BOSS_AWAY; b.awayT = 0;
         // the retreat leaves a gift
         spawnOrbital();
         const fromLeft = Math.random() < 0.5;
@@ -141,7 +144,7 @@ function updateBoss(dt){
     return;
   }
   if (b.state === 'away'){
-    b.life += dt; b.awayT = (b.awayT || 0) + dt; b.layout(); b.offY = -170;
+    b.life += dt; b.awayT = (b.awayT || 0) + dt; b.layout(); b.offY = -BOSS_AWAY;
     for (const p of b.parts) p.wy += b.offY;
     return;
   }
@@ -248,7 +251,7 @@ function drawBossBackdrop(){
   if (!b) return;
   let k = 0.6 * easeOut(clamp(b.life / 1.4, 0, 1));
   if (b.state === 'dying') k *= Math.max(0, 1 - b.dyingT / (b.deathTime || 2.4));
-  k *= clamp(1 + (b.offY || 0) / 170, 0, 1);
+  k *= clamp(1 + (b.offY || 0) / BOSS_AWAY, 0, 1);
   if (k <= 0.01) return;
   const prevA = ctx.globalAlpha;
   ctx.globalAlpha = k;
@@ -312,7 +315,7 @@ function makeWarden(){
     layout(){
       const intro = easeOut(clamp(this.life / 1.8, 0, 1));
       this.x = 128 + Math.sin(this.life * 0.55) * (62 * intro);
-      this.y = 56 + Math.sin(this.life * 1.1) * 3 - (1 - intro) * 90;
+      this.y = 56 + BOSS_DROP + Math.sin(this.life * 1.1) * 3 - (1 - intro) * 90;
       L.wx = this.x - 46; L.wy = this.y + 13; R.wx = this.x + 46; R.wy = this.y + 13;
       C.wx = this.x; C.wy = this.y - 15;
     },
@@ -386,7 +389,7 @@ function makeLeviathan(){
     deathW: 80, deathH: 24, deathX(){ return head.wx; }, deathY(){ return head.wy; },
     isDead(){ return !head.alive; },
     barFrac(){ let hp = 0; for (const s of segs) if (s.alive) hp += s.hp; if (head.alive) hp += head.hp; return hp / (N * 9 + 30); },
-    posAt(pt){ return { x: 128 + Math.sin(pt * 0.5) * 104, y: 56 + Math.sin(pt * 1.3) * 20 }; },
+    posAt(pt){ return { x: 128 + Math.sin(pt * 0.5) * 104, y: 56 + BOSS_DROP + Math.sin(pt * 1.3) * 20 }; },
     layout(){
       const intro = easeOut(clamp(this.life / 1.8, 0, 1));
       const off = (1 - intro) * 80;
@@ -478,7 +481,7 @@ function makeCyclops(){
     barFrac(){ return E.hp / E.maxhp; },
     layout(){
       const intro = easeOut(clamp(this.life / 1.8, 0, 1));
-      this.x = 128; this.y = 62 - (1 - intro) * 90;
+      this.x = 128; this.y = 62 + BOSS_DROP - (1 - intro) * 90;
       E.wx = this.x; E.wy = this.y;
     },
     pickTargets(n){
@@ -637,11 +640,11 @@ function makeHydra(){
     layout(){
       const intro = easeOut(clamp(this.life / 1.8, 0, 1));
       const off = (1 - intro) * 80;
-      body.wx = 128 + Math.sin(this.life * 0.4) * 14; body.wy = 46 - off;
+      body.wx = 128 + Math.sin(this.life * 0.4) * 14; body.wy = 46 + BOSS_DROP - off;
       for (let i = 0; i < 3; i++){
         const h = heads[i];
         h.wx = body.wx + h.anchor + Math.sin(this.life * 0.8 + i * 2.1) * 22;
-        h.wy = 90 + Math.sin(this.life * 1.1 + i * 1.7) * 12 - off;
+        h.wy = 90 + BOSS_DROP + Math.sin(this.life * 1.1 + i * 1.7) * 12 - off;
       }
     },
     update(dt){
@@ -759,7 +762,7 @@ function makeArbiter(){
       const open = !plates.some(p => p.alive);
       const amp = open ? 70 : 30;
       this.x = 128 + Math.sin(this.life * 0.7) * amp * intro;
-      this.y = 62 + Math.sin(this.life * 1.4) * (open ? 14 : 6) - (1 - intro) * 90;
+      this.y = 62 + BOSS_DROP + Math.sin(this.life * 1.4) * (open ? 14 : 6) - (1 - intro) * 90;
       core.wx = this.x; core.wy = this.y;
       for (const p of plates){
         const a = p.ang + this.life * 0.9;

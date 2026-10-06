@@ -235,6 +235,7 @@ function platformCap(){
   const d = gameMode === 'endless' ? endDiff() : diffWave(wave);
   return d >= (gameMode === 'endless' ? 8 : 12) ? 2 : 1;
 }
+let bossFiring = false;      // set while a boss runs its attacks, so its missiles come out faster
 function spawnEnemy(type,x,y,vx,vy){
   if (type === 'platform' && platformCount() >= platformCap()) type = 'ipbm';
   const T=ETYPES[type];
@@ -256,12 +257,17 @@ function spawnEnemy(type,x,y,vx,vy){
         const d = Math.abs(c.x - x);
         if (d < bestD){ bestD = d; nearest = c; }
       }
-      const fallTime = (GROUND - y) / (T.vy * speedMul * (T.noAccel ? 1 : 1 + MISSILE_BOOST / 2));
+      const fallTime = (GROUND - y) / (T.vy * speedMul * (T.noAccel ? 1 : 1 + MISSILE_BOOST / 2) * (T.dodge ? SHIP_SPEED : 1));
       if (fallTime > 0.3){
         const targetVx = (nearest.x - x) / fallTime;
         vx = (vx === undefined ? T.vx : vx) * (1 - T.homing) + targetVx * T.homing + rnd(-1.4, 1.4);
       }
     }
+  }
+  if (bossFiring && !T.passing && !T.dodge){
+    // scale the whole velocity so a missile aimed at a city still lands on it
+    vx = (vx !== undefined ? vx : T.vx) * BOSS_MISSILE;
+    vy = (vy !== undefined ? vy : T.vy * speedMul) * BOSS_MISSILE;
   }
   enemies.push({
     type,x,y,
@@ -347,14 +353,14 @@ function spawnCluster(pool, dw, forceN, forcePattern){
 
 function typePool(w, env){
   const p=['ipbm','ipbm','ipbm'];
-  if(w>=2){p.push('smart');p.push('scout');}
+  if(w>=2){p.push('smart');p.push('smart');p.push('smart');p.push('scout');}
   if(w>=3){p.push('splitter'); p.push('splitter');}
   if(w>=3){p.push('chute');}
   if(w>=4){p.push('heavy'); p.push('multi');}
-  if(w>=5){p.push('shrapnel'); p.push('bomber'); p.push('platform');}
+  if(w>=5){p.push('shrapnel'); p.push('bomber'); p.push('platform'); p.push('smart'); p.push('smart');}
   if(w>=6){p.push('icbm'); p.push('midsplit');}
   if(w>=7){p.push('scout'); p.push('colbomb');}
-  if(w>=8){p.push('bomber'); p.push('rowbomb'); p.push('gunner'); p.push('chute');}
+  if(w>=8){p.push('bomber'); p.push('rowbomb'); p.push('gunner'); p.push('chute'); p.push('smart'); p.push('smart');}
   if(w>=9){p.push('bandit'); p.push('carrier');}
   if(w>=10){p.push('colbomb'); p.push('rowbomb'); p.push('gunner');}
   if(env && env.favor) for(const f of env.favor){ if(w>=f[1]){ p.push(f[0]); p.push(f[0]); } }
@@ -835,8 +841,11 @@ function update(dt){
     // Falling missiles speed up on the way down, ending the fall MISSILE_BOOST faster
     let k = 1;
     if (falling && !T.ay && !T.noAccel) k += MISSILE_BOOST * clamp((e.y - e.startY) / e.totalFall, 0, 1);
-    if (falling) e.x += windNow * WIND_DRIFT * edt * (e.opened ? 2.2 : 1);
-    e.x += e.vx*edt*k; e.y += e.vy*edt*k;
+    // Wind builds across the gap, and is much stronger on the bottom screen
+    const windK = 1 + (WIND_BOTTOM - 1) * clamp((e.y - SH) / (BOT - SH), 0, 1);
+    if (falling) e.x += windNow * WIND_DRIFT * windK * edt * (e.opened ? 2.2 : 1);
+    const sp = (T.passing || T.dodge) && !T.noShipBoost ? SHIP_SPEED : 1;
+    e.x += e.vx*edt*k*sp; e.y += e.vy*edt*k*sp;
     if (T.fallDrops && e.fallI < T.fallDrops.length && e.y > SH * 0.4 && e.y < GROUND - 70){
       const prog = (e.y - e.startY) / e.totalFall;
       if (prog >= T.fallDrops[e.fallI]){
@@ -948,7 +957,7 @@ function update(dt){
       if(spawnBurstPause > 0){
         spawnBurstPause -= dt;
       } else if(spawnRemaining > 0 && !(boss && (boss.state === 'warn' || boss.state === 'dying'))){
-        spawnTimer -= dt * ((boss && boss.state === 'fight') ? 0.55 : 1);
+        spawnTimer -= dt * ((boss && boss.state === 'fight') ? 0.8 : 1);
         if(spawnTimer <= 0){
           spawnTimer = spawnInterval;
           spawnRemaining--;
