@@ -109,6 +109,8 @@ function drawGameplay(t){
     }
     drawSprite2600(spr,e.x,e.y+wob,cloud);
     const T = ETYPES[e.type];
+    if (e.type === 'chute' && e.opened) drawCanopy(e, t, cloud);
+    if (T.shield) drawPlatformFx(e, t, spr, cloud);
     if (T.splitAt && !e.hasSplit){
       const progress = (e.y - e.startY) / e.totalFall;
       if (progress > T.splitAt - 0.12 && Math.sin(t * 20) > 0){
@@ -1094,6 +1096,46 @@ function drawAttract(t, env){
   currentEnv = prevEnv;
 }
 // A small satellite on a lazy loop around the planet
+// Parachute canopy over a chute missile, striped and gently swaying
+function drawCanopy(e, t, alpha){
+  const prevA = ctx.globalAlpha;
+  ctx.globalAlpha = prevA * alpha;
+  const sway = Math.round(Math.sin(t * 3 + e.wobble) * 1.2);
+  const cx = Math.round(e.x) + sway, top = Math.round(e.y) - 10;
+  const rows = [[2, 5], [1, 7], [0, 9]];
+  for (let r = 0; r < rows.length; r++){
+    const [off, w] = rows[r];
+    for (let i = 0; i < w; i++){
+      ctx.fillStyle = (i + r) % 2 ? P.wht : P.lmag;
+      ctx.fillRect(cx - 4 + off + i, top + r, 1, 1);
+    }
+  }
+  ctx.fillStyle = P.gry;
+  for (let k = 0; k < 4; k++){
+    ctx.fillRect(cx - 4 + Math.round(k * 0.9) + 0, top + 3 + k, 1, 1);
+    ctx.fillRect(cx + 4 - Math.round(k * 0.9) - 0, top + 3 + k, 1, 1);
+  }
+  ctx.globalAlpha = prevA;
+}
+// Platform shield dome (solid while up, blinks just before it drops) and hit flash
+function drawPlatformFx(e, t, spr, alpha){
+  const prevA = ctx.globalAlpha;
+  ctx.globalAlpha = prevA * alpha;
+  if (e.hurt > 0 && Math.sin(t * 50) > 0) drawSprite2600(Object.assign({}, spr, { col: P.wht }), e.x, e.y);
+  const warn = e.shT < 0.3 && Math.sin(t * 30) > 0;
+  if (e.shieldUp || e.shFlash > 0){
+    ctx.fillStyle = e.shFlash > 0 ? P.wht : (warn ? P.lgrn : P.lblu);
+    const x = Math.round(e.x), y = Math.round(e.y);
+    for (let a = 0; a < 6.283; a += 0.16){
+      ctx.fillRect(Math.round(x + Math.cos(a) * 12), Math.round(y + Math.sin(a) * 8), 1, 1);
+    }
+  } else if (Math.sin(t * 10) > 0){
+    ctx.fillStyle = P.yel;                    // shield down: exposed lights
+    ctx.fillRect(Math.round(e.x) - 4, Math.round(e.y) + 2, 1, 1);
+    ctx.fillRect(Math.round(e.x) + 4, Math.round(e.y) + 2, 1, 1);
+  }
+  ctx.globalAlpha = prevA;
+}
 function drawSputnik(t){
   const th = t * 0.45;
   const x = 166 + Math.cos(th) * 84, y = 92 + Math.sin(th) * 24;

@@ -30,7 +30,7 @@ let totalSpawnCount = 0, totalSpawned = 0;
 let speedMul,shake,flashT,gameOverTimer,fireCooldown,warningT;
 let installations,waveBannerT;
 let turretBarrels=[],fadingTrails=[];
-let windPhase=0;
+let windPhase=0, windNow=0;
 let snowPool=[];
 const MAX_SNOW = 30;
 let worldCanvas = null;
@@ -226,14 +226,28 @@ function drawSnowfall(){
   ctx.globalAlpha=prevA;
 }
 
+// Visual only: a Boom would also hit-test against the missile or ship that made it
+function launchSparks(x, y, col){
+  for (let i = 0; i < 6; i++) spawnParticle(x, y, rnd(-26, 26), rnd(-8, 22), rnd(0.2, 0.4), col, 1);
+}
+const platformCount = () => enemies.reduce((n, e) => n + (e.type === 'platform' && !e.dead ? 1 : 0), 0);
+function platformCap(){
+  const d = gameMode === 'endless' ? endDiff() : diffWave(wave);
+  return d >= (gameMode === 'endless' ? 8 : 12) ? 2 : 1;
+}
 function spawnEnemy(type,x,y,vx,vy){
+  if (type === 'platform' && platformCount() >= platformCap()) type = 'ipbm';
   const T=ETYPES[type];
   if(x===undefined){
     const fromLeft=Math.random()<0.5;
     x=fromLeft?-14:W+14;
     vx=(fromLeft?1:-1)*(T.vx+rnd(-2,5));
   }
-  if(y===undefined) y = T.passing ? rndi(30, BOT-40) : rndi(20, BOT-30);
+  if(y===undefined){
+    if (T.lane) y = BOT + rndi(14, 34);                                   // platforms ride just under the clouds
+    else if (T.lowChance && Math.random() < T.lowChance) y = BOT + rndi(10, T.passing ? 95 : 65);   // bottom screen
+    else y = T.passing ? rndi(30, BOT-40) : rndi(20, BOT-30);
+  }
   if (T.homing && !T.passing && vy === undefined && T.vy > 0){
     const alive = installations.filter(i => i.alive);
     if (alive.length > 0){
@@ -242,7 +256,7 @@ function spawnEnemy(type,x,y,vx,vy){
         const d = Math.abs(c.x - x);
         if (d < bestD){ bestD = d; nearest = c; }
       }
-      const fallTime = (GROUND - y) / (T.vy * speedMul);
+      const fallTime = (GROUND - y) / (T.vy * speedMul * (T.noAccel ? 1 : 1 + MISSILE_BOOST / 2));
       if (fallTime > 0.3){
         const targetVx = (nearest.x - x) / fallTime;
         vx = (vx === undefined ? T.vx : vx) * (1 - T.homing) + targetVx * T.homing + rnd(-1.4, 1.4);
@@ -259,9 +273,19 @@ function spawnEnemy(type,x,y,vx,vy){
     dropIndex: 0,
     wobble:Math.random()*6.28,
     hasSplit: false,
+    fallI: 0,
+    opened: false, openT: 0,
+    shI: 0, shT: 0, shieldUp: !!T.shield, shFlash: 0, hurt: 0, hp: T.hp || 1, hitBy: -1,
+    launchT: 1.3 + Math.random() * 0.8,
     startY: y,
     totalFall: Math.max(1, GROUND - y),
   });
+  if (T.shield){
+    const e = enemies[enemies.length - 1];
+    e.shI = rndi(0, SHIELD_PATTERN.length - 1);
+    e.shT = SHIELD_PATTERN[e.shI][1];
+    e.shieldUp = !!SHIELD_PATTERN[e.shI][0];
+  }
 }
 
 const FORMATIONS = ['line','vee','column','diag','block','ring','twin'];
@@ -303,7 +327,7 @@ function pickFormation(dw){
 }
 // Spawns a tight formation and returns how many missiles it holds
 function spawnCluster(pool, dw, forceN, forcePattern){
-  const eligible = pool.filter(t => !ETYPES[t].passing);
+  const eligible = pool.filter(t => !ETYPES[t].passing && !ETYPES[t].noCluster);
   if (eligible.length === 0) return 0;
   dw = dw || 1;
   const pattern = forcePattern || pickFormation(dw);
@@ -325,11 +349,12 @@ function typePool(w, env){
   const p=['ipbm','ipbm','ipbm'];
   if(w>=2){p.push('smart');p.push('scout');}
   if(w>=3){p.push('splitter'); p.push('splitter');}
+  if(w>=3){p.push('chute');}
   if(w>=4){p.push('heavy'); p.push('multi');}
-  if(w>=5){p.push('shrapnel'); p.push('bomber');}
+  if(w>=5){p.push('shrapnel'); p.push('bomber'); p.push('platform');}
   if(w>=6){p.push('icbm'); p.push('midsplit');}
   if(w>=7){p.push('scout'); p.push('colbomb');}
-  if(w>=8){p.push('bomber'); p.push('rowbomb'); p.push('gunner');}
+  if(w>=8){p.push('bomber'); p.push('rowbomb'); p.push('gunner'); p.push('chute');}
   if(w>=9){p.push('bandit'); p.push('carrier');}
   if(w>=10){p.push('colbomb'); p.push('rowbomb'); p.push('gunner');}
   if(env && env.favor) for(const f of env.favor){ if(w>=f[1]){ p.push(f[0]); p.push(f[0]); } }
@@ -499,6 +524,13 @@ function onEnemyKilled(e,outBooms){
         spawnEnemy('mini', ex-8, ey-4, -16, mvy);
         spawnEnemy('mini', ex+8, ey-4,  16, mvy);
       }
+      break;
+    case 'platform':
+      outBooms.push(new Boom(ex,ey,'nova',{r:46,dur:0.9}));
+      outBooms.push(new Boom(ex-12,ey+3,'circle',{r:20,dur:0.5,delay:0.12}));
+      outBooms.push(new Boom(ex+12,ey+3,'circle',{r:20,dur:0.5,delay:0.2}));
+      shake = Math.max(shake, 0.5);
+      sfx('bigbang');
       break;
     case 'midkill': outBooms.push(new Boom(ex,ey,'circle',{r:T.r,dur:0.5})); break;
     case 'shrapnel':
@@ -730,8 +762,9 @@ function update(dt){
   updateParticles(dt);
   for(const ft of fadingTrails)ft.life-=dt;
   fadingTrails=fadingTrails.filter(ft=>ft.life>0);
-  const wind=Math.sin(windPhase*0.3)*4+Math.sin(windPhase*0.9)*1.5;
-  updateSnowfall(dt,wind);
+  // Steady drift plus a slow swell, so the wind changes strength and direction over time
+  windNow = Math.sin(windPhase*0.3)*4 + Math.sin(windPhase*0.9)*1.5 + Math.sin(windPhase*0.11+1.3)*3;
+  updateSnowfall(dt, (windNow + gust * 1.5) * 2.2);
 
   if (gameMode === 'endless') endTime += dt;
   const regenEvery = (boss && boss.state === 'fight') ? 0.2 : (gameMode === 'endless' ? ENDLESS_AMMO_REGEN : 0);
@@ -781,8 +814,55 @@ function update(dt){
     }
     const edt = dt * (fxSlow > 0 ? 0.45 : 1) * (modSwift ? 1.25 : 1);
     if (T.ay) e.vy += T.ay * edt;
-    if (gust && e.vy > 0 && !T.passing) e.vx += gust * edt * 0.5;
-    e.x+=e.vx*edt;e.y+=e.vy*edt;
+    const falling = e.vy > 0 && !T.passing;
+    if (gust && falling) e.vx += gust * edt * 0.6;
+    if (e.type === 'chute'){
+      if (!e.opened && e.y >= CLOUD_TOP){ e.opened = true; e.openT = 0; sfx('crate'); }
+      if (e.opened){
+        e.openT += edt;
+        e.vy += (CHUTE_SLOW * speedMul - e.vy) * Math.min(1, edt * 7);
+        e.vx -= e.vx * Math.min(1, edt * 1.5);
+        if (e.y >= CLOUD_BOTTOM - 4 || e.openT > 5){
+          // The canopy is cut loose and three missiles fan out toward the cities
+          launchSparks(e.x, e.y, P.lmag);
+          for (let i = -1; i <= 1; i++) spawnEnemy('ipbm', e.x + i * 6, e.y + 3, i * 11);
+          sfx('dropHeavy');
+          e.dead = true;
+          continue;
+        }
+      }
+    }
+    // Falling missiles speed up on the way down, ending the fall MISSILE_BOOST faster
+    let k = 1;
+    if (falling && !T.ay && !T.noAccel) k += MISSILE_BOOST * clamp((e.y - e.startY) / e.totalFall, 0, 1);
+    if (falling) e.x += windNow * WIND_DRIFT * edt * (e.opened ? 2.2 : 1);
+    e.x += e.vx*edt*k; e.y += e.vy*edt*k;
+    if (T.fallDrops && e.fallI < T.fallDrops.length && e.y > SH * 0.4 && e.y < GROUND - 70){
+      const prog = (e.y - e.startY) / e.totalFall;
+      if (prog >= T.fallDrops[e.fallI]){
+        e.fallI++;
+        launchSparks(e.x, e.y + 4, P.wht);
+        spawnEnemy('ipbm', e.x, e.y + 5, rnd(-6, 6));
+        sfx('dropHeavy');
+      }
+    }
+    if (T.shield){
+      e.shT -= edt;
+      if (e.shT <= 0){
+        e.shI = (e.shI + 1) % SHIELD_PATTERN.length;
+        e.shT = SHIELD_PATTERN[e.shI][1];
+        e.shieldUp = !!SHIELD_PATTERN[e.shI][0];
+      }
+      if (e.shFlash > 0) e.shFlash = Math.max(0, e.shFlash - dt);
+      if (e.hurt > 0) e.hurt = Math.max(0, e.hurt - dt);
+      e.launchT -= edt;
+      if (e.launchT <= 0 && e.x > 14 && e.x < W - 14){
+        e.launchT = rnd(1.5, 2.5);
+        launchSparks(e.x, e.y + 5, P.yel);
+        spawnEnemy(pick(['ipbm','ipbm','ipbm','smart','mini']), e.x + rnd(-5, 5), e.y + 6, 0);
+        sfx('dropHeavy');
+      }
+    }
     if (e.y > SH && e.vy > 0){
       if (e.x < 16 && e.vx < 0) e.vx = Math.abs(e.vx) * 0.5;
       if (e.x > W - 16 && e.vx > 0) e.vx = -Math.abs(e.vx) * 0.5;
@@ -948,6 +1028,24 @@ function damageCity(inst, ex){
   return false;
 }
 
+const boomHitsEnemy = (b, e) => b.hitTest(e.x, e.y) || (ETYPES[e.type].wide && (b.hitTest(e.x - 7, e.y) || b.hitTest(e.x + 7, e.y)));
+// Returns true when the platform is destroyed. Shield absorbs blasts; each blast counts once.
+function platformHit(e, b){
+  if (e.hitBy === b.id) return false;
+  e.hitBy = b.id;
+  if (e.shieldUp){
+    e.shFlash = 0.25;
+    sfx('shieldHit');
+    for (let i = 0; i < 4; i++) spawnParticle(e.x + rnd(-8, 8), e.y + rnd(-6, 2), rnd(-30, 30), rnd(-30, 10), rnd(0.2, 0.4), P.lblu, 1);
+    return false;
+  }
+  e.hp--;
+  e.hurt = 0.4;
+  sfx('bossHit');
+  for (let i = 0; i < 6; i++) spawnParticle(e.x + rnd(-6, 6), e.y, rnd(-40, 40), rnd(-40, 10), rnd(0.3, 0.6), P.yel, 1);
+  if (e.hp > 0){ e.shI = 0; e.shT = SHIELD_PATTERN[0][1]; e.shieldUp = true; return false; }
+  return true;
+}
 function updateBooms(dt){
   for(const b of booms)b.update(dt);
   const newBooms=[];
@@ -958,7 +1056,10 @@ function updateBooms(dt){
     for(let i=0;i<ec;i++){
       const e = enemies[i];
       if(!e || e.dead) continue;
-      if(b.hitTest(e.x,e.y)){ e.dead=true; onEnemyKilled(e,newBooms); }
+      if(boomHitsEnemy(b,e)){
+        if (ETYPES[e.type].shield && !platformHit(e,b)) continue;
+        e.dead=true; onEnemyKilled(e,newBooms);
+      }
     }
   }
   if(newBooms.length)for(const nb of newBooms)booms.push(nb);

@@ -37,6 +37,7 @@ function drawParticles(){
 // =====================================================================
 let hueCounter=0;
 let blastPal = RAINBOW, blastStyle = 0;
+let boomSeq = 0;
 class Boom{
   constructor(x,y,kind,o){
     o=o||{};this.x=x;this.y=y;this.kind=kind;this.t=0;
@@ -45,7 +46,7 @@ class Boom{
     this.sparksSpawned=false;
     this.intensity=Math.min(3,Math.max(1,Math.round(this.rmax/22)));
     this.mushroomColors = [P.dorg, P.org, P.tan, P.yel, P.wht];
-    this.noBoss = !!o.noBoss; this.hits = null;
+    this.noBoss = !!o.noBoss; this.hits = null; this.id = ++boomSeq;
   }
   get p(){if(this.t<this.delay)return 0;return clamp((this.t-this.delay)/this.dur,0,1);}
   update(dt){

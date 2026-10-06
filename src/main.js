@@ -17,8 +17,14 @@ menuState = 'press';
 let last=performance.now();
 function loop(now){
   let dt=(now-last)/1000;last=now;
-  if(dt>0.05)dt=0.05;
-  update(dt);
+  // Long frames are played out in small steps, so the game keeps its speed below 20 fps
+  // (and a hidden tab doesn't fast-forward the game when it comes back)
+  let rem = Math.min(dt, 0.25);
+  while (rem > 1e-4){
+    const step = Math.min(rem, 0.05);
+    update(step);
+    rem -= step;
+  }
   render();
   requestAnimationFrame(loop);
 }

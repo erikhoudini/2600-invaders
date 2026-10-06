@@ -101,7 +101,7 @@ function continueRun(){
   roundBest = sv.roundBest; waveBonus = sv.waveBonus; nextBonusCityAt = sv.nextBonusCityAt;
   orbTimer = sv.orbTimer; worldCityLoss = sv.worldCityLoss || 0;
   fxBlast = sv.fx[0]; fxRapid = sv.fx[1]; fxShield = sv.fx[2]; fxSlow = sv.fx[3];
-  enemies = sv.enemies; crates = sv.crates;
+  enemies = sv.enemies; crates = (sv.crates || []).filter(c => c.state);
   bossSpawned = !!sv.bossSpawned; themeFormation = sv.themeFormation || null;
   runStats = sv.runStats;
   boss = null;

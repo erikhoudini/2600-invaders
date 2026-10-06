@@ -1,16 +1,20 @@
 'use strict';
 // Enemy types
+const MISSILE_BOOST = 0.35;     // falling missiles end their fall this much faster than they start
+const WIND_DRIFT = 1.1;         // px/s of sideways drift per unit of wind
+const SHIELD_PATTERN = [[1, 1.5], [0, 0.85], [1, 0.6], [0, 0.85]];   // [shield up?, seconds]
+const CHUTE_SLOW = 11;          // descent speed under the canopy
 // =====================================================================
 //  ENEMY TYPES
 // =====================================================================
 const ETYPES={
   ipbm:    { spr:'ipbm',    vy:20, vx:8,   homing:0.70, death:'blast',    r:20, pts:25,  trailCol:P.red,  trailDim:P.dred },
-  smart:   { spr:'smart',   vy:16, vx:20,  homing:0.95, death:'smartkill',r:26, pts:50,  trailCol:P.lblu, trailDim:P.dblu, dodge:true },
-  scout:   { spr:'scout',   vy:0,  vx:60,  homing:0,    death:'xblast',    r:14, pts:60,  trailCol:P.grn,  trailDim:P.dgrn, passing:true, drops:[0.5] },
-  bomber:  { spr:'bomber',  vy:0,  vx:24,  homing:0,    death:'flak',    r:24, pts:100, trailCol:P.gry,  trailDim:P.blk,  passing:true, drops:[0.35,0.5,0.65] },
-  gunner:  { spr:'gunner',  vy:0,  vx:18,  homing:0,    death:'burst',    r:22, pts:150, trailCol:P.pnk,  trailDim:P.dmag, passing:true, drops:[0.25,0.4,0.55,0.7,0.85] },
-  carrier: { spr:'carrier', vy:0,  vx:14,  homing:0,    death:'nova',     r:40, pts:250, trailCol:P.lpur, trailDim:P.dpur, passing:true, drops:[0.28,0.42,0.56,0.70], dropsHeavy:true },
-  bandit:  { spr:'bandit',  vy:0,  vx:80,  homing:0,    death:'bandit',   r:30, pts:2000,trailCol:P.mag,  trailDim:P.dmag, passing:true, drops:[] },
+  smart:   { spr:'smart',   vy:16, vx:20,  homing:0.95, death:'smartkill',r:26, pts:50,  trailCol:P.lblu, trailDim:P.dblu, dodge:true, fallDrops:[0.3,0.62], lowChance:0.35 },
+  scout:   { spr:'scout',   vy:0,  vx:60,  homing:0,    death:'xblast',    r:14, pts:60,  trailCol:P.grn,  trailDim:P.dgrn, passing:true, drops:[0.3,0.7], lowChance:0.4 },
+  bomber:  { spr:'bomber',  vy:0,  vx:24,  homing:0,    death:'flak',    r:24, pts:100, trailCol:P.gry,  trailDim:P.blk,  passing:true, drops:[0.35,0.5,0.65], lowChance:0.4 },
+  gunner:  { spr:'gunner',  vy:0,  vx:18,  homing:0,    death:'burst',    r:22, pts:150, trailCol:P.pnk,  trailDim:P.dmag, passing:true, drops:[0.25,0.4,0.55,0.7,0.85], lowChance:0.4 },
+  carrier: { spr:'carrier', vy:0,  vx:14,  homing:0,    death:'nova',     r:40, pts:250, trailCol:P.lpur, trailDim:P.dpur, passing:true, drops:[0.28,0.42,0.56,0.70], dropsHeavy:true, lowChance:0.4 },
+  bandit:  { spr:'bandit',  vy:0,  vx:80,  homing:0,    death:'bandit',   r:30, pts:2000,trailCol:P.mag,  trailDim:P.dmag, passing:true, drops:[], lowChance:0.4 },
   splitter:{ spr:'splitter',vy:22, vx:4,   homing:0.55, death:'split',    r:18, pts:40,  trailCol:P.grn,  trailDim:P.dgrn },
   shrapnel:{ spr:'shrapnel',vy:24, vx:6,   homing:0.55, death:'shrapnel', r:16, pts:40,  trailCol:P.mag,  trailDim:P.dmag },
   icbm:    { spr:'icbm',    vy:18, vx:3,   homing:0.85, death:'mirv',     r:24, pts:75,  trailCol:P.org,  trailDim:P.dorg },
@@ -24,5 +28,9 @@ const ETYPES={
   meteor:  { spr:'meteor',  vy:55, vx:0,   homing:0,    death:'flash',    r:10, pts:20,  trailCol:P.wht,  trailDim:P.gry },
   lava:    { spr:'lava',    vy:0,  vx:0,   homing:0,    death:'blast',    r:16, pts:45,  trailCol:P.yel,  trailDim:P.dorg, ay:95 },
   shard:   { spr:'shard',   vy:0,  vx:0,   homing:0,    death:'flash',    r:11, pts:30,  trailCol:P.wht,  trailDim:P.lblu, ay:72 },
+  // Parachute: drops fast above the clouds, then slows under a canopy and splits into three missiles
+  chute:   { spr:'chute',   vy:72, vx:0,   homing:0,    death:'blast',    r:18, pts:90,  trailCol:P.lmag, trailDim:P.dmag, noAccel:true, noCluster:true },
+  // Orbital platform: rides in below the clouds behind a pulsing shield and launches missiles
+  platform:{ spr:'platform',vy:0,  vx:15,  homing:0,    death:'platform', r:26, pts:400, trailCol:P.lpur, trailDim:P.dpur, passing:true, shield:true, hp:2, lane:true, wide:true },
   boulder: { spr:'boulder', vy:24, vx:0,   homing:0,    death:'boulder',  r:20, pts:80,  trailCol:P.gry,  trailDim:P.blk },
 };
