@@ -18,6 +18,8 @@ function render(){
     ctx.save(); ctx.translate(0, BOT);
     if (menuState === 'press') drawPressBottom(t); else drawBriefBottom(t);
     ctx.restore();
+  } else if (menuState === 'gallery'){
+    drawGallery(t);
   } else {
     const env = menuEnv();
     drawMenuBackdrop(t, env);
@@ -114,6 +116,7 @@ function drawGameplay(t){
     drawSprite2600(spr,e.x,e.y+wob,cloud);
     const T = ETYPES[e.type];
     if (e.type === 'chute' && e.opened) drawCanopy(e, t, cloud);
+    if (e.type === 'satellite') drawSatelliteFx(e, t);
     if (T.shield) drawPlatformFx(e, t, spr, cloud);
     if (T.splitAt && !e.hasSplit){
       const progress = (e.y - e.startY) / e.totalFall;
@@ -1111,6 +1114,21 @@ function drawBossMist(t){
   ctx.globalAlpha = prevA * 0.45 * clamp(1 + (boss.offY || 0) / BOSS_AWAY, 0, 1);
   drawCloudBand(t);
   ctx.globalAlpha = prevA;
+}
+// A satellite glitters so it can't be mistaken for anything else: a blinking lamp, a pulsing halo
+// and sparks trailing behind it
+function drawSatelliteFx(e, t){
+  const x = Math.round(e.x), y = Math.round(e.y + Math.sin(e.wobble) * 0.5);
+  const lamp = Math.sin(t * 18) > 0;
+  ctx.fillStyle = lamp ? P.wht : P.rrd; ctx.fillRect(x, y - 4, 1, 1);
+  const r = 11 + Math.floor(Math.sin(t * 9) * 1.5);
+  ctx.fillStyle = P.yel;
+  for (let k = 0; k < 14; k++){
+    const a = k / 14 * Math.PI * 2 + t * 2;
+    if (k % 2) continue;
+    ctx.fillRect(Math.round(x + Math.cos(a) * r), Math.round(y + Math.sin(a) * r * 0.6), 1, 1);
+  }
+  if (Math.random() < 0.6) spawnParticle(x - Math.sign(e.vx) * 7, y + rnd(-3, 3), -e.vx * 0.1, rnd(-8, 8), 0.35, pick([P.yel, P.wht, P.org]), 1);
 }
 // Parachute canopy over a chute missile, striped and gently swaying
 function drawCanopy(e, t, alpha){

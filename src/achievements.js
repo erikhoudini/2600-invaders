@@ -57,6 +57,9 @@ const ACHIEVEMENTS = [
   { id:'fb3',     name:'CLEAN KILLS',    desc:'Beat 3 bosses, no losses', test:(s,c)=>c.flawBoss>=3, reward:['blast',4] },
   { id:'rush5',   name:'RUSH HOUR',      desc:'Down 5 bosses in Boss Rush',  test:(s)=>(s.bestRush||0)>=5, reward:['blast',5] },
   // -- powerups
+  // -- gallery
+  { id:'g6',     name:'ART LOVER',      desc:'Unlock 6 gallery posters',    test:()=>galleryUnlocked.length>=6 },
+  { id:'g12',    name:'CURATOR',        desc:'Unlock all 12 posters',       test:()=>galleryUnlocked.length>=POSTERS.length },
   { id:'cr15',    name:'ORBIT RAT',      desc:'Collect 15 powerups',         test:(s)=>s.cratesCollected>=15 },
   { id:'cr60',    name:'HOARDER',        desc:'Collect 60 powerups',         test:(s)=>s.cratesCollected>=60, reward:['city',5] },
 ];

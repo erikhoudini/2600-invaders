@@ -125,13 +125,13 @@ function drawMenuTop(t, env){
 //  Every screen is built from the DS UI kit in ui.js: bevelled touch buttons, a header, a footer
 //  with the button legend, and hit regions registered as they are drawn.
 // =====================================================================
-const MENU_BASE = ['CAMPAIGN', 'ENDLESS', 'LOADOUT', 'STATISTICS', 'HIGH SCORES', 'OPTIONS', 'BOSS RUSH'];
+const MENU_BASE = ['CAMPAIGN', 'ENDLESS', 'LOADOUT', 'STATISTICS', 'HIGH SCORES', 'OPTIONS', 'BOSS RUSH', 'GALLERY'];
 function menuItems(){
   const a = [];
   if (saveData) a.push('CONTINUE');
   a.push('CAMPAIGN', 'ENDLESS');
   if (rushUnlocked()) a.push('BOSS RUSH');
-  a.push('LOADOUT', 'STATISTICS', 'HIGH SCORES', 'OPTIONS');
+  a.push('LOADOUT', 'GALLERY', 'STATISTICS', 'HIGH SCORES', 'OPTIONS');
   return a;
 }
 function menuDetail(label){
@@ -139,6 +139,7 @@ function menuDetail(label){
   if (label === 'CAMPAIGN'){ const n = camp.clears.filter(c => c > 0).length; return n + '/5 HELD'; }
   if (label === 'ENDLESS'){ return stats.bestTime > 0 ? formatTime(stats.bestTime).slice(0, 5) : ''; }
   if (label === 'BOSS RUSH'){ return stats.bestRush > 0 ? ('BEST ' + stats.bestRush) : ''; }
+  if (label === 'GALLERY'){ return galleryUnlocked.length + '/' + POSTERS.length; }
   if (label === 'STATISTICS'){ return unlockedAch.length + '/' + ACHIEVEMENTS.length; }
   if (label === 'HIGH SCORES'){ const b = Math.max(stats.bestScoreWave || 0, stats.bestScoreEndless || 0); return b > 0 ? String(b) : ''; }
   return '';

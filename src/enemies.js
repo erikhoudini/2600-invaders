@@ -36,6 +36,8 @@ const ETYPES={
   meteor:  { spr:'meteor',  vy:55, vx:0,   homing:0,    death:'flash',    r:10, pts:20,  trailCol:P.wht,  trailDim:P.gry },
   lava:    { spr:'lava',    vy:0,  vx:0,   homing:0,    death:'blast',    r:16, pts:45,  trailCol:P.yel,  trailDim:P.dorg, ay:95 },
   shard:   { spr:'shard',   vy:0,  vx:0,   homing:0,    death:'flash',    r:11, pts:30,  trailCol:P.wht,  trailDim:P.lblu, ay:72 },
+  // Satellite: rare and very fast; the one that carries a gallery poster
+  satellite:{ spr:'satellite', vy:0, vx:150, homing:0, death:'sat', r:18, pts:1500, trailCol:P.yel, trailDim:P.org, passing:true, noShipBoost:true, wide:true, bob:9 },
   // Aegis: an ordinary missile in a shield that pulses on the platforms' timing; shoot it while the shield is down
   aegis:   { spr:'aegis',   vy:21, vx:6,   homing:0.7,  death:'blast',    r:20, pts:140, trailCol:P.lblu, trailDim:P.dblu, shield:true, hp:1, shieldR:[7, 8], noCluster:true },
   // Parachute: drops fast above the clouds, then slows under a canopy and splits into three missiles

@@ -151,6 +151,7 @@ function activateTitleItem(i){
   else if (label === 'ENDLESS') startGame('endless', 0);
   else if (label === 'BOSS RUSH') startGame('rush', 0);
   else if (label === 'LOADOUT') openLoadout();
+  else if (label === 'GALLERY') openGallery();
   else if (label === 'STATISTICS'){ menuState = 'stats'; statsPage = 0; sfx('select'); }
   else if (label === 'HIGH SCORES'){ menuState = 'scores'; scoresMode = 'wave'; sfx('select'); }
   else if (label === 'OPTIONS'){ menuState = 'options'; optionsSelection = 0; optionsConfirm = -1; optFromPause = false; sfx('select'); }
@@ -184,6 +185,8 @@ function onPress(code){
     if (code === 'Enter' || code === 'Space') activateTitleItem(menuSelection);
     return;
   }
+
+  if (menuState === 'gallery'){ galKey(code); return; }
 
   if (menuState === 'loadout'){
     const n = loadCount(loadTab);
@@ -289,6 +292,12 @@ cvs.addEventListener('pointerdown',ev=>{
   }
 
   if (menuState === 'press' || menuState === 'briefing'){ if (p.y >= BOT){ uiStylus(p.x, p.y); introAdvance(); } return; }
+  if (menuState === 'gallery'){
+    uiStylus(p.x, p.y);
+    const hit = p.y >= BOT && uiTap(p.x, p.y - BOT);
+    if (!hit) galPointerDown(p);                      // otherwise it is a drag, a swipe or a double tap
+    return;
+  }
   // Every menu lives on the bottom screen; its buttons registered their own hit regions while drawing
   if (p.y < BOT) return;
   uiStylus(p.x, p.y);
@@ -296,6 +305,7 @@ cvs.addEventListener('pointerdown',ev=>{
 });
 cvs.addEventListener('pointermove',ev=>{
   if(!pointerDown) return;
+  if (menuState === 'gallery'){ ev.preventDefault(); galPointerMove(canvasPos(ev)); return; }
   if (menuState !== 'game' || paused) return;
   ev.preventDefault();
   const p = canvasPos(ev);
@@ -304,6 +314,6 @@ cvs.addEventListener('pointermove',ev=>{
   if(y>SH-4&&y<BOT+4)y=(y<(SH+BOT)/2)?SH-5:BOT+5;
   aim.y=clamp(y,5,H-6);
 });
-cvs.addEventListener('pointerup',()=>{pointerDown=false;});
+cvs.addEventListener('pointerup',ev=>{ pointerDown=false; if (menuState === 'gallery') galPointerUp(canvasPos(ev)); });
 cvs.addEventListener('pointercancel',()=>{pointerDown=false;});
 cvs.addEventListener('contextmenu',e=>e.preventDefault());

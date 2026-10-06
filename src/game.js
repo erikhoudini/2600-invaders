@@ -186,7 +186,7 @@ function resetGame(){
   _cachedComboTier = null;
   boss = null;
   crates = []; fxBlast = 0; fxRapid = 0; fxShield = 0; fxSlow = 0;
-  resetHazards();
+  resetHazards(); resetSatellites();
   installations=[
     {x:12,size:8,alive:true},{x:68,size:9,alive:true},{x:98,size:9,alive:true},
     {x:158,size:9,alive:true},{x:188,size:9,alive:true},{x:244,size:8,alive:true},
@@ -469,6 +469,7 @@ function onEnemyKilled(e,outBooms){
   runStats.kills++;
   stats.totalKills++;
   maybeDropCrate(e, T);
+  if (e.poster !== undefined) unlockPoster(e.poster);
   const now = performance.now() / 1000;
   const momentum = (now - lastKillAt) < 0.35;
   lastKillAt = now;
@@ -549,6 +550,12 @@ function onEnemyKilled(e,outBooms){
         spawnEnemy('mini', ex-8, ey-4, -16, mvy);
         spawnEnemy('mini', ex+8, ey-4,  16, mvy);
       }
+      break;
+    case 'sat':
+      outBooms.push(new Boom(ex,ey,'nova',{r:40,dur:0.8}));
+      outBooms.push(new Boom(ex,ey,'ring',{r:70,dur:1.1,delay:0.08}));
+      for (let i = 0; i < 16; i++) spawnParticle(ex, ey, rnd(-90, 90), rnd(-90, 60), rnd(0.5, 1.2), pick([P.yel, P.wht, P.org, P.lblu]), 2);
+      shake = Math.max(shake, 0.4);
       break;
     case 'platform':
       outBooms.push(new Boom(ex,ey,'nova',{r:46,dur:0.9}));
@@ -875,6 +882,7 @@ function update(dt){
     if (falling) e.x += windNow * WIND_DRIFT * windK * edt * (e.opened ? 2.2 : 1);
     const sp = speedOf(T);
     e.x += e.vx*edt*k*sp; e.y += e.vy*edt*k*sp;
+    if (T.bob) e.y = e.startY + Math.sin(e.wobble * 1.4) * T.bob;      // satellites ride a gentle wave
     if (T.fallDrops && e.fallI < T.fallDrops.length && e.y > SH * 0.4 && e.y < GROUND - 70){
       const prog = (e.y - e.startY) / e.totalFall;
       if (prog >= T.fallDrops[e.fallI]){
@@ -977,7 +985,7 @@ function update(dt){
   }
   enemies=enemies.filter(e=>!e.dead);
   updateBooms(dt);updatePopups(dt);
-  crateHits(); updateCrates(dt); updateHazards(dt);
+  crateHits(); updateCrates(dt); updateHazards(dt); updateSatellites(dt);
   if(boss){ bossBoomHits(); if(boss) updateBoss(dt); if(menuState!=='game') return; }
   if(comboTimer>0){
     comboTimer-=dt;

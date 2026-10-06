@@ -12,6 +12,7 @@ function cycleOption(idx){
     unlockedAch = [];
     camp = sanitizeCamp({});
     loadout = Object.assign({}, DEFAULT_LOADOUT, { mods: [] });
+    resetGallery();
     applyLoadout();
     saveStats(); saveAch(); saveCamp(); saveLoadout();
     pushToast('PROGRESS CLEARED', P.red);
