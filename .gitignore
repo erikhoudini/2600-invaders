@@ -1,26 +1,17 @@
-```
-# Build artifacts
-*.o
-*.obj
-*.out
-build/
+# Build output
 dist/
 
 # Dependencies
-.libs/
-deps/
+node_modules/
 
-# Temp files
+# Logs and temp files
+*.log
 *.tmp
 *.swp
 
-# Logs
-*.log
-
 # Environment
 .env
-.env.local
-*.env.*
+.env.*
 
 # Editors
 .vscode/
@@ -29,28 +20,3 @@ deps/
 # OS specific
 .DS_Store
 Thumbs.db
-
-# Compression artifacts
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
-```

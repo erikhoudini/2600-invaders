@@ -1,0 +1,11 @@
+{
+  "name": "strela-10",
+  "version": "5.0.0",
+  "description": "STRELA-10: Soviet Orbital Strike Force. A dual-screen canvas missile-defense game in the style of the Atari 2600.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "build": "node build.mjs"
+  }
+}
