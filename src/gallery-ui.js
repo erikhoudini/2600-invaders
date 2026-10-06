@@ -14,7 +14,11 @@ UI_ICONS.zoom = ['0111000', '1000100', '1000100', '1000100', '0111010', '0000101
 function galImg(i, kind){
   const k = i + kind;
   let im = galImgs[k];
-  if (!im){ im = galImgs[k] = new Image(); im.src = 'assets/gallery/p' + String(i + 1).padStart(2, '0') + '-' + kind + '.png'; }
+  if (!im){
+    const key = 'p' + String(i + 1).padStart(2, '0') + '-' + kind;
+    im = galImgs[k] = new Image();
+    im.src = (typeof GALLERY_DATA !== 'undefined' && GALLERY_DATA[key]) || 'assets/gallery/' + key + '.png';   // GALLERY_DATA exists in the single-file build
+  }
   return im.complete && im.naturalWidth ? im : null;
 }
 function openGallery(){
