@@ -169,55 +169,48 @@ function activateLoad(i){
   saveLoadout();
 }
 
+function loadSelectTab(i){
+  if (loadTab === i) return;
+  loadTab = i; loadSel = i < 4 ? loadout[LOAD_CATS[i]] : 0; sfx('move');
+}
 function drawLoadoutScreen(t){
-  const title = 'LOADOUT';
-  const tw = textW2x(title);
-  menuHeader(title);
+  uiHeader('LOADOUT', { shoulders: [() => loadMoveTab(-1), () => loadMoveTab(1)] });
+  // tabs
   for (let i = 0; i < LOAD_TABS.length; i++){
-    const x = 4 + i * 50, y = 22;
-    const sel = loadTab === i;
-    ctx.fillStyle = sel ? P.yel : P.dblu;
-    ctx.fillRect(x, y, 48, 12);
-    ctx.fillStyle = P.blk;
-    ctx.fillRect(x + 1, y + 1, 46, 10);
+    const x = 3 + i * 51, y = 24, w = 49, sel = loadTab === i;
+    const c = sel ? UI_SELECT : UI_NORMAL;
+    uiPlate(x, y, w, 13, c[0], c[1], c[2], c[3]);
     const s = LOAD_TABS[i];
-    drawText(s, x + Math.round((48 - textW(s)) / 2), y + 4, sel ? P.yel : P.gry);
+    drawText(s, x + Math.round((w - textW(s)) / 2), y + 4, sel ? P.yel : P.wht);
+    uiHit(x, y, w, 13, () => loadSelectTab(i));
   }
   const n = loadCount(loadTab);
   for (let i = 0; i < n; i++){
-    const y = LOAD_Y0 + i * LOAD_STEP;
-    const sel = loadSel === i;
-    const open = loadUnlocked(loadTab, i);
-    const eq = loadEquipped(loadTab, i);
-    if (sel){
-      ctx.fillStyle = P.blk; ctx.fillRect(0, y - 3, W, 13);
-      ctx.fillStyle = Math.sin(t * 8) > -0.3 ? P.wht : P.yel;
-      ctx.fillRect(0, y - 3, W, 1); ctx.fillRect(0, y + 9, W, 1);
-    }
+    const y = 41 + i * 15, sel = loadSel === i;
+    const open = loadUnlocked(loadTab, i), eq = loadEquipped(loadTab, i);
     const name = loadTab === 4 ? MODS[i].name : LOAD_LISTS[loadTab][i];
-    drawText(name, 12, y + 1, !open ? P.blu : (sel ? P.wht : P.gry));
-    let st = '', stc = P.gry;
-    if (!open){ st = 'LOCKED'; stc = P.blu; }
+    let st = '', stc;
+    if (!open){ st = 'LOCKED'; }
     else if (loadTab === 4){ st = (eq ? 'ON  ' : 'OFF ') + 'X+' + Math.round(MODS[i].bonus * 100) + '%'; stc = eq ? P.lgrn : P.gry; }
     else if (eq){ st = 'EQUIPPED'; stc = P.lgrn; }
-    drawText(st, W - 8 - textW(st), y + 1, stc);
+    uiButton(6, y, W - 12, 13, name, { sel, dim: !open, icon: !open ? 'lock' : (eq ? 'check' : null), detail: st, dcol: stc, slide: uiAnim('l' + i, sel ? 1 : 0), fn: () => activateLoad(i) });
   }
-  // footer line: unlock hint, mod text, or the score multiplier
-  let foot = '', fc = P.gry;
+  // message line: unlock hint, mod text, or the score multiplier
+  let foot = '', fc = P.lblu;
   if (loadTab === 4){
     const m = MODS[loadSel];
-    if (modUnlocked(m)){ foot = m.desc; fc = P.lblu; }
-    else { foot = 'CLEAR ' + WORLDS[m.unlock].name + ' TO UNLOCK'; fc = P.lblu; }
+    foot = modUnlocked(m) ? m.desc : 'CLEAR ' + WORLDS[m.unlock].name + ' TO UNLOCK';
     const mult = 'SCORE X' + modMult(loadout.mods.filter(id => modUnlocked(MODS.find(x => x.id === id)))).toFixed(2);
-    drawText(mult, Math.round((W - textW(mult)) / 2), 166, P.yel);
+    drawText(mult, Math.round((W - textW(mult)) / 2), 152, P.yel);
   } else if (!loadUnlocked(loadTab, loadSel)){
     const a = rewardAch(LOAD_CATS[loadTab], loadSel);
     foot = a ? ('EARN ' + a.name + ': ' + a.desc) : 'LOCKED';
-    fc = P.lblu;
   }
-  if (foot) drawText(foot.toUpperCase(), Math.round((W - textW(foot)) / 2), 154, fc);
-  const hint = 'LEFT/RIGHT TAB  ENTER  ESC';
-  drawText(hint, Math.round((W-textW(hint))/2), SH-10, P.gry);
+  if (foot){
+    uiPlate(6, 160, W - 12, 13, P.blk, null, null, P.dblu);
+    drawText(foot.toUpperCase(), Math.round((W - textW(foot)) / 2), 164, fc);
+  }
+  uiFooter([['L', 'TAB'], ['R', 'TAB'], ['A', 'EQUIP']], () => goToTitle(2));
 }
 
 // ---- Live preview on the top screen ---------------------------------

@@ -32,13 +32,30 @@ function drawPauseOverlay(t){
   ctx.globalAlpha = 0.72; ctx.fillStyle = P.blk;
   ctx.fillRect(0, 0, W, SH); ctx.fillRect(0, BOT, W, SH);
   ctx.globalAlpha = 1;
+  // top screen: status banner
   const s1 = 'PAUSED';
-  drawText2x(s1, Math.round((W - textW2x(s1)) / 2), 88, P.yel);
+  uiPlate(64, 70, 128, 46, P.blk, null, null, P.yel);
+  drawText2x(s1, Math.round((W - textW2x(s1)) / 2) + 1, 79, P.dred);
+  drawText2x(s1, Math.round((W - textW2x(s1)) / 2), 78, P.yel);
+  const st = gameMode === 'wave' ? 'WAVE ' + formatWave(wave) : (gameMode === 'rush' ? 'BOSS RUSH' : 'ENDLESS ' + formatTime(endTime).slice(0, 5));
+  drawText(st, Math.round((W - textW(st)) / 2), 99, P.lblu);
+  const sc = 'SCORE ' + String(score).padStart(6, '0');
+  drawText(sc, Math.round((W - textW(sc)) / 2), 106, P.gry);
+  // bottom screen: a dialog window with the choices
   ctx.save(); ctx.translate(0, BOT);
   const items = pauseItems();
-  for (let i = 0; i < items.length; i++) drawRowBtn(items[i], PAUSE_Y0 + i * PAUSE_STEP, pauseSel === i, t);
-  const hint = gameMode === 'wave' ? 'SAVE KEEPS THIS WAVE' : 'ESC TO RESUME';
-  drawText(hint, Math.round((W - textW(hint)) / 2), SH - 14, P.gry);
+  const wx = 24, wy = 14, ww = W - 48, wh = 18 + items.length * 28 + 22;
+  uiPlate(wx, wy, ww, wh, P.blk, null, null, P.yel);
+  ctx.fillStyle = P.rrd; ctx.fillRect(wx + 1, wy + 1, ww - 2, 14);
+  ctx.fillStyle = P.dred; ctx.fillRect(wx + 1, wy + 14, ww - 2, 2);
+  drawStar(wx + 5, wy + 4, P.yel);
+  drawText('PAUSE MENU', wx + 16, wy + 6, P.yel);
+  for (let i = 0; i < items.length; i++){
+    uiButton(wx + 8, wy + 22 + i * 28, ww - 16, 24, items[i], { sel: pauseSel === i, scale: 2, align: 'center', slide: uiAnim('p' + i, pauseSel === i ? 1 : 0), fn: () => { pauseSel = i; activatePause(i); } });
+  }
+  const hint = gameMode === 'wave' ? 'SAVE KEEPS THIS WAVE' : 'PROGRESS IS NOT SAVED';
+  drawText(hint, Math.round((W - textW(hint)) / 2), wy + wh - 11, P.gry);
+  uiFooter([['DPAD', 'MOVE'], ['A', 'SELECT'], ['B', 'RESUME']]);
   ctx.restore();
 }
 function activatePause(i){
@@ -250,7 +267,6 @@ function canvasPos(ev){
   const r=cvs.getBoundingClientRect();
   return {x:(ev.clientX-r.left)/r.width*W, y:(ev.clientY-r.top)/r.height*H};
 }
-const nearRow = (py, y) => Math.abs(py - (y + 5)) < 13;
 
 cvs.addEventListener('pointerdown',ev=>{
   audioInit();ev.preventDefault();cvs.setPointerCapture(ev.pointerId);pointerDown=true;
@@ -259,10 +275,8 @@ cvs.addEventListener('pointerdown',ev=>{
   if (menuState === 'game'){
     const pb = PAUSE_BTN;
     if (paused){
-      const ly = p.y - BOT, n = pauseItems().length;
-      for (let i = 0; i < n; i++){
-        if (nearRow(ly, PAUSE_Y0 + i * PAUSE_STEP)){ pauseSel = i; activatePause(i); return; }
-      }
+      uiStylus(p.x, p.y);
+      if (p.y >= BOT) uiTap(p.x, p.y - BOT);
       return;
     }
     if (p.x >= pb.x - 4 && p.x < pb.x + pb.w + 4 && p.y >= pb.y - 2 && p.y < pb.y + pb.h + 4){ setPaused(true); return; }
@@ -274,86 +288,11 @@ cvs.addEventListener('pointerdown',ev=>{
     return;
   }
 
-  if (menuState === 'press' || menuState === 'briefing'){ if (canvasPos(ev).y >= BOT) introAdvance(); return; }
-  // Every menu is on the bottom screen, so convert to its local coordinates
-  p.y -= BOT;
-  if (p.y < 0) return;
-
-  if (menuState === 'title'){
-    const items = menuItems(), st = menuStep(items.length), yy0 = menuY0(items.length);
-    for (let i=0;i<items.length;i++){
-      if (Math.abs(p.y - (yy0 + i*st + 5)) < st / 2){
-        menuSelection = i;
-        activateTitleItem(i);
-        return;
-      }
-    }
-    return;
-  }
-  if (menuState === 'loadout'){
-    if (p.y > SH - 22){ goToTitle(2); return; }
-    if (p.y >= 20 && p.y < 36){
-      for (let i = 0; i < LOAD_TABS.length; i++){
-        const x = 4 + i * 50;
-        if (p.x >= x && p.x < x + 48){ if (loadTab !== i){ loadTab = i - 0; loadMoveTab(0); loadTab = i; loadSel = i < 4 ? loadout[LOAD_CATS[i]] : 0; } return; }
-      }
-      return;
-    }
-    const n = loadCount(loadTab);
-    for (let i = 0; i < n; i++){
-      const y = LOAD_Y0 + i * LOAD_STEP;
-      if (p.y >= y - 3 && p.y < y + 12){ activateLoad(i); return; }
-    }
-    return;
-  }
-  if (menuState === 'deploy'){
-    if (p.y > SH - 22){ goToTitle(deployMode === 'wave' ? 0 : 1); return; }
-    for (let i = 0; i < WORLDS.length; i++){
-      const y = DEPLOY_Y0 + i * DEPLOY_STEP;
-      if (p.y >= y - 3 && p.y < y + 22){
-        if (deploySel === i) activateDeploy(i);
-        else { deploySel = i; sfx('move'); }
-        return;
-      }
-    }
-    return;
-  }
-  if (menuState === 'scores'){
-    if (p.y < 50){ cycleScores(p.x < W/2 ? -1 : 1); }
-    else if (p.y > SH - 30){ goToTitle(); }
-    return;
-  }
-  if (menuState === 'stats'){
-    if (p.y < 30){ statsPage = (statsPage + (p.x < W/2 ? STATS_PAGES - 1 : 1)) % STATS_PAGES; sfx('move'); }
-    else if (p.y > SH - 30){ goToTitle(); }
-    return;
-  }
-  if (menuState === 'options'){
-    for (let i = 0; i < 4; i++){
-      if (nearRow(p.y, 40 + i * 24)){ optionsSelection = i; activateOption(i); return; }
-    }
-    if (nearRow(p.y, 40 + 4 * 24)){ optionsSelection = 4; activateOption(4); }
-    return;
-  }
-  if (menuState === 'nameentry'){
-    if (p.y >= NAME_SLOT_Y - 12 && p.y <= NAME_SLOT_Y + NAME_SLOT_H + 12){
-      for (let i = 0; i < 3; i++){
-        const x = nameSlotX(i);
-        if (p.x >= x && p.x < x + NAME_SLOT_W){
-          nameEntry.cursor = i;
-          nameEntryChangeLetter(p.y < NAME_SLOT_Y + NAME_SLOT_H/2 ? -1 : 1);
-          return;
-        }
-      }
-    }
-    if (nearRow(p.y, NAME_CONFIRM_Y)) nameEntryConfirm();
-    return;
-  }
-  if (menuState === 'gameover'){
-    for (let i=0;i<2;i++){
-      if (nearRow(p.y, GO_Y[i])){ gameOverSel = i; activateGameOver(i); return; }
-    }
-  }
+  if (menuState === 'press' || menuState === 'briefing'){ if (p.y >= BOT){ uiStylus(p.x, p.y); introAdvance(); } return; }
+  // Every menu lives on the bottom screen; its buttons registered their own hit regions while drawing
+  if (p.y < BOT) return;
+  uiStylus(p.x, p.y);
+  uiTap(p.x, p.y - BOT);
 });
 cvs.addEventListener('pointermove',ev=>{
   if(!pointerDown) return;

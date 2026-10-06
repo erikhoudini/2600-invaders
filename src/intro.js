@@ -60,7 +60,7 @@ function drawPressTop(t){ drawIntroImg(0, t); }
 function drawPressBottom(t){
   drawIntroImg(1, t);
   if (Math.sin(t * 5) > -0.2){
-    const s = 'PRESS START';
+    const s = Math.floor(t / 1.8) % 2 ? 'TOUCH TO BEGIN' : 'PRESS START';
     drawText2x(s, Math.round((W - textW2x(s)) / 2), 172, P.blk);
     drawText2x(s, Math.round((W - textW2x(s)) / 2), 171, P.yel);
   }

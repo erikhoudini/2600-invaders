@@ -7,6 +7,7 @@ function render(){
   ctx.save();
   if(shake>0 && opts.shake){const m=shake*3;ctx.translate(Math.round(rnd(-m,m)),Math.round(rnd(-m,m)));}
   const t=performance.now()/1000;
+  uiFrame(t);
 
   if (menuState === 'game'){
     drawGameplay(t);
@@ -24,7 +25,9 @@ function render(){
     if (menuState === 'loadout') drawLoadoutPreview(t, env);
     // All interactive menu content lives on the bottom screen
     ctx.save();
-    ctx.translate(0, BOT);
+    const tr = uiTransition(menuState);
+    ctx.translate(tr.dx, BOT);
+    ctx.globalAlpha = tr.a;
     if (menuState === 'title') drawTitleMenu(t);
     else if (menuState === 'deploy') drawDeployScreen(t);
     else if (menuState === 'loadout') drawLoadoutScreen(t);
@@ -35,6 +38,7 @@ function render(){
     else if (menuState === 'gameover') drawGameOverBottom(t);
     ctx.restore();
   }
+  uiDrawStylus(t);
   drawToasts();
   ctx.restore();
 }
@@ -124,7 +128,7 @@ function drawGameplay(t){
   drawImpactWarnings(t);
   drawHazard(t);
   for(const inst of installations)drawHabitatDome(inst,t);
-  for(let i=0;i<turrets.length;i++)drawTurret(turrets[i],turretBarrels[i],_cachedActiveTurret);
+  for(let i=0;i<turrets.length;i++){ if (turrets[i].alive) drawTurret(turrets[i],turretBarrels[i],_cachedActiveTurret); else drawTurretWreck(turrets[i], t); }
   drawSnowfall();
   if(boss&&boss.drawFront){ ctx.save(); ctx.translate(0, boss.offY || 0); boss.drawFront(t); ctx.restore(); }
   drawAmmoColumn(t);
@@ -662,6 +666,23 @@ function drawHabitatDome(inst,t,baseYArg){
   ctx.fillRect(cx + 1, poleTop, 1, 1);
 }
 
+// A destroyed turret: a broken stump with a flickering fire and a rebuild gauge
+function drawTurretWreck(tr, t){
+  const x = Math.round(tr.x), y = Math.round(tr.y);
+  const gy = GROUND;
+  ctx.fillStyle = P.blk; ctx.fillRect(x - 11, gy - 9, 22, 7);
+  ctx.fillStyle = P.dolk; ctx.fillRect(x - 10, gy - 8, 20, 2);
+  ctx.fillStyle = P.gry;
+  ctx.fillRect(x - 9, gy - 6, 4, 3); ctx.fillRect(x - 3, gy - 7, 3, 4); ctx.fillRect(x + 3, gy - 6, 5, 3);
+  ctx.fillStyle = P.dred;
+  ctx.fillRect(x - 6, gy - 4, 12, 2);
+  if (Math.sin(t * 24 + x) > -0.3){ ctx.fillStyle = P.org; ctx.fillRect(x - 2, gy - 11, 3, 3); ctx.fillStyle = P.yel; ctx.fillRect(x - 1, gy - 10, 1, 2); }
+  else { ctx.fillStyle = P.red; ctx.fillRect(x - 1, gy - 10, 2, 2); }
+  const f = clamp(1 - tr.rebuildT / TURRET_REBUILD, 0, 1);       // rebuild gauge
+  ctx.fillStyle = P.blk; ctx.fillRect(x - 9, gy + 3, 18, 3);
+  ctx.fillStyle = P.dblu; ctx.fillRect(x - 8, gy + 4, 16, 1);
+  ctx.fillStyle = P.lgrn; ctx.fillRect(x - 8, gy + 4, Math.round(16 * f), 1);
+}
 function drawTurret(t,barrel,activeTurret,gyArg){
   const x = Math.round(t.x), y = Math.round(t.y);
   const alive = sharedAmmo > 0;
@@ -962,15 +983,7 @@ function drawStar(x, y, col){
 }
 function textWN(s, sc){ return s.length * 4 * sc - sc; }
 function drawTextN(s, x, y, col, sc){ drawTextS(s, x, y, col, undefined, sc); }
-function menuHeader(title){
-  ctx.fillStyle = P.rrd; ctx.fillRect(0, 0, W, 17);
-  ctx.fillStyle = P.dred; ctx.fillRect(0, 15, W, 2);
-  ctx.fillStyle = P.yel; ctx.fillRect(0, 17, W, 1);
-  drawStar(5, 4, P.yel); drawStar(W - 12, 4, P.yel);
-  const tw = textW2x(title);
-  drawText2x(title, Math.round((W - tw) / 2) + 1, 4, P.blk);
-  drawText2x(title, Math.round((W - tw) / 2), 3, P.yel);
-}
+function menuHeader(title){ uiHeader(title); }
 
 // Sunburst behind the planet, built once
 let sunburstCanvas = null;
@@ -1129,8 +1142,9 @@ function drawPlatformFx(e, t, spr, alpha){
   if (e.shieldUp || e.shFlash > 0){
     ctx.fillStyle = e.shFlash > 0 ? P.wht : (warn ? P.lgrn : P.lblu);
     const x = Math.round(e.x), y = Math.round(e.y);
-    for (let a = 0; a < 6.283; a += 0.16){
-      ctx.fillRect(Math.round(x + Math.cos(a) * 12), Math.round(y + Math.sin(a) * 8), 1, 1);
+    const [rx, ry] = ETYPES[e.type].shieldR || [12, 8];
+    for (let a = 0; a < 6.283; a += 0.16 * 12 / rx){
+      ctx.fillRect(Math.round(x + Math.cos(a) * rx), Math.round(y + Math.sin(a) * ry), 1, 1);
     }
   } else if (Math.sin(t * 10) > 0){
     ctx.fillStyle = P.yel;                    // shield down: exposed lights

@@ -10,6 +10,19 @@ npm start            # serves the project at http://localhost:8000
 
 Any static file server works. Opening `index.html` directly from disk also works, but serve it over HTTP if you want to read pixels back from the canvas (browsers treat `file://` images as cross-origin).
 
+## Controls
+
+The game is presented as a DS title: everything but the top-screen scene is on the touch screen.
+
+| DS | Touch | Keyboard |
+| --- | --- | --- |
+| Stylus | tap buttons, tap the screens to aim and fire | mouse |
+| D-pad | | arrow keys |
+| A / B | | `X` or `Enter` / `Z`, `Backspace` or `Esc` |
+| L / R | tap the shoulder keys in the header | `Q` / `E` |
+| START (pause) | the pause button, bottom-right | `P` or `Esc` |
+| Swap screens while playing | | `Shift`, `Tab`, `Q` or `E` |
+
 ## Layout
 
 ```
@@ -30,7 +43,8 @@ The files in `src/` are classic scripts that share one global scope, loaded in t
 | `intro.js` | press-start screen and briefing |
 | `saturn.js`, `scenery.js`, `effects.js` | backdrops, particles, explosions |
 | `enemies.js`, `game.js`, `bosses.js`, `crates.js` | gameplay: waves, Endless and Boss Rush, bosses, crates and hazards |
-| `loadout.js`, `name-entry.js`, `menus.js`, `pause.js` | menus and screens |
+| `ui.js` | the DS UI kit: touch buttons, header/footer, button glyphs, stylus feedback |
+| `loadout.js`, `name-entry.js`, `menus.js`, `pause.js` | menus and screens, built on `ui.js` |
 | `render.js` | gameplay, HUD and screen rendering |
 | `input.js`, `main.js` | input; boot and main loop |
 

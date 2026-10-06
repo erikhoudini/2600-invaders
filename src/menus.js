@@ -53,13 +53,8 @@ function drawMenuBackdrop(t, env){
   ctx.fillStyle=P.blk;ctx.fillRect(0,SH,W,GAP);
   ctx.fillStyle=env.ground0;ctx.fillRect(0,BOT-6,W,6);
 
-  // Bottom screen panel
-  ctx.fillStyle=P.blk; ctx.fillRect(0,BOT,W,SH);
-  for (const s of MENU_STARS){
-    if (s.b < 4) continue;
-    ctx.fillStyle = (0.5 + 0.5*Math.sin(t*3 + s.b)) > 0.5 ? P.gry : P.dblu;
-    ctx.fillRect(s.x, BOT + s.y, 1, 1);
-  }
+  // Bottom screen (touch screen) background
+  uiBackground(t, env);
 
   // Screen outlines
   ctx.fillStyle=env.ground0;
@@ -127,25 +122,9 @@ function drawMenuTop(t, env){
 
 // =====================================================================
 //  BOTTOM SCREEN MENUS (drawn with the context translated by BOT)
+//  Every screen is built from the DS UI kit in ui.js: bevelled touch buttons, a header, a footer
+//  with the button legend, and hit regions registered as they are drawn.
 // =====================================================================
-function drawRowBtn(label, y, sel, t, dim){
-  if (sel){
-    const blink = Math.sin(t*8) > -0.3;
-    ctx.fillStyle = P.blk;
-    ctx.fillRect(0, y - 3, W, 14);
-    ctx.fillStyle = blink ? P.wht : P.yel;
-    ctx.fillRect(0, y - 3, W, 1);
-    ctx.fillRect(0, y + 10, W, 1);
-    const slideAmt = Math.sin(t*4) * 0.5 + 0.5;
-    ctx.fillRect(4 + Math.floor(slideAmt * 3), y + 4, 3, 3);
-    ctx.fillRect(W - 8 - Math.floor(slideAmt * 3), y + 4, 3, 3);
-    const display = '> ' + label + ' <';
-    drawText2x(display, Math.round((W-textW2x(display))/2), y, blink ? P.wht : P.yel);
-  } else {
-    drawText2x(label, Math.round((W-textW2x(label))/2), y, dim ? P.dblu : P.gry);
-  }
-}
-
 const MENU_BASE = ['CAMPAIGN', 'ENDLESS', 'LOADOUT', 'STATISTICS', 'HIGH SCORES', 'OPTIONS', 'BOSS RUSH'];
 function menuItems(){
   const a = [];
@@ -155,9 +134,6 @@ function menuItems(){
   a.push('LOADOUT', 'STATISTICS', 'HIGH SCORES', 'OPTIONS');
   return a;
 }
-const menuStep = n => n >= 8 ? 20 : (n === 7 ? 22 : 24);
-const menuY0 = n => n >= 8 ? 6 : 14;
-
 function menuDetail(label){
   if (label === 'CONTINUE') return 'WAVE ' + formatWave(saveData.wave);
   if (label === 'CAMPAIGN'){ const n = camp.clears.filter(c => c > 0).length; return n + '/5 HELD'; }
@@ -168,37 +144,26 @@ function menuDetail(label){
   return '';
 }
 function drawTitleMenu(t){
-  const items = menuItems(), step = menuStep(items.length), y0 = menuY0(items.length);
-  for (let i = 0; i < items.length; i++){
-    const y = y0 + i * step;
-    const sel = menuSelection === i;
-    const label = items[i];
-    const det = menuDetail(label);
-    if (sel){
-      const blink = Math.sin(t * 8) > -0.3;
-      ctx.fillStyle = P.blk; ctx.fillRect(0, y - 4, W, 18);
-      ctx.fillStyle = P.rrd; ctx.fillRect(0, y - 3, W, 16);
-      ctx.fillStyle = blink ? P.yel : P.wht;
-      ctx.fillRect(0, y - 4, W, 1); ctx.fillRect(0, y + 13, W, 1);
-      drawStar(8 + Math.floor((Math.sin(t * 4) * 0.5 + 0.5) * 2), y + 1, P.yel);
-      drawText2x(label, 24, y, P.blk);
-      drawText2x(label, 23, y - 1, blink ? P.yel : P.wht);
-      if (det) drawText(det, W - 8 - textW(det), y + 3, P.yel);
-    } else {
-      drawText2x(label, 23, y, P.gry);
-      if (det) drawText(det, W - 8 - textW(det), y + 3, P.blu);
-    }
+  const items = menuItems(), n = items.length;
+  const step = Math.min(24, Math.floor(158 / n)), h = step - 3;
+  const y0 = 8 + Math.floor((158 - n * step) / 2);
+  for (let i = 0; i < n; i++){
+    const label = items[i], sel = menuSelection === i;
+    uiButton(6, y0 + i * step, W - 12, h, label, {
+      sel, scale: 2, icon: MENU_ICONS[label], detail: menuDetail(label),
+      slide: uiAnim('m' + i, sel ? 1 : 0),
+      fn: () => { menuSelection = i; activateTitleItem(i); },
+    });
   }
-  const c1 = 'UP/DOWN  ENTER  ESC';
-  drawText(c1, Math.round((W-textW(c1))/2), SH-14, P.gry);
+  uiFooter([['DPAD', 'MOVE'], ['A', 'SELECT']]);
 }
 
 // Deploy screen: choose which world to start on (campaign) or play (endless)
 let deployMode = 'wave', deploySel = 0;
-const DEPLOY_Y0 = 34, DEPLOY_STEP = 25;
+const DEPLOY_Y0 = 33, DEPLOY_STEP = 28;
 
 function worldStatus(i){
-  if (i >= camp.unlocked) return { locked:true, text:'LOCKED', col:P.dblu };
+  if (i >= camp.unlocked) return { locked:true, text:'LOCKED', col:P.blu };
   if (deployMode === 'wave'){
     const c = camp.clears[i];
     return { locked:false, text: c > 0 ? ('CLEARED X' + c) : 'READY', col: c > 0 ? P.lgrn : P.yel };
@@ -220,30 +185,29 @@ function activateDeploy(i){
 }
 
 function drawDeployScreen(t){
-  const title = deployMode === 'wave' ? 'CAMPAIGN' : 'ENDLESS';
-  const tw = textW2x(title);
-  menuHeader(title);
-  const sub = 'SELECT OUTPOST';
-  drawText(sub, Math.round((W-textW(sub))/2), 22, P.gry);
+  uiHeader(deployMode === 'wave' ? 'CAMPAIGN' : 'ENDLESS');
+  const sub = 'SELECT AN OUTPOST';
+  drawText(sub, Math.round((W - textW(sub)) / 2), 25, P.gry);
   for (let i = 0; i < WORLDS.length; i++){
     const w = WORLDS[i];
-    const y = DEPLOY_Y0 + i * DEPLOY_STEP;
+    const y = DEPLOY_Y0 + i * DEPLOY_STEP, h = 25;
     const sel = deploySel === i;
     const st = worldStatus(i);
-    if (sel){
-      ctx.fillStyle = P.blk;
-      ctx.fillRect(0, y - 3, W, 22);
-      ctx.fillStyle = Math.sin(t*8) > -0.3 ? P.wht : P.yel;
-      ctx.fillRect(0, y - 3, W, 1);
-      ctx.fillRect(0, y + 18, W, 1);
+    const c = st.locked ? UI_LOCKED : (sel ? UI_SELECT : UI_NORMAL);
+    const x = 6 + Math.round(uiAnim('d' + i, sel ? 1 : 0) * 3);
+    uiPlate(x, y, W - 12, h, c[0], c[1], c[2], c[3]);
+    uiHit(6, y, W - 12, h, () => { if (deploySel === i) activateDeploy(i); else { deploySel = i; sfx('move'); } });
+    uiWorldThumb(w, x + 5, y + 4, 36, 17, st.locked);
+    drawTextS((i + 1) + ' ' + w.name, x + 49, y + 5, P.blk, undefined, 2);
+    drawTextS((i + 1) + ' ' + w.name, x + 48, y + 4, st.locked ? P.blu : (sel ? P.yel : P.wht), undefined, 2);
+    drawText(st.locked ? 'HOLD THE PREVIOUS OUTPOST' : w.tag, x + 48, y + 16, st.locked ? P.blu : (sel ? P.wht : P.lblu));
+    if (st.locked) uiIcon('lock', W - 24, y + 9, P.blu);
+    else {
+      if (deployMode === 'wave' && camp.clears[i] > 0) uiIcon('star', W - 24, y + 4, P.yel);
+      drawText(st.text, W - 12 - textW(st.text), y + (deployMode === 'wave' && camp.clears[i] > 0 ? 14 : 10), st.col);
     }
-    const nameCol = st.locked ? P.dblu : (sel ? P.wht : P.gry);
-    drawText2x((i + 1) + ' ' + w.name, 10, y, nameCol);
-    drawText(st.text, W - 8 - textW(st.text), y + 2, st.col);
-    drawText(st.locked ? 'HOLD THE PREVIOUS OUTPOST' : w.tag, 22, y + 12, st.locked ? P.blu : (sel ? P.lblu : P.blu));
   }
-  const hint = 'UP/DOWN  ENTER  ESC';
-  drawText(hint, Math.round((W-textW(hint))/2), SH-10, P.gry);
+  uiFooter([['DPAD', 'MOVE'], ['A', 'DEPLOY']], () => goToTitle(deployMode === 'wave' ? 0 : 1));
 }
 
 function cycleScores(d){
@@ -252,92 +216,89 @@ function cycleScores(d){
   sfx('move');
 }
 function drawScoresScreen(t){
+  const modes = rushUnlocked() ? ['wave', 'endless', 'rush'] : ['wave', 'endless'];
+  uiHeader('HIGH SCORES', { shoulders: [() => cycleScores(-1), () => cycleScores(1)] });
   const modeName = scoresMode === 'wave' ? 'CAMPAIGN' : (scoresMode === 'rush' ? 'BOSS RUSH' : 'ENDLESS');
   const name = scoresMode === 'rush' ? 'ALL BOSSES' : 'ALL MOONS';
-  const titleW = textW2x(modeName);
-  menuHeader(modeName);
-  const nameW = textW2x(name);
-  drawText2x(name, Math.round((W-nameW)/2), 26, P.lblu);
-  drawText('< LEFT/RIGHT >', Math.round((W-textW('< LEFT/RIGHT >'))/2), 42, P.gry);
+  uiMini(5, 24, 22, 17, 'left', () => cycleScores(-1));
+  uiMini(W - 27, 24, 22, 17, 'right', () => cycleScores(1));
+  drawTextS(modeName, Math.round((W - textW2x(modeName)) / 2) + 1, 26, P.blk, undefined, 2);
+  drawText2x(modeName, Math.round((W - textW2x(modeName)) / 2), 25, P.yel);
+  drawText(name, Math.round((W - textW(name)) / 2), 36, P.lblu);
+  uiDots(modes.length, Math.max(0, modes.indexOf(scoresMode)), 45);
 
   const scores = loadScores(scoresMode);
-
   if (scores.length === 0){
+    uiPlate(28, 70, W - 56, 52, P.blk, null, null, P.dblu);
     const msg = 'NO SCORES YET';
-    drawText2x(msg, Math.round((W-textW2x(msg))/2), 90, P.gry);
-    const msg2 = 'PLAY A GAME TO RECORD';
-    drawText(msg2, Math.round((W-textW(msg2))/2), 110, P.dblu);
+    drawText2x(msg, Math.round((W - textW2x(msg)) / 2), 82, P.gry);
+    const msg2 = 'PLAY A GAME TO RECORD ONE';
+    drawText(msg2, Math.round((W - textW(msg2)) / 2), 102, P.blu);
   } else {
-    drawText('RK', 6, 58, P.gry);
-    drawText('NAME', 22, 58, P.gry);
-    drawText('SCORE', 60, 58, P.gry);
-    drawText('CHAIN', 108, 58, P.gry);
-    drawText(scoresMode === 'wave' ? 'WAVE' : (scoresMode === 'rush' ? 'BOSS' : 'TIME'), 148, 58, P.gry);
-    drawText('ACC', 180, 58, P.gry);
-    ctx.fillStyle = P.dblu;
-    ctx.fillRect(4, 64, W - 8, 1);
-
-    for (let i=0;i<scores.length && i<6;i++){
+    ctx.fillStyle = P.dblu; ctx.fillRect(4, 54, W - 8, 10);
+    ctx.fillStyle = P.blu; ctx.fillRect(4, 54, W - 8, 1);
+    const hy = 57;
+    drawText('RK', 8, hy, P.lblu); drawText('NAME', 24, hy, P.lblu); drawText('SCORE', 58, hy, P.lblu);
+    drawText('CHAIN', 106, hy, P.lblu);
+    drawText(scoresMode === 'wave' ? 'WAVE' : (scoresMode === 'rush' ? 'BOSS' : 'TIME'), 148, hy, P.lblu);
+    drawText('ACC', 184, hy, P.lblu);
+    for (let i = 0; i < scores.length && i < 8; i++){
       const s = scores[i];
-      const y = 68 + i * 11;
-      const rowCol = i===0 ? P.yel : (i===1 ? P.wht : P.gry);
-      drawText((i+1) + '.', 6, y, rowCol);
-      drawText((s.name || '---') + (s.mods && s.mods.length ? '*' : ''), 22, y, rowCol);
-      drawText(String(s.score).padStart(6,'0'), 60, y, rowCol);
-      drawText('X'+String(s.combo||0).padStart(2,'0'), 108, y, P.mag);
-      drawText(scoreTail(scoresMode, s), 148, y, P.lblu);
-      const acc = Math.round((s.accuracy||0) * 100);
-      drawText(acc + '%', 180, y, acc >= 50 ? P.lgrn : P.gry);
+      const y = 66 + i * 13;
+      if (i % 2 === 0){ ctx.fillStyle = P.dblu; const pa = ctx.globalAlpha; ctx.globalAlpha = pa * 0.35; ctx.fillRect(4, y - 2, W - 8, 12); ctx.globalAlpha = pa; }
+      const rowCol = i === 0 ? P.yel : (i === 1 ? P.wht : (i === 2 ? P.tan : P.gry));
+      if (i < 3) uiIcon('star', 7, y - 1, [P.yel, P.gry, P.org][i]); else drawText(String(i + 1), 10, y + 1, rowCol);
+      drawText((s.name || '---') + (s.mods && s.mods.length ? '*' : ''), 24, y + 1, rowCol);
+      drawText(String(s.score).padStart(6, '0'), 58, y + 1, rowCol);
+      drawText('X' + String(s.combo || 0).padStart(2, '0'), 106, y + 1, P.mag);
+      drawText(scoreTail(scoresMode, s), 148, y + 1, P.lblu);
+      const acc = Math.round((s.accuracy || 0) * 100);
+      drawText(acc + '%', 184, y + 1, acc >= 50 ? P.lgrn : P.gry);
     }
   }
-
-  if (Math.sin(t*4) > -0.3){
-    const back = 'ESC OR ENTER TO RETURN';
-    drawText(back, Math.round((W-textW(back))/2), SH-14, P.yel);
-  }
+  uiFooter([['L', 'MODE'], ['R', 'MODE']], () => goToTitle());
 }
 
 function drawStatsScreen(t){
-  const title = statsPage === 0 ? 'STATISTICS' : 'ACHIEVEMENTS';
-  const tw = textW2x(title);
-  menuHeader(title);
-  const nav = '< LEFT / RIGHT >  ' + (statsPage + 1) + '/' + STATS_PAGES;
-  drawText(nav, Math.round((W-textW(nav))/2), 22, P.gry);
-
+  const prev = () => { statsPage = (statsPage + STATS_PAGES - 1) % STATS_PAGES; sfx('move'); };
+  const next = () => { statsPage = (statsPage + 1) % STATS_PAGES; sfx('move'); };
+  uiHeader(statsPage === 0 ? 'STATISTICS' : 'ACHIEVEMENTS', { shoulders: [prev, next] });
+  uiDots(STATS_PAGES, statsPage, 25);
   if (statsPage === 0) drawStatsPage(); else drawAchievementsPage(statsPage - 1);
-
-  const back = 'ESC OR ENTER TO RETURN';
-  drawText(back, Math.round((W-textW(back))/2), SH-10, P.yel);
+  uiFooter([['L', 'PAGE'], ['R', 'PAGE']], () => goToTitle());
 }
 
-function statLine(label, value, y, valueCol){
+function statLine(label, value, y, valueCol, zebra){
+  if (zebra){ const pa = ctx.globalAlpha; ctx.globalAlpha = pa * 0.35; ctx.fillStyle = P.dblu; ctx.fillRect(4, y - 2, W - 8, 9); ctx.globalAlpha = pa; }
   drawText(label, 8, y, P.gry);
   drawText(value, W - 8 - textW(value), y, valueCol || P.wht);
 }
 
 function drawStatsPage(){
-  const y0 = 32;
+  const y0 = 34;
   const gap = 9;
   const acc = stats.totalShots > 0 ? Math.round(stats.totalKills / stats.totalShots * 100) : 0;
   const secs = Math.floor(stats.totalPlaytime);
   const hh = Math.floor(secs / 3600);
   const mm = Math.floor((secs % 3600) / 60);
-
-  statLine('GAMES PLAYED',    String(stats.gamesPlayed),      y0 + gap*0,  P.wht);
-  statLine('CAMP / ENDLESS',  stats.gamesWave + '/' + stats.gamesEndless, y0 + gap*1, P.lblu);
-  statLine('TOTAL KILLS',     String(stats.totalKills),       y0 + gap*2,  P.lgrn);
-  statLine('TOTAL SHOTS',     String(stats.totalShots),       y0 + gap*3,  P.gry);
-  statLine('ACCURACY',        acc + '%',                      y0 + gap*4,  acc >= 50 ? P.lgrn : P.org);
-  statLine('BEST CHAIN',      'X' + stats.bestChain,          y0 + gap*5,  P.mag);
-  statLine('BEST WAVE',       formatWave(stats.bestWave),     y0 + gap*6,  P.lblu);
-  statLine('BEST TIME',       formatTime(stats.bestTime),     y0 + gap*7,  P.lblu);
-  statLine('HI SCORE CAMP',   String(stats.bestScoreWave),    y0 + gap*8,  P.yel);
-  statLine('HI SCORE ENDLESS',String(stats.bestScoreEndless), y0 + gap*9,  P.yel);
-  statLine('PERFECT WAVES',   String(stats.perfectWaves),     y0 + gap*10, P.lgrn);
-  statLine('CITIES LOST',     String(stats.citiesLost),       y0 + gap*11, P.red);
-  statLine('BOSSES DOWN',     String(stats.bossKills),        y0 + gap*12, P.mag);
-  statLine('ORBITALS',        String(stats.cratesCollected),  y0 + gap*13, P.lblu);
-  statLine('PLAYTIME',        hh + 'H ' + mm + 'M',           y0 + gap*14, P.gry);
+  const rows = [
+    ['GAMES PLAYED',    String(stats.gamesPlayed),      P.wht],
+    ['CAMP / ENDLESS',  stats.gamesWave + '/' + stats.gamesEndless, P.lblu],
+    ['TOTAL KILLS',     String(stats.totalKills),       P.lgrn],
+    ['TOTAL SHOTS',     String(stats.totalShots),       P.gry],
+    ['ACCURACY',        acc + '%',                      acc >= 50 ? P.lgrn : P.org],
+    ['BEST CHAIN',      'X' + stats.bestChain,          P.mag],
+    ['BEST WAVE',       formatWave(stats.bestWave),     P.lblu],
+    ['BEST TIME',       formatTime(stats.bestTime),     P.lblu],
+    ['HI SCORE CAMP',   String(stats.bestScoreWave),    P.yel],
+    ['HI SCORE ENDLESS',String(stats.bestScoreEndless), P.yel],
+    ['PERFECT WAVES',   String(stats.perfectWaves),     P.lgrn],
+    ['CITIES LOST',     String(stats.citiesLost),       P.red],
+    ['BOSSES DOWN',     String(stats.bossKills),        P.mag],
+    ['POWERUPS',        String(stats.cratesCollected),  P.lblu],
+    ['PLAYTIME',        hh + 'H ' + mm + 'M',           P.gry],
+  ];
+  for (let i = 0; i < rows.length; i++) statLine(rows[i][0], rows[i][1], y0 + i * gap, rows[i][2], i % 2 === 0);
 }
 
 const ACH_PER_PAGE = 14;
@@ -347,131 +308,97 @@ function drawAchievementsPage(page){
   const unlocked = unlockedAch.filter(id => ids.includes(id)).length;
   const total = ACHIEVEMENTS.length;
   const header = unlocked + ' / ' + total + ' UNLOCKED';
-  drawText(header, Math.round((W-textW(header))/2), 31, unlocked === total ? P.yel : P.lblu);
+  drawText(header, Math.round((W - textW(header)) / 2), 33, unlocked === total ? P.yel : P.lblu);
+  const barW = W - 40, bx = 20, by = 41;
+  ctx.fillStyle = P.blk; ctx.fillRect(bx - 1, by - 1, barW + 2, 4);
+  ctx.fillStyle = P.dblu; ctx.fillRect(bx, by, barW, 2);
+  ctx.fillStyle = P.yel; ctx.fillRect(bx, by, Math.round(barW * unlocked / total), 2);
 
-  const barW = W - 40;
-  const bx = 20;
-  const by = 39;
-  ctx.fillStyle = P.dblu;
-  ctx.fillRect(bx, by, barW, 2);
-  ctx.fillStyle = P.yel;
-  ctx.fillRect(bx, by, Math.round(barW * unlocked / total), 2);
-
-  const startY = 47;
-  const rowH = 17;
-  const colW = W / 2;
+  const startY = 47, rowH = 18, colW = W / 2;
   const first = page * ACH_PER_PAGE;
-
   for (let k = 0; k < ACH_PER_PAGE; k++){
     const i = first + k;
     if (i >= total) break;
     const a = ACHIEVEMENTS[i];
-    const col = k % 2;
-    const row = Math.floor(k / 2);
-    const x = col * colW + 4;
-    const y = startY + row * rowH;
-    const isUnlocked = unlockedAch.includes(a.id);
-
-    ctx.fillStyle = isUnlocked ? P.yel : P.dblu;
-    ctx.fillRect(x, y + 1, 3, 3);
-    if (isUnlocked){
-      ctx.fillStyle = P.wht;
-      ctx.fillRect(x + 1, y + 1, 1, 1);
-    }
-    drawText(a.name, x + 6, y, isUnlocked ? P.wht : P.gry);
-    drawText(a.desc, x + 6, y + 6, isUnlocked ? P.lgrn : P.blu);
-    if (a.reward){
-      ctx.fillStyle = isUnlocked ? P.lgrn : P.dblu;
-      ctx.fillRect(x + colW - 14, y + 1, 4, 4);
-    }
+    const x = (k % 2) * colW + 4, y = startY + Math.floor(k / 2) * rowH;
+    const got = unlockedAch.includes(a.id);
+    uiPlate(x, y, colW - 8, rowH - 2, got ? P.dgrn : P.blk, got ? P.grn : null, got ? P.blk : null, got ? P.grn : P.dblu);
+    uiIcon(got ? 'check' : 'lock', x + 4, y + 4, got ? P.lgrn : P.blu);
+    drawText(a.name, x + 14, y + 3, got ? P.wht : P.gry);
+    drawText(a.desc, x + 14, y + 9, got ? P.lgrn : P.blu);
+    if (a.reward) uiIcon('star', x + colW - 19, y + 2, got ? P.yel : P.dblu);
   }
 }
 
+const OPTION_DESCS = ['GAME AUDIO', 'SCREEN KICK ON BLASTS', 'ERASES ALL HIGH SCORES', 'ERASES UNLOCKS AND CAMPAIGN'];
 function drawOptionsScreen(t){
-  const title = 'OPTIONS';
-  const tw = textW2x(title);
-  menuHeader(title);
-
+  uiHeader('OPTIONS');
   for (let i = 0; i < 4; i++){
-    const nameStr = optionName(i);
-    const valStr = optionLabel(i);
-    const y = 40 + i * 24;
-    const selected = (optionsSelection === i);
-    const rowCol = selected ? P.yel : P.gry;
-    const valCol = selected ? P.wht : (opts.muted && i === 0 ? P.red : P.lblu);
-
-    if (selected){
-      ctx.fillStyle = P.blk;
-      ctx.fillRect(0, y - 3, W, 14);
-      ctx.fillStyle = P.yel;
-      ctx.fillRect(0, y - 3, W, 1);
-      ctx.fillRect(0, y + 10, W, 1);
-      if (Math.sin(t*8) > -0.3) drawText('>', 4, y, P.wht);
-    }
-
-    drawText(nameStr, 12, y, rowCol);
-    drawText(valStr, W - 8 - textW(valStr), y, valCol);
-
-    if (selected && (i === 2 || i === 3)){
-      const warn = optionsConfirm === i ? 'PRESS ENTER AGAIN' : 'IRREVERSIBLE';
-      const warnCol = optionsConfirm === i ? P.red : P.dorg;
-      drawText(warn, Math.round((W-textW(warn))/2), y + 13, warnCol);
+    const y = 28 + i * 30, sel = optionsSelection === i;
+    const c = sel ? UI_SELECT : UI_NORMAL;
+    const x = 6 + Math.round(uiAnim('o' + i, sel ? 1 : 0) * 3);
+    uiPlate(x, y, W - 12, 26, c[0], c[1], c[2], c[3]);
+    uiHit(6, y, W - 12, 26, () => { optionsSelection = i; activateOption(i); });
+    drawText2x(optionName(i), x + 9, y + 5, P.blk);
+    drawText2x(optionName(i), x + 8, y + 4, sel ? P.yel : P.wht);
+    const confirming = optionsConfirm === i && (i === 2 || i === 3);
+    drawText(confirming ? 'TAP AGAIN TO CONFIRM' : OPTION_DESCS[i], x + 8, y + 16, confirming ? P.yel : (sel ? P.wht : P.lblu));
+    if (i === 0) uiSwitch(W - 36, y + 8, !opts.muted);
+    else if (i === 1) uiSwitch(W - 36, y + 8, opts.shake);
+    else {
+      uiPlate(W - 46, y + 6, 36, 14, confirming ? P.rrd : P.dred, confirming ? P.pnk : P.red, P.blk, P.blk);
+      drawText(confirming ? 'SURE?' : 'CLEAR', W - 46 + Math.round((36 - textW(confirming ? 'SURE?' : 'CLEAR')) / 2), y + 11, P.wht);
     }
   }
-
-  const backY = 40 + 4 * 24;
-  const backSel = (optionsSelection === 4);
-  if (backSel){
-    ctx.fillStyle = P.blk;
-    ctx.fillRect(0, backY - 3, W, 14);
-    ctx.fillStyle = P.yel;
-    ctx.fillRect(0, backY - 3, W, 1);
-    ctx.fillRect(0, backY + 10, W, 1);
-    if (Math.sin(t*8) > -0.3) drawText('>', 4, backY, P.wht);
-  }
-  drawText('BACK', 12, backY, backSel ? P.yel : P.gry);
-
-  const hint = 'UP/DOWN  ENTER  ESC';
-  drawText(hint, Math.round((W-textW(hint))/2), SH-10, P.gry);
+  const backSel = optionsSelection === 4;
+  uiButton(W / 2 - 50, 150, 100, 22, 'BACK', { sel: backSel, scale: 2, align: 'center', icon: 'left', fn: () => { optionsSelection = 4; activateOption(4); } });
+  uiFooter([['DPAD', 'MOVE'], ['A', 'CHANGE']], leaveOptions);
 }
 
-// Name entry controls
-const NAME_SLOT_W = 20, NAME_SLOT_GAP = 6, NAME_SLOT_Y = 44, NAME_SLOT_H = 22;
-const NAME_CONFIRM_Y = 140;
-const nameSlotX = i => Math.round((W - (NAME_SLOT_W*3 + NAME_SLOT_GAP*2)) / 2) + i * (NAME_SLOT_W + NAME_SLOT_GAP);
-
+// Name entry: initials slots, an on-screen keyboard and a confirm button
+const NAME_SLOT_W = 24, NAME_SLOT_GAP = 6, NAME_SLOT_Y = 26, NAME_SLOT_H = 22;
+const NAME_KEYS = ['ABCDEFGHIJ', 'KLMNOPQRST', 'UVWXYZ0123', '456789 '];
+const NAME_KEY_W = 22, NAME_KEY_H = 14, NAME_KEY_X0 = 8, NAME_KEY_Y0 = 56, NAME_KEY_STEP = 17;
+const NAME_CONFIRM_Y = 130;
+const nameSlotX = i => Math.round((W - (NAME_SLOT_W * 3 + NAME_SLOT_GAP * 2)) / 2) + i * (NAME_SLOT_W + NAME_SLOT_GAP);
+function nameTypeKey(ch){
+  nameEntry.letters[nameEntry.cursor] = ch;
+  if (nameEntry.cursor < 2) nameEntry.cursor++;
+  sfx('tick');
+}
+function nameDelete(){
+  if (nameEntry.letters[nameEntry.cursor] === ' ' && nameEntry.cursor > 0) nameEntry.cursor--;
+  nameEntry.letters[nameEntry.cursor] = ' ';
+  sfx('back');
+}
 function drawNameEntryBottom(t){
-  const head = 'ENTER YOUR INITIALS';
-  drawText(head, Math.round((W-textW(head))/2), 16, P.gry);
-
+  uiHeader('INITIALS');
   for (let i = 0; i < 3; i++){
-    const x = nameSlotX(i);
-    const active = (nameEntry.cursor === i);
-    ctx.fillStyle = P.blk;
-    ctx.fillRect(x, NAME_SLOT_Y, NAME_SLOT_W, NAME_SLOT_H);
-    ctx.fillStyle = active ? (Math.sin(t*10) > 0 ? P.wht : P.yel) : P.dblu;
-    ctx.fillRect(x, NAME_SLOT_Y, NAME_SLOT_W, 1);
-    ctx.fillRect(x, NAME_SLOT_Y + NAME_SLOT_H - 1, NAME_SLOT_W, 1);
-    ctx.fillRect(x, NAME_SLOT_Y, 1, NAME_SLOT_H);
-    ctx.fillRect(x + NAME_SLOT_W - 1, NAME_SLOT_Y, 1, NAME_SLOT_H);
+    const x = nameSlotX(i), active = nameEntry.cursor === i;
+    uiPlate(x, NAME_SLOT_Y, NAME_SLOT_W, NAME_SLOT_H, P.blk, null, null, active ? (Math.sin(t * 10) > 0 ? P.wht : P.yel) : P.dblu);
     const ch = nameEntry.letters[i];
-    drawText2x(ch, x + Math.round((NAME_SLOT_W - 6)/2), NAME_SLOT_Y + 6, active ? P.wht : P.gry);
-    if (active){
-      drawText('^', x + NAME_SLOT_W/2 - 1, NAME_SLOT_Y - 8, P.yel);
-      drawText('v', x + NAME_SLOT_W/2 - 1, NAME_SLOT_Y + NAME_SLOT_H + 4, P.yel);
+    drawTextS(ch, x + 9, NAME_SLOT_Y + 7, P.dblu, undefined, 2);
+    drawText2x(ch, x + 8, NAME_SLOT_Y + 6, active ? P.yel : P.wht);
+    uiHit(x, NAME_SLOT_Y, NAME_SLOT_W, NAME_SLOT_H, () => { nameEntry.cursor = i; sfx('move'); });
+  }
+  const cur = nameEntry.letters[nameEntry.cursor];
+  for (let r = 0; r < NAME_KEYS.length; r++){
+    const row = NAME_KEYS[r];
+    for (let c = 0; c < row.length; c++){
+      const ch = row[c], x = NAME_KEY_X0 + c * (NAME_KEY_W + 2), y = NAME_KEY_Y0 + r * NAME_KEY_STEP;
+      const on = ch === cur;
+      uiButton(x, y, NAME_KEY_W, NAME_KEY_H, ch === ' ' ? 'SPC' : ch, { sel: on, align: 'center', fn: () => nameTypeKey(ch) });
     }
   }
-
-  const l1 = 'UP/DOWN  LETTER';
-  const l2 = 'LEFT/RIGHT  SLOT';
-  drawText(l1, Math.round((W-textW(l1))/2), 100, P.gry);
-  drawText(l2, Math.round((W-textW(l2))/2), 110, P.gry);
-
-  drawRowBtn('CONFIRM', NAME_CONFIRM_Y, nameLock <= 0, t, nameLock > 0);
+  const dx = NAME_KEY_X0 + 7 * (NAME_KEY_W + 2), dy = NAME_KEY_Y0 + 3 * NAME_KEY_STEP;
+  uiButton(dx, dy, NAME_KEY_W * 2 + 2, NAME_KEY_H, 'DEL', { align: 'center', fn: nameDelete });
+  const ready = nameLock <= 0;
+  uiButton(W / 2 - 60, NAME_CONFIRM_Y, 120, 24, 'CONFIRM', { sel: ready, dim: !ready, scale: 2, align: 'center', icon: 'check', fn: () => nameEntryConfirm() });
+  uiFooter([['TOUCH', 'TYPE'], ['DPAD', 'EDIT'], ['A', 'OK']]);
 }
 
 // Game over buttons
-const GO_Y = [96, 122];
+const GO_Y = [102, 130];
 const GO_LABELS = ['RETRY', 'MENU'];
 
 function scoreTail(mode, s){
@@ -480,21 +407,22 @@ function scoreTail(mode, s){
   return formatTime(s.time || 0).slice(0, 5);
 }
 function drawGameOverBottom(t){
-  drawText('HIGH SCORES', Math.round((W-textW('HIGH SCORES'))/2), 8, P.gry);
+  uiHeader('HIGH SCORES');
   const scores = loadScores(gameMode);
-  for (let i=0;i<scores.length && i<5;i++){
-    const s = scores[i];
-    const y = 20 + i * 10;
-    const line = (i+1) + '. ' + (s.name||'---') + '  ' + String(s.score).padStart(6,'0') + '  ' +
-      scoreTail(gameMode, s);
-    drawText(line, Math.round((W-textW(line))/2), y, i===0 ? P.yel : P.gry);
+  for (let i = 0; i < scores.length && i < 5; i++){
+    const s = scores[i], y = 27 + i * 12;
+    if (i % 2 === 0){ const pa = ctx.globalAlpha; ctx.globalAlpha = pa * 0.35; ctx.fillStyle = P.dblu; ctx.fillRect(14, y - 2, W - 28, 11); ctx.globalAlpha = pa; }
+    const col = i === 0 ? P.yel : (i === 1 ? P.wht : P.gry);
+    if (i < 3) uiIcon('star', 18, y - 1, [P.yel, P.gry, P.org][i]); else drawText(String(i + 1), 21, y + 1, col);
+    drawText((s.name || '---'), 34, y + 1, col);
+    drawText(String(s.score).padStart(6, '0'), 70, y + 1, col);
+    drawText(scoreTail(gameMode, s), W - 18 - textW(scoreTail(gameMode, s)), y + 1, P.lblu);
   }
+  if (!scores.length) drawText('NO SCORES YET', Math.round((W - textW('NO SCORES YET')) / 2), 48, P.gry);
   const ready = gameOverTimer <= 0;
-  for (let i=0;i<2;i++){
-    drawRowBtn(GO_LABELS[i], GO_Y[i], ready && gameOverSel === i, t, !ready);
+  const icons = ['play', 'left'];
+  for (let i = 0; i < 2; i++){
+    uiButton(24, GO_Y[i], W - 48, 24, GO_LABELS[i], { sel: ready && gameOverSel === i, dim: !ready, scale: 2, icon: icons[i], align: 'center', slide: uiAnim('g' + i, ready && gameOverSel === i ? 1 : 0), fn: () => { gameOverSel = i; activateGameOver(i); } });
   }
-  if (ready){
-    const hint = 'UP/DOWN  ENTER  ESC MENU';
-    drawText(hint, Math.round((W-textW(hint))/2), SH-14, P.gry);
-  }
+  if (ready) uiFooter([['DPAD', 'MOVE'], ['A', 'SELECT']], () => goToTitle(0));
 }
