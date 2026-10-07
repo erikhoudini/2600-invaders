@@ -711,6 +711,7 @@ function rushAdvance(){
 }
 
 function update(dt){
+  musicUpdate(dt);
   if (foeCd > 0) foeCd -= dt;
   for (const s of scorches) s.t += dt;
   if (scorches.length && scorches[0].t > 40) scorches.shift();
@@ -1065,7 +1066,7 @@ function damageCity(inst, ex){
   stats.citiesLost++;
   runStats.perfect = false;
   combo=0;comboTimer=0;lastKillAt = -999;
-  shake=1.4;flashT=0.6;warningT=0.4;hitStop=0.12;
+  shake=1.4;flashT=0.6;warningT=0.4;hitStop=0.12;musicDip();
   sfx('cityHit');
   popups.push({ x: W / 2, y: GROUND - 52, text: 'A COLLECTIVE HAS FALLEN', t: 0, dur: 1.6, col: P.red, big: false });
   if (gameMode === 'wave') tip('city', 'LOSE A CITY AND IT STAYS LOST UNTIL THE NEXT PLANET. SHOOT BOMBS BEFORE THEY LAND.');

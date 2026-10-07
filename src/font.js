@@ -42,16 +42,29 @@ function getGlyph(ch,col,sc){
 }
 function textW(s){return s.length*4-1;}
 function textW2x(s){return s.length*8-2;}
+// Whole strings are cached too: one drawImage per string instead of one per letter
+const stringCache = new Map();
+function getString(s,col,sc){
+  const key = s + '|' + col + '|' + sc;
+  let c = stringCache.get(key);
+  if (c !== undefined) return c;
+  if (stringCache.size > 500) stringCache.clear();
+  c = document.createElement('canvas');
+  c.width = Math.max(1, s.length*4*sc); c.height = 5*sc;
+  const gc = c.getContext('2d');
+  for (let i=0;i<s.length;i++){
+    const ch=s[i];
+    if (ch !== ' '){ const g=getGlyph(ch,col,sc); if (g) gc.drawImage(g,i*4*sc,0); }
+  }
+  stringCache.set(key, c);
+  return c;
+}
 function drawTextS(s,x,y,col,alpha,sc){
   s=String(s).toUpperCase();
+  if (!s.length) return;
   const prevA=ctx.globalAlpha;
   if(alpha!==undefined)ctx.globalAlpha=alpha;
-  let cx=Math.round(x); const yy=Math.round(y); const adv=4*sc;
-  for(let i=0;i<s.length;i++){
-    const ch=s[i];
-    if(ch!==' '){const g=getGlyph(ch,col,sc);if(g)ctx.drawImage(g,cx,yy);}
-    cx+=adv;
-  }
+  ctx.drawImage(s.length > 1 ? getString(s,col,sc) : (getGlyph(s,col,sc) || getString(s,col,sc)),Math.round(x),Math.round(y));
   ctx.globalAlpha=prevA;
 }
 function drawText(s,x,y,col,alpha){drawTextS(s,x,y,col,alpha,1);}
@@ -122,11 +135,9 @@ function drawJaggedTrail(x0,y0,x1,y1,col,density,alpha,ox,oy){
   ctx.fillStyle=col;
   if(alpha!==undefined)ctx.globalAlpha=alpha;
   const den = density || 1;
-  ctx.beginPath();
   for(let i=0;i<=steps;i+=den){
     const t=i/steps;
-    ctx.rect(Math.round(x0+dx*t)+(ox||0),Math.round(y0+dy*t)+(oy||0),1,1);
+    ctx.fillRect(Math.round(x0+dx*t)+(ox||0),Math.round(y0+dy*t)+(oy||0),1,1);
   }
-  ctx.fill();
   ctx.globalAlpha=prevA;
 }

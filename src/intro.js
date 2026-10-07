@@ -120,7 +120,7 @@ const DEFAULT_STATS = {
 let saveData = safeLoad(KEY('save'), null);
 if (saveData && !(saveData.v === 2 && Array.isArray(saveData.inst))) saveData = null;
 function clearSave(){ saveData = null; try { localStorage.removeItem(KEY('save')); } catch(e){} }
-const DEFAULT_OPTS = { muted: false, shake: true, reticle: 0, difficulty: 1 };
+const DEFAULT_OPTS = { muted: false, music: true, shake: true, reticle: 0, difficulty: 1 };
 
 let stats = Object.assign({}, DEFAULT_STATS, safeLoad(KEY('stats'), {}));
 let opts  = Object.assign({}, DEFAULT_OPTS,  safeLoad(KEY('opts'),  {}));

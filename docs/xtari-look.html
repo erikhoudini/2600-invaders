@@ -117,6 +117,16 @@ footer{margin-top:60px;color:var(--dim);font-size:13px}
 <li><b>Danger</b>: with two cities left the screen tints red at the edges, a text warning pulses on the lower screen, and a tone repeats every seven seconds.</li>
 </ul>
 
+<h2>Sound</h2>
+<p>The sound is the Atari 2600's TIA chip, emulated sample by sample: its own polynomial counters, its own 31.4 kHz clock, held per sample so the aliasing and grit are real. Every effect is a list of per-frame register writes, 60 a second.</p>
+<ul>
+<li><b>Two voices, as on the chip.</b> The music has a bass on the 31-step tone (AUDC 6) and a lead on the pure square (AUDC 12). Nothing else plays; a third line would need a third voice, and the chip does not have one.</li>
+<li><b>Out of tune on purpose.</b> The chip's dividers are coarse: the bass notes land within a quarter-tone of the lead, and the lead's top notes drift sharp. We write in D minor because that is where the chip is closest to in tune, and we avoid F5, which it cannot play.</li>
+<li><b>One theme, three intensities.</b> A calm bass and a pad; a march with the melody; a driving eighth-note bass with arpeggios. All run at 126 bpm for 8 bars, so the game can swap between them in the middle of a bar without the beat moving. Intensity rises within half a second of a crowd of enemies and falls only after three quiet seconds.</li>
+<li><b>Boss theme</b> at 150 bpm: a chromatic ostinato in the bass, tritone stabs above. <b>Menu theme</b> at 92 bpm.</li>
+<li><b>The music ducks, it does not stop.</b> When a city falls it dips to a fifth of its volume for 0.7 s; in the pause menu it drops to a quarter.</li>
+</ul>
+
 <h2>The screen</h2>
 <p>Two 256 x 192 screens with a 24 pixel gap, as on a handheld with a hinge. The upper screen is the sky: planets, clouds, distant ships. The lower is the ground: cities, turrets, impact. The gap is part of the world; things fall through it. The HUD is on the upper screen and kept to two rows: wave, score, chain. Menus are written as if the game were already on that handheld: a header plate, buttons with a hard black shadow, a footer plate with the controls.</p>
 
@@ -175,6 +185,7 @@ footer{margin-top:60px;color:var(--dim);font-size:13px}
 <tr><td><code>src/enemies.js</code></td><td>What each type does: speed, hit points, shield, how it dies.</td></tr>
 <tr><td><code>src/patterns.js</code></td><td>The pattern language and the wave composer.</td></tr>
 <tr><td><code>src/render.js</code></td><td>Frame drawing, blasts, the banner, the danger tint.</td></tr>
+<tr><td><code>src/audio.js</code>, <code>src/music.js</code></td><td>The TIA emulation, every sound effect, and the two-voice score.</td></tr>
 <tr><td><code>src/ui.js</code></td><td>The handheld menu kit: plates, buttons, glyphs.</td></tr>
 </table>
 

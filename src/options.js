@@ -4,7 +4,7 @@
 //  OPTIONS
 // =====================================================================
 function cycleOption(idx, dir){
-  if (idx === 0){ opts.muted = !opts.muted; }
+  if (idx === 0){ opts.muted = !opts.muted; if (!opts.muted) opts.music = true; }
   else if (idx === 1){ opts.shake = !opts.shake; }
   else if (idx === 2){ opts.difficulty = (opts.difficulty + (dir || 1) + 3) % 3; }
   else if (idx === 3){ clearScores(); pushToast('SCORES CLEARED', P.red); }

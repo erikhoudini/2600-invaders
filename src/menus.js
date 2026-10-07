@@ -335,7 +335,7 @@ function drawAchievementsPage(page){
   }
 }
 
-const OPTION_DESCS = ['GAME AUDIO', 'SCREEN KICK AND PHONE BUZZ', 'MOVES EVERY WAVE UP OR DOWN', 'ERASES ALL HIGH SCORES', 'ERASES UNLOCKS AND CAMPAIGN'];
+const OPTION_DESCS = ['EFFECTS AND MUSIC', 'SCREEN KICK AND PHONE BUZZ', 'MOVES EVERY WAVE UP OR DOWN', 'ERASES ALL HIGH SCORES', 'ERASES UNLOCKS AND CAMPAIGN'];
 function drawOptionsScreen(t){
   uiHeader('OPTIONS');
   for (let i = 0; i < 5; i++){
@@ -348,7 +348,11 @@ function drawOptionsScreen(t){
     drawText2x(optionName(i), x + 8, y + 3, sel ? P.yel : P.wht);
     const confirming = optionsConfirm === i && (i === 3 || i === 4);
     drawText(confirming ? 'TAP AGAIN TO CONFIRM' : OPTION_DESCS[i], x + 8, y + 14, confirming ? P.yel : (sel ? P.wht : P.lblu));
-    if (i === 0) uiSwitch(W - 36, y + 7, !opts.muted);
+    if (i === 0){
+      uiSwitch(W - 36, y + 10, !opts.muted); drawText('FX', W - 29, y + 4, sel ? P.wht : P.lblu);
+      uiSwitch(W - 76, y + 10, opts.music !== false && !opts.muted); drawText('MUSIC', W - 77, y + 4, sel ? P.wht : P.lblu);
+      uiHit(W - 80, y, 36, 23, () => { opts.music = !(opts.music !== false); saveOpts(); sfx('toggle'); optionsSelection = 0; });
+    }
     else if (i === 1) uiSwitch(W - 36, y + 7, opts.shake);
     else if (i === 2){                                    // three segments: easy, normal, hard
       for (let k = 0; k < 3; k++){

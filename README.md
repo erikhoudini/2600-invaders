@@ -113,3 +113,5 @@ Use that file to share or host the game as one page.
 `docs/xtari-look.html` is the style guide (rules, palette, animated bestiary, agitprop voice). Rebuild it with `node tools/make_doc.mjs`; its sprites and palette come from the game source. Enemy sprites are character art with two frames in `src/sprites.js`; the voice (slogans, enemy names) is in `src/agitprop.js`.
 
 New in this pass: weavers (snake), phantoms (fade on a beat), divers (telegraphed dive), sappers that hang orbital walls (3 hits, shielded, bounce every missile), shatter-into-pixels deaths, hit-stop, scorch marks, a wave roster under the banner, and the Soviet agitprop voice.
+
+Music (`src/music.js`) is an original two-voice D-minor score on the emulated TIA, with calm / driving / urgent versions of one theme that swap on the beat, plus boss and menu themes. Options has separate MUSIC and FX switches.
