@@ -154,6 +154,19 @@ function preRenderSaturn(env){
   for (let i = 0; i < SAT_FRAMES; i++) frames.push(renderSaturnFrame(i / SAT_FRAMES, env));
   saturnFramesByEnv[key] = frames;
 }
+// Warm the next moon's planet one frame at a time while the game is idle, so arriving there costs nothing
+const saturnWarm = {};
+function warmSaturn(env){
+  const key = env.id;
+  if (saturnFramesByEnv[key] || saturnWarm[key]) return;
+  const frames = saturnWarm[key] = [];
+  const step = () => {
+    if (saturnFramesByEnv[key]) return;
+    if (frames.length < SAT_FRAMES){ frames.push(renderSaturnFrame(frames.length / SAT_FRAMES, env)); setTimeout(step, 24); }
+    else saturnFramesByEnv[key] = frames;
+  };
+  setTimeout(step, 400);
+}
 function activateSaturn(env){
   const key = env.id;
   if (!saturnFramesByEnv[key]) preRenderSaturn(env);

@@ -21,9 +21,9 @@ const ACHIEVEMENTS = [
   { id:'r5',      name:'LAST MOON',      desc:'Reach Mimas',                 test:(s)=>s.bestWave>=33 },
   { id:'w3',      name:'INTERNATIONALE',   desc:'Clear three worlds',          test:(s,c)=>c.clears.filter(v=>v>0).length>=3 },
   { id:'cc',      name:'WORLD REVOLUTION',  desc:'Clear all five worlds',       test:(s,c)=>c.clears.every(v=>v>0), reward:['city',4] },
-  { id:'fw',      name:'IRON CITY',      desc:'Clear a world, no city lost', test:(s,c)=>c.flawWorld>=1, reward:['city',2] },
-  { id:'fw3',     name:'IRON UNION',     desc:'Clear 3 worlds, no losses',test:(s,c)=>c.flawWorld>=3, reward:['reticle',7] },
-  { id:'mod',     name:'MODDED',         desc:'Clear a world with a mod on', test:(s,c)=>c.modWins>=1 },
+  { id:'fw',      name:'IRON CITY',      desc:'Clear a world, keep all', test:(s,c)=>c.flawWorld>=1, reward:['city',2] },
+  { id:'fw3',     name:'IRON UNION',     desc:'Clear 3 worlds, no loss',test:(s,c)=>c.flawWorld>=3, reward:['reticle',7] },
+  { id:'mod',     name:'MODDED',         desc:'Clear a world, mod on', test:(s,c)=>c.modWins>=1 },
   // -- endless
   { id:'t180',    name:'SURVIVOR',       desc:'Survive 3:00 in Endless',     test:(s)=>s.bestTime>=180 },
   { id:'t360',    name:'ENDURER',        desc:'Survive 6:00 in Endless',     test:(s)=>s.bestTime>=360, reward:['city',3] },
@@ -45,7 +45,7 @@ const ACHIEVEMENTS = [
   { id:'s25k',    name:'COSMONAUT',      desc:'Score 25,000 in one game',    test:(s)=>bestScore(s)>=25000,   reward:['city',1] },
   { id:'s100k',   name:'FIVE-YEAR PLAN',    desc:'Score 100,000 in one game',   test:(s)=>bestScore(s)>=100000 },
   { id:'s400k',   name:'ORDER OF OCTOBER',        desc:'Score 400,000 in one game',   test:(s)=>bestScore(s)>=400000,  reward:['shot',7] },
-  { id:'s1m',     name:'POLITBURO',      desc:'Score 1,000,000 in one game', test:(s)=>bestScore(s)>=1000000 },
+  { id:'s1m',     name:'POLITBURO',      desc:'Score 1,000,000 in a game', test:(s)=>bestScore(s)>=1000000 },
   // -- bosses
   { id:'b1',      name:'WARDEN DOWN',    desc:'Defeat the Warden',           test:(s,c)=>c.bosses[0]>0, reward:['blast',1] },
   { id:'b2',      name:'LEVIATHAN SLAIN',desc:'Defeat the Leviathan',        test:(s,c)=>c.bosses[1]>0, reward:['blast',2] },
@@ -53,8 +53,8 @@ const ACHIEVEMENTS = [
   { id:'b4',      name:'HYDRA SEVERED',  desc:'Defeat the Hydra',            test:(s,c)=>c.bosses[3]>0 },
   { id:'b5',      name:'ARBITER FALLS',  desc:'Defeat the Arbiter',          test:(s,c)=>c.bosses[4]>0 },
   { id:'bh',      name:'BOSS HUNTER',    desc:'Defeat all five bosses',      test:(s,c)=>c.bosses.every(v=>v>0), reward:['blast',3] },
-  { id:'fb',      name:'NO LOSSES',      desc:'Beat a boss with every city', test:(s,c)=>c.flawBoss>=1 },
-  { id:'fb3',     name:'CLEAN KILLS',    desc:'Beat 3 bosses, no losses', test:(s,c)=>c.flawBoss>=3, reward:['blast',4] },
+  { id:'fb',      name:'NO LOSSES',      desc:'Beat a boss, lose none', test:(s,c)=>c.flawBoss>=1 },
+  { id:'fb3',     name:'CLEAN KILLS',    desc:'Beat 3 bosses, no loss', test:(s,c)=>c.flawBoss>=3, reward:['blast',4] },
   { id:'rush5',   name:'RUSH HOUR',      desc:'Down 5 bosses in Boss Rush',  test:(s)=>(s.bestRush||0)>=5, reward:['blast',5] },
   // -- powerups
   // -- gallery

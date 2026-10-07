@@ -111,6 +111,7 @@ function setWorld(wi){
   activateSaturn(currentEnv);
   preRenderStars();
   initSnow();
+  warmSaturn(WORLDS[(wi + 1) % WORLDS.length]);
   fadingTrails = [];
   resetHazards();
 }
