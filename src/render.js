@@ -68,6 +68,7 @@ function drawGameplay(t){
       const midY=(a.y+b.y)*0.5;
       const cloud = cloudAlphaAtY(midY);
       const segT=i/trLen;
+      if (segT > 0.5) drawJaggedTrail(a.x,a.y,b.x,b.y,P.blk,1, cloud * 0.85, 1, 0);       // outline
       drawJaggedTrail(a.x,a.y,b.x,b.y,segT>0.7?T.trailCol:T.trailDim,segT>0.5?1:2, cloud);
     }
     const last=e.trail[trLen-1];
@@ -117,7 +118,7 @@ function drawGameplay(t){
     const T = ETYPES[e.type];
     if (e.type === 'chute' && e.opened) drawCanopy(e, t, cloud);
     if (e.type === 'satellite') drawSatelliteFx(e, t);
-    if (T.shield) drawPlatformFx(e, t, spr, cloud);
+    if (T.shield || T.hp > 1) drawPlatformFx(e, t, spr, cloud);
     if (T.splitAt && !e.hasSplit){
       const progress = (e.y - e.startY) / e.totalFall;
       if (progress > T.splitAt - 0.12 && Math.sin(t * 20) > 0){
@@ -136,6 +137,7 @@ function drawGameplay(t){
   if(boss&&boss.drawFront){ ctx.save(); ctx.translate(0, boss.offY || 0); boss.drawFront(t); ctx.restore(); }
   drawEdgeWarns(t);
   drawPhraseLabel(t);
+  drawDanger(t); drawTip(t);
 
   for(const p0 of popups){
     const p = (p0.y > SH - 10 && p0.y < BOT + 8) ? Object.assign({}, p0, { y: SH - 14 }) : p0;
@@ -382,6 +384,9 @@ function drawTopScreen(t){
         Math.round(currentEnv.saturnCX - drawSize/2),
         Math.round(currentEnv.saturnCY - drawSize/2),
         drawSize, drawSize);
+      ctx.globalAlpha = 0.3; ctx.fillStyle = P.blk;                      // dim the planet so the action reads over it
+      ctx.fillRect(Math.round(currentEnv.saturnCX - drawSize/2), Math.round(currentEnv.saturnCY - drawSize/2), drawSize, drawSize);
+      ctx.globalAlpha = 1;
     }
   }
   drawAtmosphere();
@@ -418,6 +423,22 @@ function drawBottomScreen(t){
   drawGroundFx(t);
 }
 
+// With two cities or fewer left the sky pulses, and a warning sounds now and then
+let lowCityT = 0;
+function drawDanger(t){
+  if (menuState !== 'game') return;
+  const n = installations.filter(i => i.alive).length;
+  if (n === 0 || n > 2) return;
+  const s = n === 1 ? 'LAST CITY!' : 'TWO CITIES LEFT';
+  if (Math.sin(t * 6) > -0.2){
+    const tw = textW(s), x = Math.round((W - tw) / 2), y = BOT + 24;
+    drawText(s, x + 1, y + 1, P.blk); drawText(s, x, y, P.rrd);
+  }
+  const pa = ctx.globalAlpha;
+  ctx.globalAlpha = pa * (0.05 + 0.04 * Math.sin(t * 5));
+  ctx.fillStyle = P.rrd; ctx.fillRect(0, BOT, W, SH);
+  ctx.globalAlpha = pa;
+}
 // Flyers announce themselves: chevrons flash at the edge they are about to enter from
 function drawEdgeWarns(t){
   for (const w of edgeWarns){

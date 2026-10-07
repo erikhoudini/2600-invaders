@@ -41,6 +41,7 @@ function startPass(c){
 }
 function spawnOrbital(type){
   if (crates.length >= 1) return;
+  tip('pu', 'SHOOT THE FLYING POWER-UP TO COLLECT IT.');
   const c = { type: type || pickCrateType(), pass: 0, dir0: Math.random() < 0.5 ? 1 : -1, x: -20, y: 100, trail: [], wait: 0, tt: 0 };
   startPass(c);
   crates.push(c);
@@ -233,23 +234,23 @@ const HAZARDS = {
   enceladus: { name:'ICE GEYSER',    tele:1.2 },
   triton:    { name:'BOULDER FIELD', tele:1.4 },
 };
-let hazardT = 20, hazardEv = null, gust = 0, gustT = 0;
+let hazardT = 30, hazardEv = null, gust = 0, gustT = 0;
 
-function resetHazards(){ hazardT = 20; hazardEv = null; gust = 0; gustT = 0; }
+function resetHazards(){ hazardT = 30; hazardEv = null; gust = 0; gustT = 0; }
 
 function hazardAllowed(){
   if (boss) return false;
   if (gameMode === 'endless') return endTime > 15;
-  return waveState === 'spawning' && !isBossWave(wave) && waveIn(wave) >= 2;
+  return waveState === 'spawning' && !isBossWave(wave) && waveIn(wave) >= (worldOf(wave) === 0 ? 4 : 2);
 }
 
 function startHazard(){
   const id = currentEnv.id, H0 = HAZARDS[id];
   const ev = { kind: id, t: 0, tele: H0.tele, fired: false, n: 0, xs: [], dir: Math.random() < 0.5 ? -1 : 1 };
-  if (id === 'europa'){ for (let i = 0; i < 9; i++) ev.xs.push(rndi(12, W - 12)); }
+  if (id === 'europa'){ for (let i = 0; i < 6; i++) ev.xs.push(rndi(12, W - 12)); }
   else if (id === 'io'){
     const cities = installations.filter(i => i.alive);
-    for (let i = 0; i < 5; i++){ const c = cities.length ? pick(cities) : { x: rndi(20, W - 20) }; ev.xs.push(clamp(c.x + rnd(-30, 30), 10, W - 10)); }
+    for (let i = 0; i < 4; i++){ const c = cities.length ? pick(cities) : { x: rndi(20, W - 20) }; ev.xs.push(clamp(c.x + rnd(-30, 30), 10, W - 10)); }
   }
   else if (id === 'enceladus'){ ev.xs.push(rndi(30, W - 30)); }
   else if (id === 'triton'){ for (let i = 0; i < 4; i++) ev.xs.push(rndi(20, W - 20)); }
@@ -278,8 +279,8 @@ function updateHazards(dt){
   if (ev.t < ev.tele) return;
   const k = ev.t - ev.tele;
   if (ev.kind === 'europa'){
-    while (ev.n < ev.xs.length && k > ev.n * 0.16){
-      spawnEnemy('meteor', ev.xs[ev.n] - ev.dir * 20, 24, ev.dir * rnd(26, 44), rnd(52, 72) * speedMul);
+    while (ev.n < ev.xs.length && k > ev.n * 0.26){
+      spawnEnemy('meteor', ev.xs[ev.n] - ev.dir * 20, 24, ev.dir * rnd(26, 44), rnd(46, 62) * speedMul);
       ev.n++;
     }
     if (ev.n >= ev.xs.length) endHazard();
@@ -293,8 +294,8 @@ function updateHazards(dt){
     }
     if (ev.n >= ev.xs.length) endHazard();
   } else if (ev.kind === 'enceladus'){
-    const total = 8;
-    while (ev.n < total && k > ev.n * 0.1){
+    const total = 6;
+    while (ev.n < total && k > ev.n * 0.14){
       spawnEnemy('shard', ev.xs[0] + rnd(-4, 4), GROUND - 4, rnd(-34, 34), -rnd(115, 155));
       for (let i = 0; i < 3; i++) spawnParticle(ev.xs[0], GROUND - 4, rnd(-20, 20), rnd(-90, -30), rnd(0.3, 0.6), P.wht, 1);
       ev.n++;
@@ -314,7 +315,7 @@ function updateHazards(dt){
 }
 function endHazard(){
   hazardEv = null;
-  hazardT = Math.max(14, 30 - diffWave(Math.max(1, wave)) * 0.6) + rnd(0, 10);
+  hazardT = Math.max(24, 40 - diffWave(Math.max(1, wave)) * 0.5) + rnd(0, 12);
   if (gameMode === 'endless') hazardT = 22 + rnd(0, 10);
 }
 

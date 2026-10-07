@@ -125,7 +125,7 @@ function captureMods(){
   runMods = loadout.mods.filter(id => { const m = MODS.find(x => x.id === id); return m && modUnlocked(m); });
   modSlow = runMods.includes('rearm'); modSwift = runMods.includes('swift'); modBlind = runMods.includes('blind');
   modHeavy = runMods.includes('heavy'); modGlass = runMods.includes('glass');
-  scoreMul = modMult(runMods);
+  scoreMul = modMult(runMods) * DIFFICULTY_SCORE[opts.difficulty];
 }
 function addScore(n){ score += Math.round(n * scoreMul); }
 

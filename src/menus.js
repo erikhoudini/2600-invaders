@@ -332,28 +332,37 @@ function drawAchievementsPage(page){
   }
 }
 
-const OPTION_DESCS = ['GAME AUDIO', 'SCREEN KICK ON BLASTS', 'ERASES ALL HIGH SCORES', 'ERASES UNLOCKS AND CAMPAIGN'];
+const OPTION_DESCS = ['GAME AUDIO', 'SCREEN KICK AND PHONE BUZZ', 'MOVES EVERY WAVE UP OR DOWN', 'ERASES ALL HIGH SCORES', 'ERASES UNLOCKS AND CAMPAIGN'];
 function drawOptionsScreen(t){
   uiHeader('OPTIONS');
-  for (let i = 0; i < 4; i++){
-    const y = 28 + i * 30, sel = optionsSelection === i;
+  for (let i = 0; i < 5; i++){
+    const y = 25 + i * 26, sel = optionsSelection === i;
     const c = sel ? UI_SELECT : UI_NORMAL;
     const x = 6 + Math.round(uiAnim('o' + i, sel ? 1 : 0) * 3);
-    uiPlate(x, y, W - 12, 26, c[0], c[1], c[2], c[3]);
-    uiHit(6, y, W - 12, 26, () => { optionsSelection = i; activateOption(i); });
-    drawText2x(optionName(i), x + 9, y + 5, P.blk);
-    drawText2x(optionName(i), x + 8, y + 4, sel ? P.yel : P.wht);
-    const confirming = optionsConfirm === i && (i === 2 || i === 3);
-    drawText(confirming ? 'TAP AGAIN TO CONFIRM' : OPTION_DESCS[i], x + 8, y + 16, confirming ? P.yel : (sel ? P.wht : P.lblu));
-    if (i === 0) uiSwitch(W - 36, y + 8, !opts.muted);
-    else if (i === 1) uiSwitch(W - 36, y + 8, opts.shake);
-    else {
-      uiPlate(W - 46, y + 6, 36, 14, confirming ? P.rrd : P.dred, confirming ? P.pnk : P.red, P.blk, P.blk);
-      drawText(confirming ? 'SURE?' : 'CLEAR', W - 46 + Math.round((36 - textW(confirming ? 'SURE?' : 'CLEAR')) / 2), y + 11, P.wht);
+    uiPlate(x, y, W - 12, 23, c[0], c[1], c[2], c[3]);
+    uiHit(6, y, W - 12, 23, () => { optionsSelection = i; activateOption(i); });
+    drawText2x(optionName(i), x + 9, y + 4, P.blk);
+    drawText2x(optionName(i), x + 8, y + 3, sel ? P.yel : P.wht);
+    const confirming = optionsConfirm === i && (i === 3 || i === 4);
+    drawText(confirming ? 'TAP AGAIN TO CONFIRM' : OPTION_DESCS[i], x + 8, y + 14, confirming ? P.yel : (sel ? P.wht : P.lblu));
+    if (i === 0) uiSwitch(W - 36, y + 7, !opts.muted);
+    else if (i === 1) uiSwitch(W - 36, y + 7, opts.shake);
+    else if (i === 2){                                    // three segments: easy, normal, hard
+      for (let k = 0; k < 3; k++){
+        const on = opts.difficulty === k, bx = W - 74 + k * 22;
+        uiPlate(bx, y + 8, 21, 13, on ? [P.dgrn, P.rrd, P.red][k] : P.blk, null, null, on ? P.yel : P.dblu);
+        const lab = ['E', 'N', 'H'][k];
+        drawText(lab, bx + 9, y + 12, on ? P.wht : P.blu);
+        uiHit(bx, y + 8, 21, 13, () => { opts.difficulty = k; saveOpts(); sfx('toggle'); optionsSelection = 2; });
+      }
+      drawText(DIFFICULTY_NAMES[opts.difficulty], W - 74 + 32 - Math.round(textW(DIFFICULTY_NAMES[opts.difficulty]) / 2), y + 1, P.yel);
+    } else {
+      uiPlate(W - 46, y + 5, 36, 13, confirming ? P.rrd : P.dred, confirming ? P.pnk : P.red, P.blk, P.blk);
+      drawText(confirming ? 'SURE?' : 'CLEAR', W - 46 + Math.round((36 - textW(confirming ? 'SURE?' : 'CLEAR')) / 2), y + 9, P.wht);
     }
   }
-  const backSel = optionsSelection === 4;
-  uiButton(W / 2 - 50, 150, 100, 22, 'BACK', { sel: backSel, scale: 2, align: 'center', icon: 'left', fn: () => { optionsSelection = 4; activateOption(4); } });
+  const backSel = optionsSelection === 5;
+  uiButton(W / 2 - 50, 156, 100, 18, 'BACK', { sel: backSel, scale: 2, align: 'center', icon: 'left', fn: () => { optionsSelection = 5; activateOption(5); } });
   uiFooter([['DPAD', 'MOVE'], ['A', 'CHANGE']], leaveOptions);
 }
 

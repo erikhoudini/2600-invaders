@@ -109,7 +109,7 @@ function fillCircle(cx,cy,r,col){
   }
 }
 
-function drawJaggedTrail(x0,y0,x1,y1,col,density,alpha){
+function drawJaggedTrail(x0,y0,x1,y1,col,density,alpha,ox,oy){
   const dx=x1-x0, dy=y1-y0;
   const dist=Math.hypot(dx,dy);
   if(dist<1)return;
@@ -121,7 +121,7 @@ function drawJaggedTrail(x0,y0,x1,y1,col,density,alpha){
   ctx.beginPath();
   for(let i=0;i<=steps;i+=den){
     const t=i/steps;
-    ctx.rect(Math.round(x0+dx*t),Math.round(y0+dy*t),1,1);
+    ctx.rect(Math.round(x0+dx*t)+(ox||0),Math.round(y0+dy*t)+(oy||0),1,1);
   }
   ctx.fill();
   ctx.globalAlpha=prevA;

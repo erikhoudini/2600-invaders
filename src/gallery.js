@@ -59,6 +59,7 @@ function spawnSatellite(idx){
   enemies[enemies.length - 1].poster = idx;
   popups.push({ x: W / 2, y: 112, text: 'SATELLITE!', t: 0, dur: 1.3, col: P.yel, big: true });
   sfx('warn');
+  tip('sat', 'SHOOT THE SATELLITE FOR A POSTER. IT IS FAST AND ONLY PASSES ONCE.');
 }
 function updateSatellites(dt){
   if (gameMode === 'rush' || boss) return;

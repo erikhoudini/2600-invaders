@@ -226,6 +226,7 @@ function platformCap(){
   const d = gameMode === 'endless' ? endDiff() : diffWave(wave);
   return d >= (gameMode === 'endless' ? 8 : 12) ? 2 : 1;
 }
+let curParent = null;       // the enemy whose update is running, so what it spawns keeps its pattern tag
 let bossFiring = false;      // set while a boss runs its attacks, so its missiles come out faster
 function spawnEnemy(type,x,y,vx,vy,o){
   if (type === 'platform' && platformCount() >= platformCap()) type = 'ipbm';
@@ -266,6 +267,7 @@ function spawnEnemy(type,x,y,vx,vy,o){
     vy: vy!==undefined?vy:T.vy*speedMul,
     dead:false, trail:[], trailTimer:0,
     fromLeft: (vx!==undefined?vx:T.vx)>0,
+    pat: (o && o.pat) || (curParent && curParent.pat) || (bossFiring ? 'boss' : undefined),
     dropPoints: (o && o.drops) ? o.drops.slice() : (T.drops ? T.drops.slice() : null),
     dropIndex: 0,
     wobble:Math.random()*6.28,
@@ -342,7 +344,8 @@ function typePool(w, env){
 const worldOf = gw => Math.floor((gw - 1) / WAVES_PER_WORLD);
 const waveIn  = gw => ((gw - 1) % WAVES_PER_WORLD) + 1;
 const formatWave = gw => (gw > 0 ? (worldOf(gw) + 1) + '-' + waveIn(gw) : '--');
-const diffWave = gw => gameMode === 'rush' ? Math.min(22, 6 + rush.n) : worldOf(gw) * 3 + waveIn(gw);
+// each planet starts four waves above the last, and the last two climb a little faster
+const diffWave = gw => Math.max(1, (gameMode === 'rush' ? Math.min(24, 6 + rush.n) : Math.round(worldOf(gw) * 4 + waveIn(gw) + Math.max(0, worldOf(gw) - 2) * 1.5)) + DIFFICULTY_SHIFT[opts.difficulty]);
 const waveFlow = () => gameMode === 'wave' || gameMode === 'rush';
 const isBossWave = gw => waveIn(gw) === WAVES_PER_WORLD;
 
@@ -361,7 +364,7 @@ function nextWave(fw){
   runStats.perfect = true;
   roundBest = 0; waveBonus = 0; themeFormation = null; bossSpawned = false;
   const dw = diffWave(wave);
-  speedMul=Math.min(1.9,1+(dw-1)*0.05);
+  speedMul=Math.min(2.1,1+(dw-1)*0.05);
   // The wave is a script of phrases; its length is what the boss plan and the progress bar count
   choreoReset();
   choreo.phrases = composeWave(dw, worldOf(wave), isBossWave(wave), gameMode === 'rush' && !isBossWave(wave));
@@ -601,10 +604,12 @@ function fire(){
   const best = pickTurret();
   if(!best){                                         // everything is reloading, or every turret is down
     for (const t of turrets) if (t.alive) t.dry = 0.18;
+    tip('dry', 'ALL TURRETS ARE RELOADING. WAIT FOR ONE TO CHARGE, OR AIM WITH PATIENCE.');
     fireCooldown = 0.08; sfx('dry'); return;
   }
   runStats.shots++;
   stats.totalShots++;
+  if (runStats.shots === 6) tip('lead', 'SHOTS TAKE TIME TO TRAVEL. AIM AHEAD OF MOVING TARGETS.');
   best.flash=0.10; best.cd = rearmTime(); fireCooldown = 0.07;
   let blastR = 28;
   if (fxBlast > 0){ blastR = 44; fxBlast--; }
@@ -623,7 +628,7 @@ function fire(){
 const edir = { raidAt: 55, shiftAt: 80 };
 const MOON_SHIFT = 80;
 // Difficulty climbs slowly with time alone
-function endDiff(){ return Math.min(14, 1 + Math.floor(endTime / 50)); }
+function endDiff(){ return Math.max(1, Math.min(26, 1 + Math.floor(endTime / 36)) + Math.round(DIFFICULTY_SHIFT[opts.difficulty] / 2)); }
 function resetEndless(){ edir.raidAt = 55; edir.shiftAt = MOON_SHIFT; choreoReset(); }
 function fallingCount(){
   let n = 0;
@@ -644,7 +649,7 @@ function endlessMoonShift(){
 function updateEndless(dt){
   if (endTime >= edir.shiftAt){ edir.shiftAt += MOON_SHIFT; endlessMoonShift(); }
   const dd = endDiff(), dw = Math.round(dd * 1.5);
-  speedMul = Math.min(2.0, 1 + (dd - 1) * 0.05);
+  speedMul = Math.min(2.5, 1 + (dd - 1) * 0.055);
   choreoStep(dt);
   if (endTime >= edir.raidAt){                         // an air raid cuts the queue every so often
     edir.raidAt += 55;
@@ -704,6 +709,7 @@ function update(dt){
   if(waveBannerT>0)waveBannerT=Math.max(0,waveBannerT-dt);
 
   updateToasts(dt);
+  if (menuState === 'game' && !paused) updateTips(dt);
 
   if(menuState!=='game'){
     if(menuState==='gameover') gameOverTimer -= dt;
@@ -715,6 +721,7 @@ function update(dt){
 
   if (paused) return;
   runStats.time += dt;
+  if (installations.some(i => i.alive) && installations.filter(i => i.alive).length <= 2){ lowCityT -= dt; if (lowCityT <= 0){ lowCityT = 7; sfx('warn'); } } else lowCityT = 1.5;
 
   achTimer -= dt;
   if (achTimer <= 0){ achTimer = 1; checkAchievements(); }
@@ -775,6 +782,7 @@ function update(dt){
     const e = enemies[ei];
     if(!e || e.dead) continue;
     const T=ETYPES[e.type];
+    curParent = e;
     e.wobble+=dt*3;
     if(T.dodge){
       for(const b of booms){
@@ -822,6 +830,7 @@ function update(dt){
         sfx('dropHeavy');
       }
     }
+    if (e.hurt > 0) e.hurt = Math.max(0, e.hurt - dt);
     if (T.shield){
       e.shT -= edt;
       if (e.shT <= 0){
@@ -890,7 +899,7 @@ function update(dt){
       if (e.x < 0 || e.x > W) continue;
 
       const hitTurret = turrets.find(t => t.alive && Math.abs(t.x - e.x) < 11);
-      if (hitTurret){ destroyTurret(hitTurret); continue; }
+      if (hitTurret){ tele.turretHits[e.pat || '?'] = (tele.turretHits[e.pat || '?'] || 0) + 1; destroyTurret(hitTurret); continue; }
 
       let hitDome = null;
       for(const inst of installations){
@@ -909,13 +918,15 @@ function update(dt){
         continue;
       }
 
+      tele.cityHits[e.pat || '?'] = (tele.cityHits[e.pat || '?'] || 0) + 1;
       if (damageCity(hitDome, e.x)) return;
     }
     if(e.y>BOT*0.8&&e.y<groundY&&e.vy>0)warningT=Math.max(warningT,0.1);
   }
+  curParent = null;
   enemies=enemies.filter(e=>!e.dead);
   updateBooms(dt);updatePopups(dt);
-  crateHits(); updateCrates(dt); updateHazards(dt); updateSatellites(dt);
+  crateHits(); updateCrates(dt); curParent = { pat: 'hazard' }; updateHazards(dt); curParent = null; updateSatellites(dt);
   if(boss){ bossBoomHits(); if(boss) updateBoss(dt); if(menuState!=='game') return; }
   if(comboTimer>0){
     comboTimer-=dt;
@@ -972,6 +983,7 @@ function destroyTurret(t){
   booms.push(new Boom(t.x, t.y, 'nova', { r: 22, dur: 0.6, noBoss: true }));
   for (let i = 0; i < 12; i++) spawnParticle(t.x, t.y, rnd(-60, 60), rnd(-70, 10), rnd(0.4, 1.0), pick([P.yel, P.org, P.wht, P.gry]), 2);
   shake = Math.max(shake, 0.8); flashT = Math.max(flashT, 0.12); buzz(50);
+  tip('turret', 'A DOWNED TURRET REBUILDS ITSELF AFTER A WHILE. REPAIR CRATES FIX IT AT ONCE.');
   popups.push({ x: t.x, y: t.y - 16, text: 'TURRET DOWN', t: 0, dur: 1.3, col: P.org, big: true });
   sfx('cityHit');
   if (turrets.every(u => !u.alive)) popups.push({ x: W / 2, y: GROUND - 60, text: 'NO TURRETS', t: 0, dur: 1.6, col: P.red, big: true });
@@ -1002,6 +1014,7 @@ function damageCity(inst, ex){
   combo=0;comboTimer=0;lastKillAt = -999;
   shake=1.4;flashT=0.6;warningT=0.4;
   sfx('cityHit');
+  if (gameMode === 'wave') tip('city', 'LOSE A CITY AND IT STAYS LOST UNTIL THE NEXT PLANET. SHOOT BOMBS BEFORE THEY LAND.');
   booms.push(new Boom(ex, GROUND - 2, 'mushroom', {r:44, dur:1.6}));
   for(let i=0;i<14;i++){
     spawnParticle(ex,GROUND-4,rnd(-80,80),rnd(-110,-30),rnd(0.6,1.2),Math.random()<0.5?P.wht:P.tan,2);
@@ -1025,7 +1038,10 @@ function platformHit(e, b){
   e.hurt = 0.4;
   sfx('bossHit');
   for (let i = 0; i < 6; i++) spawnParticle(e.x + rnd(-6, 6), e.y, rnd(-40, 40), rnd(-40, 10), rnd(0.3, 0.6), P.yel, 1);
-  if (e.hp > 0){ e.shI = 0; e.shT = SHIELD_PATTERN[0][1]; e.shieldUp = true; return false; }
+  if (e.hp > 0){
+    if (ETYPES[e.type].shield){ e.shI = 0; e.shT = SHIELD_PATTERN[0][1]; e.shieldUp = true; }
+    return false;
+  }
   return true;
 }
 function updateBooms(dt){
@@ -1035,13 +1051,21 @@ function updateBooms(dt){
     if(b.dead)continue;
     const p=b.p;if(p<=0||p>=1)continue;
     const ec = enemies.length;
+    let kills = 0;
     for(let i=0;i<ec;i++){
       const e = enemies[i];
       if(!e || e.dead) continue;
       if(boomHitsEnemy(b,e)){
-        if (ETYPES[e.type].shield && !platformHit(e,b)) continue;
-        e.dead=true; onEnemyKilled(e,newBooms);
+        if ((ETYPES[e.type].shield || ETYPES[e.type].hp > 1) && !platformHit(e,b)) continue;
+        e.dead=true; kills++; onEnemyKilled(e,newBooms);
       }
+    }
+    if (kills > 0) b.kills = (b.kills || 0) + kills;
+    if (b.kills >= 3 && b.kills > (b.paid || 2)){
+      const n = b.kills, add = 100 * (n - (b.paid || 2)) * (n - 2);
+      b.paid = n; score += add;
+      popups.push({ x: b.x, y: b.y - 18, text: 'X' + n + ' BLAST +' + add, t: 0, dur: 1.2, col: P.yel, big: true });
+      sfx('tier', Math.min(4, n - 3));
     }
   }
   if(newBooms.length)for(const nb of newBooms)booms.push(nb);
