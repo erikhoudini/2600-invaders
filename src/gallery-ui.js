@@ -23,14 +23,14 @@ function galImg(i, kind){
 }
 function openGallery(){
   menuState = 'gallery'; galView = 'grid';
-  galSel = galleryUnlocked.length ? galleryUnlocked[0] : 0;
-  for (const i of galleryUnlocked) galImg(i, 'thumb');
+  galSel = 0;
+  for (let i = 0; i < POSTERS.length; i++) if (posterOwned(i)) galImg(i, 'thumb');
   sfx('select');
 }
 
 // ---- Navigation ---------------------------------------------------------
 function galStep(d){                                    // flip to the next poster you own
-  const o = galleryUnlocked;
+  const o = POSTERS.map((_, i) => i).filter(posterOwned);
   if (!o.length) return;
   const k = o.indexOf(galSel);
   galSel = o[k < 0 ? 0 : (k + d + o.length) % o.length];
@@ -211,7 +211,7 @@ function drawTradingCard(t){
 // Grid view, touch screen
 function drawGalleryGrid(t){
   uiHeader('GALLERY');
-  const n = galleryUnlocked.length, txt = n + '/' + POSTERS.length + ' POSTERS';
+  const n = POSTERS.filter((_, i) => posterOwned(i)).length, txt = n + '/' + POSTERS.length + ' POSTERS';
   drawText(txt, Math.round((W - textW(txt)) / 2), 22, n === POSTERS.length ? P.yel : P.lblu);
   for (let i = 0; i < POSTERS.length; i++){
     const x = 5 + (i % GAL_COLS) * 62, y = 28 + Math.floor(i / GAL_COLS) * 46, w = 60, h = 44;

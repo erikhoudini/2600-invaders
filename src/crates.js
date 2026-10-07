@@ -15,7 +15,8 @@ let crates = [];
 let fxBlast = 0, fxRapid = 0, fxShield = 0, fxSlow = 0;
 
 function pickCrateType(){
-  const anyDead = installations.some(i => !i.alive) || turrets.some(t => !t.alive);
+  // Repair only returns a lost city in Endless; in the campaign a city is gone until the next planet
+  const anyDead = turrets.some(t => !t.alive) || (gameMode === 'endless' && installations.some(i => !i.alive));
   let total = 0;
   for (const k in CRATE_TYPES){ if (k === 'repair' && !anyDead) continue; total += CRATE_TYPES[k].w; }
   let r = Math.random() * total;
@@ -96,14 +97,14 @@ function collectCrate(c){
   addScore(100);
   switch (c.type){
     case 'blast': fxBlast = 8; break;
-    case 'rapid': fxRapid = 8; sharedAmmo = Math.max(sharedAmmo, 10); break;
+    case 'rapid': fxRapid = 8; for (const t of turrets) t.cd = Math.min(t.cd, 0.1); break;
     case 'shield': fxShield = 1; break;
     case 'slow': fxSlow = 6; break;
     case 'repair': {
       const downTurret = turrets.find(t => !t.alive);
       const dead = installations.find(i => !i.alive);
       if (downTurret) rebuildTurret(downTurret);
-      else if (dead){ dead.alive = true; baseHP = Math.min(maxBaseHP, baseHP + 1); booms.push(new Boom(dead.x, GROUND - 10, 'ring', { r: 24, dur: 0.6 })); }
+      else if (dead && gameMode === 'endless'){ dead.alive = true; baseHP = Math.min(maxBaseHP, baseHP + 1); booms.push(new Boom(dead.x, GROUND - 10, 'ring', { r: 24, dur: 0.6 })); }
       else addScore(250);
       break;
     }

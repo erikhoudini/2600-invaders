@@ -118,7 +118,7 @@ const DEFAULT_STATS = {
 };
 // Quick save (campaign only): one slot, consumed when continued
 let saveData = safeLoad(KEY('save'), null);
-if (saveData && !(saveData.v === 1 && Array.isArray(saveData.inst))) saveData = null;
+if (saveData && !(saveData.v === 2 && Array.isArray(saveData.inst))) saveData = null;
 function clearSave(){ saveData = null; try { localStorage.removeItem(KEY('save')); } catch(e){} }
 const DEFAULT_OPTS = { muted: false, shake: true, reticle: 0 };
 
@@ -132,7 +132,7 @@ function sanitizeCamp(c){
   const num = v => (typeof v === 'number' && v >= 0) ? v : 0;
   o.clears = arr5(o.clears); o.endBest = arr5(o.endBest); o.bosses = arr5(o.bosses);
   o.flawBoss = num(o.flawBoss); o.flawWorld = num(o.flawWorld); o.modWins = num(o.modWins);
-  o.unlocked = Math.max(1, Math.min(5, Math.floor(Number(o.unlocked) || 1)));
+  o.unlocked = DEV_UNLOCK_ALL ? 5 : Math.max(1, Math.min(5, Math.floor(Number(o.unlocked) || 1)));
   return o;
 }
 let camp = sanitizeCamp(safeLoad(KEY('camp'), {}));

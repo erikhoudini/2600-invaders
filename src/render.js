@@ -134,7 +134,8 @@ function drawGameplay(t){
   for(let i=0;i<turrets.length;i++){ if (turrets[i].alive) drawTurret(turrets[i],turretBarrels[i],_cachedActiveTurret); else drawTurretWreck(turrets[i], t); }
   drawSnowfall();
   if(boss&&boss.drawFront){ ctx.save(); ctx.translate(0, boss.offY || 0); boss.drawFront(t); ctx.restore(); }
-  drawAmmoColumn(t);
+  drawEdgeWarns(t);
+  drawPhraseLabel(t);
 
   for(const p0 of popups){
     const p = (p0.y > SH - 10 && p0.y < BOT + 8) ? Object.assign({}, p0, { y: SH - 14 }) : p0;
@@ -417,45 +418,29 @@ function drawBottomScreen(t){
   drawGroundFx(t);
 }
 
-const AMMO_X = W - 8;
-const AMMO_Y0 = BOT + 22;
-const AMMO_GAP = 4;
-
-function drawAmmoColumn(t){
-  for (let i = 0; i < SHARED_MAX; i++){
-    if (i >= ammoCap) break;
-    const y = AMMO_Y0 + i * AMMO_GAP;
-    const on = i < sharedAmmo;
-    ctx.fillStyle = P.blk;
-    ctx.fillRect(AMMO_X + 1, y + 1, 2, 2);
-    if (on){
-      let col;
-      if (sharedAmmo <= 5) col = P.red;
-      else if (sharedAmmo <= 12) col = P.yel;
-      else col = P.lblu;
-      if (sharedAmmo <= 5 && Math.sin(t * 12) > 0) col = P.wht;
-      ctx.fillStyle = col;
-      ctx.fillRect(AMMO_X, y, 2, 2);
-      ctx.fillStyle = P.wht;
-      ctx.fillRect(AMMO_X, y, 2, 1);
-    } else {
-      ctx.fillStyle = P.blk;
-      ctx.fillRect(AMMO_X, y, 2, 2);
-      ctx.fillStyle = currentEnv.ground0;
-      ctx.fillRect(AMMO_X, y, 1, 1);
+// Flyers announce themselves: chevrons flash at the edge they are about to enter from
+function drawEdgeWarns(t){
+  for (const w of edgeWarns){
+    if (Math.sin(w.t * 28) < -0.2) continue;
+    const dir = w.side === 0 ? 1 : -1, x0 = w.side === 0 ? 3 : W - 4, y = Math.round(w.y);
+    for (let k = 0; k < 3; k++){
+      const x = x0 + dir * k * 4;
+      ctx.fillStyle = P.blk; ctx.fillRect(x + 1, y - 1, 1, 3);
+      ctx.fillStyle = k === 2 ? P.wht : P.yel;
+      ctx.fillRect(x, y - 2, 1, 1); ctx.fillRect(x + dir, y - 1, 1, 1); ctx.fillRect(x + dir * 2, y, 1, 1);
+      ctx.fillRect(x + dir, y + 1, 1, 1); ctx.fillRect(x, y + 2, 1, 1);
     }
   }
-  if (waveFlow()){
-    const bonus = sharedAmmo * 25;
-    const label = String(bonus);
-    const tw = textW(label);
-    const bx = AMMO_X - 2 - tw;
-    const by = AMMO_Y0 + SHARED_MAX * AMMO_GAP + 2;
-    drawText(label, bx, by, sharedAmmo > 0 ? P.lgrn : P.gry);
-    drawText('B', bx - 5, by, P.dblu);
-  }
 }
-
+// The name of the pattern that just started, so the rhythm of a wave can be learned
+function drawPhraseLabel(t){
+  if (choreo.labelT <= 0 || !choreo.label) return;
+  const a = Math.min(1, choreo.labelT * 1.6);
+  const y = boss && boss.state !== 'away' ? 36 : 29;
+  const tw = textW(choreo.label);
+  drawText(choreo.label, Math.round((W - tw) / 2) + 1, y + 1, P.blk, a);
+  drawText(choreo.label, Math.round((W - tw) / 2), y, P.lblu, a);
+}
 
 // Unlockable city buildings: each one is its own small sprite, not a recolor
 function drawCityFlag(x, topY, t, seed){
@@ -688,7 +673,7 @@ function drawTurretWreck(tr, t){
 }
 function drawTurret(t,barrel,activeTurret,gyArg){
   const x = Math.round(t.x), y = Math.round(t.y);
-  const alive = sharedAmmo > 0;
+  const alive = true;
   const bx = Math.round(barrel.x), by = Math.round(barrel.y);
   const active = activeTurret === t;
   if (alive){
@@ -788,7 +773,14 @@ function drawTurret(t,barrel,activeTurret,gyArg){
   ctx.fillRect(x + 14, y - 6 + wv, 1, 2);
   ctx.fillStyle = P.yel;
   ctx.fillRect(x + 10, y - 6, 1, 1);
-  if (active && sharedAmmo > 0 && menuState === 'game'){
+  // reload gauge above the gun: fills as the turret rearms, and flashes red if you fire while it is empty
+  if (t.cd > 0 || t.dry > 0){
+    const f = t.cd > 0 ? clamp(1 - t.cd / (REARM * (fxRapid > 0 ? 0.25 : 1) * (modSlow ? 1.5 : 1)), 0, 1) : 1;
+    ctx.fillStyle = P.blk; ctx.fillRect(x - 8, y - 13, 16, 3);
+    ctx.fillStyle = t.dry > 0 && Math.sin(performance.now() / 30) > 0 ? P.rrd : P.dblu; ctx.fillRect(x - 7, y - 12, 14, 1);
+    ctx.fillStyle = f > 0.75 ? P.lgrn : P.yel; ctx.fillRect(x - 7, y - 12, Math.round(14 * f), 1);
+  }
+  if (active && t.cd <= 0 && menuState === 'game'){
     const pulse = Math.sin(performance.now()/125) > 0;
     ctx.fillStyle = pulse ? P.wht : P.yel;
     ctx.fillRect(x - 1, y - 7, 2, 1);
@@ -921,6 +913,8 @@ function drawWaveSummary(t){
   const lines = [];
   if (gameMode === 'rush') lines.push([rush.phase === 'boss' ? ('BOSS ' + (rush.bosses + 1) + ' DOWN') : 'WAVE CLEARED', P.yel]);
   else lines.push([formatWave(wave) + ' CLEARED', P.yel]);
+  const standing = installations.filter(i => i.alive).length;
+  lines.push(['CITIES  ' + standing + '/' + installations.length, standing === installations.length ? P.lgrn : (standing <= 2 ? P.red : P.org)]);
   lines.push(['ROUND BEST  X' + roundBest, P.lblu]);
   lines.push(['SCORE  ' + String(score).padStart(6, '0'), P.wht]);
   if (waveBonus > 0) lines.push(['BONUS  +' + waveBonus, P.lgrn]);

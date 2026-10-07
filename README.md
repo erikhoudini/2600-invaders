@@ -10,6 +10,28 @@ npm start            # serves the project at http://localhost:8000
 
 Any static file server works. Opening `index.html` directly from disk also works, but serve it over HTTP if you want to read pixels back from the canvas (browsers treat `file://` images as cross-origin).
 
+## How a wave works
+
+There is no ammunition. Each of your three turrets reloads on its own (0.5 s), and shots take time to
+arrive (380 px/s), so the skill is in aim, leading and timing, not in counting rounds.
+
+Waves are choreographed (`src/patterns.js`), not random. A wave is a list of phrases, and each phrase is a
+named pattern with fixed timing: a **ripple** of missiles landing on neighbouring cities one after another,
+a **pincer** that closes on one column, a **bombing run** that drops bombs over fixed columns (sometimes with
+a gap), **crossfire**, a **squadron**, **aegis pairs** with out-of-step shields, **parachutes**, heavy
+ordnance, platforms and air raids. Flyers flash a warning at the edge they will enter from, and the
+pattern's name appears at the top of the screen. Each wave states a motif, answers it, combines the two,
+rests, and finishes on its strongest phrase. Each world leans on different patterns. Endless composes the
+same phrases five at a time, forever.
+
+In the campaign your cities and turrets carry over from wave to wave. Nothing heals mid-planet (no bonus
+cities, repair crates only mend turrets); everything is rebuilt when you reach the next planet.
+
+## Dev build
+
+`DEV_UNLOCK_ALL` at the top of `src/core.js` unlocks every world, loadout item, mod, Boss Rush and gallery
+poster. It is `true` while the game is in development; set it to `false` for a release.
+
 ## Controls
 
 The game is presented as a DS title: everything but the top-screen scene is on the touch screen.

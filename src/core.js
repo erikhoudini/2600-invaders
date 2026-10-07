@@ -1,6 +1,10 @@
 'use strict';
 // Canvas setup, helpers, palette and per-world environments
 
+// Development build: every world, loadout item, mod, Boss Rush and gallery poster is unlocked from the start.
+// Set to false for a release build (achievements and progress then gate things again).
+const DEV_UNLOCK_ALL = true;
+
 const cvs = document.getElementById('c');
 const ctx = cvs.getContext('2d');
 const W = 256, SH = 192, GAP = 24, BOT = SH + GAP, H = BOT + SH;

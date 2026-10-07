@@ -37,6 +37,13 @@ function drawParticles(){
 // =====================================================================
 let hueCounter=0;
 let blastPal = RAINBOW, blastStyle = 0;
+// Phone feedback: a short buzz on hits, gated by the screen-shake option
+function buzz(ms){ try { if (opts.shake && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+// Keep the screen on while playing
+let wakeLock = null;
+async function keepAwake(){
+  try { if (navigator.wakeLock && !wakeLock){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {}
+}
 let boomSeq = 0;
 class Boom{
   constructor(x,y,kind,o){

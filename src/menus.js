@@ -118,6 +118,7 @@ function drawMenuTop(t, env){
   drawStar(4, 48, P.yel);
   drawText('SOVIET ORBITAL STRIKE FORCE', 16, 49, P.yel);
   drawText(env.name + ' OUTPOST', 9, 62, P.gry);
+  if (DEV_UNLOCK_ALL) drawText('DEV BUILD - ALL UNLOCKED', 9, 71, P.org);
 }
 
 // =====================================================================
@@ -139,7 +140,7 @@ function menuDetail(label){
   if (label === 'CAMPAIGN'){ const n = camp.clears.filter(c => c > 0).length; return n + '/5 HELD'; }
   if (label === 'ENDLESS'){ return stats.bestTime > 0 ? formatTime(stats.bestTime).slice(0, 5) : ''; }
   if (label === 'BOSS RUSH'){ return stats.bestRush > 0 ? ('BEST ' + stats.bestRush) : ''; }
-  if (label === 'GALLERY'){ return galleryUnlocked.length + '/' + POSTERS.length; }
+  if (label === 'GALLERY'){ return POSTERS.filter((_, i) => posterOwned(i)).length + '/' + POSTERS.length; }
   if (label === 'STATISTICS'){ return unlockedAch.length + '/' + ACHIEVEMENTS.length; }
   if (label === 'HIGH SCORES'){ const b = Math.max(stats.bestScoreWave || 0, stats.bestScoreEndless || 0); return b > 0 ? String(b) : ''; }
   return '';

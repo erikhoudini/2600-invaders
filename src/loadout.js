@@ -30,7 +30,7 @@ const BLAST_PALS = [
   [P.gry, P.wht, P.gry, P.wht, P.gry, P.wht, P.gry],
 ];
 const MODS = [
-  { id:'lean',  name:'LEAN AMMO',  bonus:0.25, unlock:0, desc:'20 ROUND MAGAZINE' },
+  { id:'rearm', name:'SLOW REARM', bonus:0.25, unlock:0, desc:'TURRETS RELOAD 50% SLOWER' },
   { id:'swift', name:'SWIFT',      bonus:0.35, unlock:1, desc:'ENEMIES MOVE 25% FASTER' },
   { id:'blind', name:'BLIND',      bonus:0.30, unlock:2, desc:'NO IMPACT WARNINGS' },
   { id:'heavy', name:'HEAVY RAIN', bonus:0.40, unlock:3, desc:'50% MORE MISSILES' },
@@ -44,12 +44,12 @@ function saveLoadout(){ safeSave(KEY('load'), loadout); }
 
 function rewardAch(cat, idx){ return ACHIEVEMENTS.find(a => a.reward && a.reward[0] === cat && a.reward[1] === idx); }
 function itemUnlocked(cat, idx){
-  if (idx === 0) return true;
+  if (DEV_UNLOCK_ALL || idx === 0) return true;
   if (cat === 'reticle' && idx < 3) return true;
   const a = rewardAch(cat, idx);
   return !a || unlockedAch.includes(a.id);
 }
-function modUnlocked(m){ return camp.clears[m.unlock] > 0; }
+function modUnlocked(m){ return DEV_UNLOCK_ALL || camp.clears[m.unlock] > 0; }
 function sanitizeLoadout(){
   for (let c = 0; c < LOAD_CATS.length; c++){
     const cat = LOAD_CATS[c];
@@ -119,14 +119,13 @@ function shotColors(t){
 }
 
 // Run-time mod flags, captured when a run starts
-let runMods = [], modLean = false, modSwift = false, modBlind = false, modHeavy = false, modGlass = false;
-let scoreMul = 1, ammoCap = SHARED_MAX;
+let runMods = [], modSlow = false, modSwift = false, modBlind = false, modHeavy = false, modGlass = false;
+let scoreMul = 1;
 function captureMods(){
   runMods = loadout.mods.filter(id => { const m = MODS.find(x => x.id === id); return m && modUnlocked(m); });
-  modLean = runMods.includes('lean'); modSwift = runMods.includes('swift'); modBlind = runMods.includes('blind');
+  modSlow = runMods.includes('rearm'); modSwift = runMods.includes('swift'); modBlind = runMods.includes('blind');
   modHeavy = runMods.includes('heavy'); modGlass = runMods.includes('glass');
   scoreMul = modMult(runMods);
-  ammoCap = modLean ? 20 : SHARED_MAX;
 }
 function addScore(n){ score += Math.round(n * scoreMul); }
 
@@ -245,13 +244,11 @@ function drawLoadoutPreview(t, env){
   for (const x of [58, 128, 198]){
     drawHabitatDome({ x: x + (x === 128 ? 0 : 0), size: x === 128 ? 9 : 8, alive: true }, t, baseY);
   }
-  const tur = { x: 128, y: baseY - 4, flash: 0 };
+  const tur = { x: 128, y: baseY - 4, flash: 0, alive: true, cd: 0, dry: 0 };
   const ax = demo.ax || 128, ay = demo.ay || 64;
   const dx = ax - tur.x, dy = ay - tur.y, len = Math.hypot(dx, dy) || 1;
   const barrel = { x: tur.x + dx / len * 10, y: tur.y - 2 + dy / len * 10 };
-  const prevAmmo = sharedAmmo; sharedAmmo = 10;
   drawTurret(tur, barrel, null, baseY);
-  sharedAmmo = prevAmmo;
   const sc = shotColors(t);
   for (const s of demo.shots){
     const tt = clamp(s.t / s.dur, 0, 1);

@@ -1,8 +1,9 @@
 'use strict';
 // Enemy types
 const MISSILE_SPEED = 1.15;      // every falling missile is this much faster than its listed speed
-const FLYER_SHARE = 0.6;        // share of spawn events that are horizontal flyers (fliers, bombers, gunners, carriers)
-const TURRET_REBUILD = 16;      // seconds for a destroyed turret to come back on its own
+const REARM = 0.5;               // seconds before a turret that has fired can fire again
+const SHOT_SPEED = 380;         // px/s: shots take time to arrive, so fast targets need leading
+       const TURRET_REBUILD = 16;      // seconds for a destroyed turret to come back on its own
 const MISSILE_BOOST = 0.35;     // falling missiles end their fall this much faster than they start
 const WIND_DRIFT = 1.1;         // px/s of sideways drift per unit of wind
 const SHIELD_PATTERN = [[1, 1.5], [0, 0.85], [1, 0.6], [0, 0.85]];   // [shield up?, seconds]

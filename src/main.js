@@ -14,6 +14,13 @@ resetGame();
 initSnow();
 menuState = 'press';
 
+const autoPause = () => { if (menuState === 'game' && !paused) setPaused(true); };
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) autoPause();
+  else { last = performance.now(); keepAwake(); }
+});
+addEventListener('pagehide', autoPause);
+
 let last=performance.now();
 function loop(now){
   let dt=(now-last)/1000;last=now;

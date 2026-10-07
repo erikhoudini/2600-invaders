@@ -24,11 +24,12 @@ function sanitizeGallery(a){
 }
 let galleryUnlocked = sanitizeGallery(safeLoad(KEY('gallery'), []));
 function saveGallery(){ safeSave(KEY('gallery'), galleryUnlocked); }
-const posterOwned = i => galleryUnlocked.includes(i);
+// The gallery shows every poster in a dev build, but satellites still go by what you have really found
+const posterOwned = i => DEV_UNLOCK_ALL || galleryUnlocked.includes(i);
 function resetGallery(){ galleryUnlocked = []; saveGallery(); }
 
 function unlockPoster(i){
-  if (posterOwned(i)) return false;
+  if (galleryUnlocked.includes(i)) return false;
   galleryUnlocked = sanitizeGallery(galleryUnlocked.concat(i));
   saveGallery();
   sfx('unlock');
@@ -49,7 +50,7 @@ let satT = 60, satRun = 0;
 function resetSatellites(){ satT = rnd(60, 110); satRun = 0; }
 function nextLockedPoster(){
   const locked = [];
-  for (let i = 0; i < POSTERS.length; i++) if (!posterOwned(i)) locked.push(i);
+  for (let i = 0; i < POSTERS.length; i++) if (!galleryUnlocked.includes(i)) locked.push(i);
   return locked.length ? pick(locked) : -1;
 }
 function spawnSatellite(idx){

@@ -86,11 +86,11 @@ function snapshotRun(){
     bs = { idx: boss.idx, visit: boss.visit, parts: boss.parts.map(q => ({ id: q.id, hp: q.hp, alive: q.alive })) };
   }
   return {
-    v: 1, world: curWorld, runWorld, wave, score, bestCombo, baseHP,
+    v: 2, world: curWorld, runWorld, wave, score, bestCombo, baseHP,
     inst: installations.map(i => ({ x: i.x, size: i.size, alive: i.alive })),
-    sharedAmmo, spawnRemaining, totalSpawnCount, totalSpawned, spawnTimer, spawnInterval,
-    spawnBurstLeft, spawnBurstPause, speedMul, waveState, waveClearTimer,
-    roundBest, waveBonus, nextBonusCityAt, orbTimer, worldCityLoss,
+    spawnRemaining, totalSpawnCount, totalSpawned, speedMul, waveState, waveClearTimer,
+    roundBest, waveBonus, orbTimer, worldCityLoss,
+    choreo: { q: choreo.q, clock: choreo.clock, phrases: choreo.phrases, gapT: choreo.gapT },
     fx: [fxBlast, fxRapid, fxShield, fxSlow],
     enemies: enemies.filter(e => !e.dead).map(slim),
     crates: crates.map(slim),
@@ -111,11 +111,12 @@ function continueRun(){
   installations = sv.inst.map(i => ({ x: i.x, size: i.size, alive: i.alive }));
   maxBaseHP = installations.length; baseHP = clamp(sv.baseHP, 0, maxBaseHP);
   score = sv.score; bestCombo = sv.bestCombo; wave = sv.wave;
-  sharedAmmo = sv.sharedAmmo; spawnRemaining = sv.spawnRemaining; totalSpawnCount = sv.totalSpawnCount;
-  totalSpawned = sv.totalSpawned; spawnTimer = sv.spawnTimer; spawnInterval = sv.spawnInterval;
-  spawnBurstLeft = sv.spawnBurstLeft; spawnBurstPause = sv.spawnBurstPause; speedMul = sv.speedMul;
+  spawnRemaining = sv.spawnRemaining; totalSpawnCount = sv.totalSpawnCount;
+  totalSpawned = sv.totalSpawned; speedMul = sv.speedMul;
+  choreoReset();
+  if (sv.choreo){ choreo.q = sv.choreo.q || []; choreo.clock = sv.choreo.clock || 0; choreo.phrases = sv.choreo.phrases || []; choreo.gapT = sv.choreo.gapT || 1; }
   waveState = sv.waveState; waveClearTimer = sv.waveClearTimer;
-  roundBest = sv.roundBest; waveBonus = sv.waveBonus; nextBonusCityAt = sv.nextBonusCityAt;
+  roundBest = sv.roundBest; waveBonus = sv.waveBonus;
   orbTimer = sv.orbTimer; worldCityLoss = sv.worldCityLoss || 0;
   fxBlast = sv.fx[0]; fxRapid = sv.fx[1]; fxShield = sv.fx[2]; fxSlow = sv.fx[3];
   enemies = sv.enemies; crates = (sv.crates || []).filter(c => c.state);
