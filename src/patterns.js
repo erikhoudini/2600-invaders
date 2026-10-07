@@ -47,14 +47,19 @@ function fallTime(type, y0){
   return (GROUND - y0) / (T.vy * speedMul * speedOf(T) * (1 + MISSILE_BOOST / 2));
 }
 // A missile that comes down on column tx, drifting sideways at lat px/s on the way
-function dropOn(type, tx, delay, lat, y0){
+function dropOn(type, tx, delay, lat, y0, o){
   const T = ETYPES[type];
   y0 = y0 === undefined ? -6 : y0;
   if (lat === undefined) lat = rnd(-14, 14);
-  let x = tx - lat * fallTime(type, y0);
-  x = clamp(x, 6, W - 6);
-  lat = (tx - x) / fallTime(type, y0);
-  later(delay, { k: 'spawn', type, x, y: y0, vx: lat, vy: T.vy * speedMul });
+  const ft = fallTime(type, y0);
+  let x = tx - lat * ft, sway = 0;
+  if (T.wave){                                          // a weaver's sway is known in advance, so aim off by exactly that
+    const f = T.wave[1], A = T.wave[0] / f, p0 = ((o && o.ph) || 0) * f / 3;
+    sway = A * (Math.sin(p0 + f * ft) - Math.sin(p0));
+  }
+  x = clamp(x - sway, 6, W - 6);
+  lat = (tx - sway - x) / ft;
+  later(delay, { k: 'spawn', type, x, y: y0, vx: lat, vy: T.vy * speedMul, o });
 }
 // Progress along the screen at which a flyer passes column col
 const colProg = (col, fromLeft) => fromLeft ? (col + 14) / (W + 28) : (W + 14 - col) / (W + 28);
@@ -147,7 +152,7 @@ const PAT = {
     return n * 0.3 + 1.2;
   } },
   // Two shielded missiles with their shields out of step: shoot whichever is open
-  aegisPair: { name: 'AEGIS PAIR', min: 5, w: 3, kind: 'm', run(dw){
+  aegisPair: { name: 'AEGIS PAIR', min: 5, w: 2, kind: 'm', run(dw){
     const xs = targetCols(), a = pick(xs);
     let b = pick(xs); for (let k = 0; k < 4 && Math.abs(b - a) < 30; k++) b = pick(xs);
     const T = ETYPES.aegis;
@@ -156,6 +161,36 @@ const PAT = {
     if (dw >= 9) later(1.6, { k: 'spawn', type: 'aegis', x: pick(xs), y: -6, vx: 0, vy: T.vy * speedMul, o: { shI: 1 } });
     if (dw >= 14) later(2.8, { k: 'spawn', type: 'aegis', x: pick(xs), y: -6, vx: 0, vy: T.vy * speedMul, o: { shI: 3 } });
     return dw >= 14 ? 3.0 : (dw >= 9 ? 1.8 : 0.8);
+  } },
+  // Weavers snake sideways as they fall, in a travelling wave: the snaking nets out, so each still lands on its column
+  weave: { name: 'WEAVERS', min: 2, w: 3, kind: 'm', run(dw){
+    const xs = targetCols(), n = clamp(3 + Math.floor(dw / 3), 3, 8), step = Math.max(0.3, 0.62 - dw * 0.012), seq = sideSign() ? xs : xs.slice().reverse();
+    for (let i = 0; i < n; i++) dropOn(dw >= 12 && i % 3 === 2 ? 'icbm' : 'weaver', seq[i % seq.length], 0.3 + i * step, 0, undefined, { ph: i * 0.9 });
+    return 0.5 + n * step;
+  } },
+  // Phantoms fade out together on a fixed beat and cannot be hit while faded: fire as they come back
+  ghosts: { name: 'PHANTOMS', min: 4, w: 3, kind: 'm', run(dw){
+    const xs = targetCols(), n = clamp(3 + Math.floor(dw / 4), 3, 7);
+    for (let i = 0; i < n; i++) dropOn('phantom', xs[i % xs.length], 0.3 + i * 0.25, rnd(-6, 6));
+    return 0.5 + n * 0.25;
+  } },
+  // Divers cruise in, stop and flash with a line to their target, then dive at it: shoot them while they hang
+  dive: { name: 'DIVERS', min: 3, w: 3, kind: 'f', run(dw){
+    const xs = targetCols(), n = clamp(1 + Math.floor(dw / 5), 1, 4);
+    for (let i = 0; i < n; i++){
+      const left = sideSign(), tx = pick(xs), y = rndi(26, 90);
+      flyer('diver', left, y, i * 1.1, { target: tx, diveAt: Math.min(0.97, colProg(tx + (left ? -45 : 45), left)), snd: i === 0 });
+    }
+    return n * 1.1 + 1.8;
+  } },
+  // A sapper crosses and hangs orbital walls in the sky; missiles that follow bounce off them
+  bulwark: { name: 'ORBITAL WALLS', min: 7, w: 3, kind: 'f', run(dw){
+    const left = sideSign(), xs = targetCols();
+    flyer('sapper', left, rndi(22, 56), 0, { snd: true });
+    if (dw >= 14) flyer('sapper', !left, rndi(22, 56), 1.8);
+    const n = clamp(4 + Math.floor(dw / 4), 4, 8);
+    for (let i = 0; i < n; i++) dropOn(i % 3 === 2 ? 'icbm' : 'ipbm', xs[(i * 2) % xs.length], 3.4 + i * 0.4, rnd(-8, 8));
+    return 3.4 + n * 0.4;
   } },
   // Parachutes drop in a staggered line; each splits into three just under the clouds
   chutes: { name: 'PARACHUTES', min: 4, w: 3, kind: 'm', run(dw){
@@ -231,11 +266,11 @@ const PAT = {
 };
 // What each world leans on
 const THEME = [
-  { ripple: 2, pincer: 1.6, stick: 1.5, synchro: 1.3 },
-  { rain: 2, barrage: 1.6, stick: 1.5, sweep: 1.5 },
-  { heavyHit: 2, wall: 1.5, synchro: 1.6, mirvs: 1.6, crossing: 1.3 },
-  { chutes: 2, aegisPair: 2, sweep: 1.4, mirvs: 1.3 },
-  { platformRaid: 2, raid: 1.6, fleet: 1.8, vee: 1.4, barrage: 1.4 },
+  { ripple: 2, pincer: 1.6, stick: 1.5, synchro: 1.3, weave: 1.3, dive: 1.2 },
+  { rain: 2, barrage: 1.6, stick: 1.5, sweep: 1.5, dive: 1.6 },
+  { heavyHit: 2, wall: 1.5, synchro: 1.6, mirvs: 1.6, crossing: 1.3, ghosts: 1.8, bulwark: 1.5 },
+  { chutes: 2, aegisPair: 1.5, sweep: 1.4, mirvs: 1.3, weave: 1.6, ghosts: 1.4, bulwark: 1.3 },
+  { platformRaid: 2, raid: 1.6, fleet: 1.8, vee: 1.4, barrage: 1.4, dive: 1.8, bulwark: 2 },
 ];
 const weightedPick = (ids, w) => {
   let tot = 0; for (const id of ids) tot += w(id);
@@ -277,6 +312,19 @@ function composeWave(dw, world, isBoss, isShort, forceCount){
   }
   return out;
 }
+// Which enemies each pattern brings, for the roster shown under the wave banner
+const PAT_ROSTER = {
+  ripple: ['ipbm', 'icbm', 'heavy'], pincer: ['ipbm', 'icbm'], rain: ['mini', 'ipbm'], stick: ['bomber', 'gunner', 'carrier'],
+  crossing: ['scout'], sweep: ['smart'], vee: ['scout'], aegisPair: ['aegis'], chutes: ['chute'],
+  heavyHit: ['heavy', 'colbomb', 'rowbomb', 'midsplit'], wall: [], synchro: ['heavy', 'ipbm', 'mini'], barrage: ['ipbm', 'icbm'],
+  platformRaid: ['platform', 'scout'], fleet: ['gunner', 'bomber'], mirvs: ['midsplit', 'icbm'], raid: ['carrier', 'scout'],
+  weave: ['weaver'], ghosts: ['phantom'], dive: ['diver'], bulwark: ['sapper', 'bulwark'],
+};
+let waveRoster = [];
+function rosterOf(phrases){
+  const seen = []; for (const ph of phrases) for (const id of ph.ids) for (const t of (PAT_ROSTER[id] || [])) if (!seen.includes(t)) seen.push(t);
+  return seen.slice(0, 8);
+}
 const PAT_TIPS = {
   ripple: 'RIPPLE: THEY LAND ONE AFTER ANOTHER ALONG THE LINE. BREAK IT IN THE MIDDLE.',
   pincer: 'PINCER: TWO MISSILES CLOSE ON ONE COLUMN. WAIT FOR THEM TO MEET, THEN ONE BLAST TAKES BOTH.',
@@ -294,6 +342,10 @@ const PAT_TIPS = {
   platformRaid: 'PLATFORM: IT LAUNCHES MISSILES. HIT IT WHEN ITS SHIELD DROPS.',
   fleet: 'BOMBER FLEET: THREE BOMBERS WEAVE THEIR BOMBS BETWEEN EACH OTHER.',
   mirvs: 'MIRV STORM: THE WARHEADS SPLIT IN THREE MID-FALL. HIT THEM BEFORE THEY BURST.',
+  weave: 'WEAVERS: THEY SNAKE LEFT AND RIGHT BUT LAND ON THEIR COLUMN. SHOOT WHERE THEY ARE GOING, NOT WHERE THEY ARE.',
+  ghosts: 'PHANTOMS: THEY FADE OUT TOGETHER ON A BEAT AND CANNOT BE HIT WHILE FADED. FIRE AS THEY RETURN.',
+  dive: 'DIVERS: THEY STOP AND FLASH WITH A LINE TO THEIR TARGET, THEN DIVE. THEY ARE EASY TO HIT WHILE THEY HANG.',
+  bulwark: 'ORBITAL WALLS: A SAPPER HANGS THEM IN THE SKY. EVERY MISSILE BOUNCES OFF. SHOOT THE WALL WHEN ITS SHIELD DROPS, THREE TIMES, BEFORE IT LAPSES.',
   raid: 'AIR RAID: THE CARRIER DROPS HEAVY BOMBS ON A STRICT RHYTHM. BREAK ITS SHIELD.',
 };
 function runPhrase(ph, dw){

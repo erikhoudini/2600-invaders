@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Xtari Look</title>
+<style>
+:root{
+  --bg:#07070d; --panel:#10101c; --edge:#2a2a44; --ink:#e4e4ee; --dim:#9a9ab8; --accent:#e8e85c; --red:#d02828; --blue:#90a4ec; --grn:#a4e4a4;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){ } }
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+main{max-width:860px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:clamp(34px,9vw,64px);line-height:1;margin:8px 0 6px;letter-spacing:.04em;text-transform:uppercase}
+h1 span{display:inline-block}
+.tag{color:var(--dim);margin:0 0 28px}
+h2{font-size:20px;letter-spacing:.12em;text-transform:uppercase;margin:52px 0 14px;padding-top:14px;border-top:3px solid var(--accent);color:var(--accent)}
+h3{font-size:16px;margin:24px 0 6px;color:var(--blue);letter-spacing:.06em;text-transform:uppercase}
+p{margin:0 0 14px;max-width:68ch}
+.stripe{height:10px;background:linear-gradient(90deg,#c05858 0 14.3%,#ac783c 0 28.6%,#e8e85c 0 42.9%,#5c9c5c 0 57.2%,#90a4ec 0 71.5%,#505cc0 0 85.8%,#b0589c 0)}
+.lead{font-size:18px;max-width:60ch}
+.rule{display:grid;grid-template-columns:44px 1fr;gap:12px;margin:0 0 18px;align-items:start}
+.rule b.n{font-size:28px;color:var(--accent);line-height:1}
+.rule h3{margin:0 0 2px}
+.rule p{margin:0}
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+.sw div{border:1px solid var(--edge);background:var(--panel);font-size:12px;color:var(--dim)}
+.sw i{display:block;height:36px}
+.sw span{display:block;padding:4px 6px}
+.card{display:grid;grid-template-columns:104px 1fr;gap:14px;background:var(--panel);border:1px solid var(--edge);padding:12px;margin:0 0 10px}
+.card canvas{width:96px;height:96px;background:#000;image-rendering:pixelated;border:1px solid var(--edge)}
+.card h4{margin:0 0 2px;font-size:15px;letter-spacing:.06em;text-transform:uppercase}
+.card .role{color:var(--blue);font-size:12px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.card p{margin:0 0 4px;font-size:14px}
+.card .beat{color:var(--grn)}
+.group{margin-top:22px}
+.anat{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;background:var(--panel);border:1px solid var(--edge);padding:16px}
+.anat figure{margin:0;text-align:center;font-size:12px;color:var(--dim)}
+.anat canvas{background:#000;image-rendering:pixelated;display:block;margin:0 auto 6px;border:1px solid var(--edge)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:0 0 16px}
+th,td{text-align:left;border-bottom:1px solid var(--edge);padding:8px 8px 8px 0;vertical-align:top}
+th{color:var(--dim);font-weight:normal;text-transform:uppercase;font-size:12px;letter-spacing:.1em}
+ul{padding-left:20px;margin:0 0 14px;max-width:68ch}
+li{margin:0 0 6px}
+.dd{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:640px){.dd{grid-template-columns:1fr 1fr}}
+.dd div{background:var(--panel);border:1px solid var(--edge);padding:12px 14px}
+.dd h3{margin-top:0}
+.do h3{color:var(--grn)} .dont h3{color:#e85a10}
+code{background:#1b1b2e;padding:1px 5px;color:var(--accent)}
+.timeline{display:flex;height:34px;border:1px solid var(--edge);margin:10px 0 4px}
+.timeline i{flex:1;border-right:1px solid var(--bg);font-style:normal;font-size:11px;display:flex;align-items:center;justify-content:center;color:#000}
+footer{margin-top:60px;color:var(--dim);font-size:13px}
+</style>
+</head>
+<body>
+<main>
+<div class="stripe"></div>
+<h1>The <span style="color:#d02828">X</span>tari Look</h1>
+<p class="tag">Visual and motion language of STRELA-10. Everything below is drawn from the game's own source: the colours and every sprite on this page are read from <code>src/core.js</code> and <code>src/sprites.js</code>.</p>
+
+<p class="lead">Xtari is what an Atari 2600 game would look like if the 2600 had a few more colours and a second screen, but the same stubbornness. Hard pixels. A few big shapes. Flat colour. Constant motion. Nothing is soft, nothing fades politely, and every picture is readable at a glance because it has to be.</p>
+
+<h2>The rules</h2>
+
+<div class="rule"><b class="n">1</b><div><h3>One pixel is the unit</h3><p>The world is 256 wide and drawn at integer scale. A sprite pixel is never scaled by a fraction, rotated or blurred. If it does not sit on the grid it does not exist. Text is a 3x5 bitmap font, upper case only, doubled for headings.</p></div></div>
+<div class="rule"><b class="n">2</b><div><h3>Small, with a silhouette</h3><p>Enemies are 3 to 13 pixels wide. At that size the outline is all there is, so each type has its own: a missile is a stack, a bomber is a flat bar with a canopy, a diver is an arrowhead, a phantom is a skull. If you cannot tell two sprites apart in blur, one of them is wrong.</p></div></div>
+<div class="rule"><b class="n">3</b><div><h3>Colour is information</h3><p>Colour means role before it means beauty. Red is the thing that kills a city. Green and blue are ships that carry things. Purple is armoured. Yellow and orange are fire and heavy ordnance. White is a hit, a flash, an event. The palette is fixed at 26 colours, and a sprite uses 3 to 6 of them. The 2600 changed colour per scanline; so do we, by painting a sprite row by row.</p></div></div>
+<div class="rule"><b class="n">4</b><div><h3>Everything flickers</h3><p>Every moving sprite has two frames. A flame, a thruster, a wing, a canopy. They swap 5 to 14 times a second, out of step with each other (each enemy has its own phase), which is how a 2600 made one sprite feel alive. A sprite with one frame is a prop.</p></div></div>
+<div class="rule"><b class="n">5</b><div><h3>A black shadow, one pixel, down and right</h3><p>Every sprite is drawn twice: first all black, offset one pixel down and right, then in colour. That is the whole lighting model. It lifts a sprite off any background, including a cloud, a planet or a mountain, without ever needing a halo or a glow. In cloud, a white outline stands in for it.</p></div></div>
+<div class="rule"><b class="n">6</b><div><h3>Trails are dotted, not drawn</h3><p>Motion is shown with a jagged one-pixel trail: bright near the head, dim and every second pixel at the tail, with a black outline so it reads over bright sky. A trail is also a prediction. It tells the player where a thing has been, and so where it is going.</p></div></div>
+<div class="rule"><b class="n">7</b><div><h3>Things break into themselves</h3><p>When an enemy dies it does not puff. Its own pixels fly apart in its own colours, a short hit-stop freezes the frame (45 ms for a ship, 80 ms for a carrier, 120 ms when a city falls), and a ring of the blast's colour expands. You see what you destroyed.</p></div></div>
+<div class="rule"><b class="n">8</b><div><h3>Rhythm is the visual language too</h3><p>Pulses, blinks and shield cycles are on fixed beats, never random. A shield is up 1.5 s, down 0.85 s, up 0.6 s, down 0.85 s. A phantom is solid for 0.95 s of every 1.5 s, and all phantoms share the beat. A diver hangs for 0.8 s while a dotted line shows its target. If it flashes it is telling you something, and the something is a time.</p></div></div>
+
+<h2>Palette</h2>
+<p>26 colours, no more. Black is a colour: it is the shadow, the window, the space between. Nothing is mixed, tinted or alpha-blended except the clouds, the fade-in of a banner, and the dim of a phantom.</p>
+<div class="sw" id="sw"></div>
+
+<h2>Anatomy of a sprite</h2>
+<div class="anat" id="anat"></div>
+<p style="margin-top:12px">Left to right: the character art (one letter, one pixel), frame A, frame B, the black shadow, and the finished sprite at game size next to the same sprite at 6x. The only difference between frames is the flame.</p>
+<pre style="background:var(--panel);border:1px solid var(--edge);padding:12px;overflow:auto;font-size:13px">ipbm: mk(['.y.',      // flame
+          '.o.',      // flame
+          'rRr',      // fins: bright red, dark red, bright red
+          '.r.',
+          '.w.',      // white band
+          '.r.',
+          '.R.'],     // nose
+         { 0: 'o.o', 1: '.y.' },   // frame B: only these rows change
+         12)                       // frames per second</pre>
+
+<h2>Bestiary</h2>
+<p>Every enemy has a role, a way of acting, and a counter. A new enemy has to bring all three. The first time each pattern appears, the game says so in a one-line tip.</p>
+<div id="bestiary"></div>
+
+<h2>Motion</h2>
+<table>
+<tr><th>Thing</th><th>Rule</th></tr>
+<tr><td>Missiles</td><td>Fall nose-down, accelerate 35% over the fall, ride the wind (stronger on the lower screen) and bounce off the side walls. They always aim at a city or a turret.</td></tr>
+<tr><td>Ships</td><td>Cross at constant speed, 1.7x a missile's pace. They never change direction or speed. They are the rhythm section.</td></tr>
+<tr><td>Weavers</td><td>Sway sideways in a travelling wave. The sway is symmetrical and known in advance, so it nets to nothing: it lands exactly where it was aimed.</td></tr>
+<tr><td>Divers</td><td>Cruise, stop dead, flash for 0.8 s with a dotted line down to the target, then dive at 170 px/s. Stopped is the opening; falling is the penalty.</td></tr>
+<tr><td>Satellites</td><td>The fastest thing in the game and the only thing that bobs. Yellow, because it is worth a poster.</td></tr>
+<tr><td>Spawn</td><td>Anything deployed by another enemy (bombs, platform missiles, a canopy's three missiles) arrives in a ring of white pixels so you can see where it came from.</td></tr>
+</table>
+
+<h2>Effects</h2>
+<ul>
+<li><b>Blasts</b> are concentric one-pixel rings that cycle through the rainbow, each ring a different hue. Blast size shows power; chain size shows skill.</li>
+<li><b>Shatter</b>: a dying sprite's own pixels, in their own colours, fly outward from the centre. Big ships break into every second pixel.</li>
+<li><b>Hit-stop</b>: a freeze of 45 to 120 ms on a significant kill or a city loss. Nothing is shaken at the moment of impact; the stillness is the impact.</li>
+<li><b>Flash and shake</b> are for the player's losses, not the enemy's. A city falling flashes the whole screen. A kill never does.</li>
+<li><b>Scorch marks</b>: a missile that hits bare ground leaves a dark crescent with a glowing core that cools over six seconds and fades over forty. The ground remembers the wave.</li>
+<li><b>Raster bars</b>: bands of colour that change every other scanline, as the 2600's racing-the-beam tricks did, sit behind the wave banner and nowhere else. Use them for announcements, not for scenery.</li>
+<li><b>Danger</b>: with two cities left the screen tints red at the edges, a text warning pulses on the lower screen, and a tone repeats every seven seconds.</li>
+</ul>
+
+<h2>The screen</h2>
+<p>Two 256 x 192 screens with a 24 pixel gap, as on a handheld with a hinge. The upper screen is the sky: planets, clouds, distant ships. The lower is the ground: cities, turrets, impact. The gap is part of the world; things fall through it. The HUD is on the upper screen and kept to two rows: wave, score, chain. Menus are written as if the game were already on that handheld: a header plate, buttons with a hard black shadow, a footer plate with the controls.</p>
+
+<h2>Agitprop</h2>
+<p>The voice is eighties Cold War hyperbole, played straight, with us as the good guys. We are the people, the plan and the Motherland. The enemy is capital, and it is always an <i>-ist</i>. Everything is shouted, and everything is a slogan.</p>
+<table>
+<tr><th>Where</th><th>What it says</th></tr>
+<tr><td>Wave banner</td><td>A slogan under the wave number: FOR THE MOTHERLAND. THE PLAN DOES NOT WAIT. NO LANDLORDS IN SPACE.</td></tr>
+<tr><td>Wave cleared</td><td>THE PLAN IS FULFILLED. OUTPUT EXCEEDS QUOTA. Cities are COLLECTIVES. Score is OUTPUT.</td></tr>
+<tr><td>Kills</td><td>The enemy is named as it falls: CAPITALIST BOMBER DOWN, IMPERIALIST CARRIER DOWN, BOURGEOIS PHANTOM DOWN.</td></tr>
+<tr><td>Losses</td><td>A COLLECTIVE HAS FALLEN. WORKERS REPAIRED THE TURRET. THE STRUGGLE CONTINUES, COMRADE.</td></tr>
+<tr><td>Tips</td><td>A plate headed COMRADE, A WORD, with a red star.</td></tr>
+<tr><td>Achievements</td><td>Honours, not trophies: SHOCK WORKER, STAKHANOV, LABOUR HERO, LENIN PRIZE, FIVE-YEAR PLAN, ORDER OF OCTOBER.</td></tr>
+<tr><td>Look</td><td>Red stars on every banner, a red star flanking the game-over title, red and dark magenta raster bars behind the wave banner, yellow on red for anything the Party says.</td></tr>
+</table>
+<p>The rule: the joke is the tone, never the target. We are earnest, and so is the enemy's name. Nobody real is named, and nobody real is the villain.</p>
+
+<h2>Wave structure</h2>
+<p>A wave is music. It has a motif, an answer, a build, a rest and a finish.</p>
+<div class="timeline">
+<i style="background:#90a4ec">A</i><i style="background:#a4e4a4">B</i><i style="background:#90a4ec">A</i><i style="background:#e8e85c">A+B</i><i style="background:#5c9c5c">C</i><i style="background:#a4e4a4">B</i><i style="background:#e8e85c">A+B</i><i style="background:#c05858">A+B+C</i>
+</div>
+<p style="font-size:13px;color:var(--dim)">A = a missile pattern, B = a ship pattern, C = a wildcard. The first phrase is easy, every third is call and response, the last is the climax and gets the strongest pairing. Under the banner a roster shows which enemies are coming, so the wave can be read before it starts.</p>
+<ul>
+<li>A pattern is a timeline, not a spawn rate. Where and when every enemy arrives is known.</li>
+<li>Gaps shrink as difficulty climbs and are cut short when you clear the sky early, so a skilled player is never kept waiting.</li>
+<li>Late waves layer patterns on top of each other; small drizzle missiles fill the gaps.</li>
+<li>Lives persist across waves in a campaign and reset only on a new planet. Waves are about reading, not reflexes.</li>
+</ul>
+
+<h2>Adding something new</h2>
+<div class="dd">
+<div class="do"><h3>Do</h3><ul>
+<li>Draw it as character art in <code>src/sprites.js</code>, two frames.</li>
+<li>Give it a silhouette no other enemy has.</li>
+<li>Give it a rhythm: something that happens on a beat the player can learn.</li>
+<li>Give it a counter: a moment it is easy to hit.</li>
+<li>Add it to a pattern, give the pattern a tip, and check the telemetry (<code>tools/balance</code>).</li>
+</ul></div>
+<div class="dont"><h3>Don't</h3><ul>
+<li>Scale, rotate, blur or glow a sprite.</li>
+<li>Use a 27th colour or a gradient.</li>
+<li>Make something that moves randomly. If it is unpredictable it is not fair; if it is not fair it is not Xtari.</li>
+<li>Add a flash or shake for the enemy's death.</li>
+<li>Wink at the player. The slogans mean it.</li>
+<li>Let a pattern work without the player having a choice.</li>
+</ul></div>
+</div>
+
+<h2>Where it lives</h2>
+<table>
+<tr><th>File</th><th>What</th></tr>
+<tr><td><code>src/core.js</code></td><td>The palette <code>P</code>, the world sizes, the planets.</td></tr>
+<tr><td><code>src/sprites.js</code></td><td>Every enemy as character art, two frames, plus shatter.</td></tr>
+<tr><td><code>src/font.js</code></td><td>The 3x5 bitmap font, sprite drawing, trails.</td></tr>
+<tr><td><code>src/enemies.js</code></td><td>What each type does: speed, hit points, shield, how it dies.</td></tr>
+<tr><td><code>src/patterns.js</code></td><td>The pattern language and the wave composer.</td></tr>
+<tr><td><code>src/render.js</code></td><td>Frame drawing, blasts, the banner, the danger tint.</td></tr>
+<tr><td><code>src/ui.js</code></td><td>The handheld menu kit: plates, buttons, glyphs.</td></tr>
+</table>
+
+<footer>Regenerate with <code>node tools/make_doc.mjs</code>. STRELA-10.</footer>
+</main>
+
+<script>
+/*GAME_SOURCE*/
+
+// ---- the guide -----------------------------------------------------------------------------
+const NAMES = { w:'white', g:'grey', y:'yellow', Y:'olive', o:'orange', O:'brown', r:'red', R:'dark red', p:'pink', m:'magenta', M:'light magenta', u:'light purple', U:'purple', b:'light blue', B:'blue', n:'navy', e:'light green', E:'green', t:'tan', d:'dark olive', k:'black', P:'dark purple', q:'dark magenta' };
+const sw = document.getElementById('sw');
+for (const k of Object.keys(P)){
+  const d = document.createElement('div');
+  d.innerHTML = '<i style="background:' + P[k] + '"></i><span>' + k + ' <b style="float:right">' + P[k] + '</b></span>';
+  sw.appendChild(d);
+}
+function paint(cv, spr, frame, scale, shadow){
+  const c = cv.getContext('2d'); const fr = spr.frames[Math.min(frame, spr.frames.length - 1)];
+  const ox = Math.floor((cv.width / scale - spr.w) / 2), oy = Math.floor((cv.height / scale - spr.h) / 2);
+  c.imageSmoothingEnabled = false; c.setTransform(scale, 0, 0, scale, 0, 0);
+  if (shadow){ c.fillStyle = '#000'; for (let j = 0; j < spr.h; j++) for (let i = 0; i < spr.w; i++) if (fr.data[j][i]) c.fillRect(ox + i + 1, oy + j + 1, 1, 1); }
+  for (let j = 0; j < spr.h; j++) for (let i = 0; i < spr.w; i++) if (fr.data[j][i]){ c.fillStyle = fr.px[j][i]; c.fillRect(ox + i, oy + j, 1, 1); }
+}
+function canvas(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+
+// Anatomy
+const an = document.getElementById('anat'), ex = SPR.ipbm;
+function fig(label, make){ const f = document.createElement('figure'); const cv = make(); f.appendChild(cv); f.appendChild(document.createTextNode(label)); an.appendChild(f); }
+fig('art', () => { const cv = canvas(7 * 14 + 8, 7 * 14 + 8); const c = cv.getContext('2d'); c.fillStyle = '#000'; c.fillRect(0, 0, cv.width, cv.height); c.font = '14px monospace'; const A = ['.y.', '.o.', 'rRr', '.r.', '.w.', '.r.', '.R.']; A.forEach((r, j) => Array.from(r).forEach((ch, i) => { c.fillStyle = ch === '.' ? '#333' : PCH[ch]; c.fillText(ch, 4 + (i + 2) * 14, 16 + j * 14); })); return cv; });
+fig('frame A', () => { const cv = canvas(80, 80); paint(cv, ex, 0, 8, false); return cv; });
+fig('frame B', () => { const cv = canvas(80, 80); paint(cv, ex, 1, 8, false); return cv; });
+fig('shadow', () => { const cv = canvas(80, 80); const c = cv.getContext('2d'); c.setTransform(8, 0, 0, 8, 0, 0); c.fillStyle = '#5a5a7a'; c.fillRect(0, 0, 10, 10); const fr = ex.frames[0], ox = 1, oy = 1; c.fillStyle = '#000'; for (let j = 0; j < ex.h; j++) for (let i = 0; i < ex.w; i++) if (fr.data[j][i]) c.fillRect(ox + i + 1, oy + j + 1, 1, 1); c.fillStyle = '#e8e85c'; for (let j = 0; j < ex.h; j++) for (let i = 0; i < ex.w; i++) if (fr.data[j][i]) c.fillRect(ox + i, oy + j, 1, 1); return cv; });
+let live1, live6;
+fig('game size', () => { live1 = canvas(16, 16); live1.style.width = '32px'; live1.style.height = '32px'; return live1; });
+fig('6x', () => { live6 = canvas(60, 60); return live6; });
+
+// Bestiary
+const BEASTS = [
+ ['MISSILES', [
+  ['ipbm', 'Missile', 'Basic threat', 'Falls on a city or turret, accelerating.', 'One blast. Shoot it early, or let it come and chain it.'],
+  ['icbm', 'Long-range missile', 'Splits when shot', 'A longer, faster missile. Shot down, it breaks into three ordinary missiles that fan out.', 'Shoot it low and late, or be ready for three.'],
+  ['heavy', 'Heavy', 'Big blast', 'Slow and large; shot down, it goes off in a wide nova.', 'Slow means time. Its blast is a weapon: use it on what is beneath.'],
+  ['colbomb', 'Column bomb', 'Tall blast', 'Shot down, it blasts a tall column.', 'A chain starter: shoot it where the column crosses a crowd.'],
+  ['rowbomb', 'Row bomb', 'Wide blast', 'Shot down, it blasts a wide bar.', 'A chain starter for a row of falling missiles.'],
+  ['midsplit', 'Mid-splitter', 'Splits mid-fall', 'Flashes at 45% of its fall, then breaks into three.', 'Kill it before it flashes.'],
+  ['multi', 'Multi', 'Cross blast', 'Shot down, it bursts into a cross.', 'Its arms reach further than they look.'],
+  ['mini', 'Mini', 'Swarm', 'Small and fast, comes in showers.', 'One well-placed blast chains through a rain.'],
+  ['weaver', 'Weaver', 'Awkward to lead', 'Snakes sideways in a travelling wave, then lands where it was aimed.', 'Shoot where it is going, not where it is. Or wait: the sway nets out.'],
+  ['phantom', 'Phantom', 'Beat-gated', 'Fades out on a fixed beat, all phantoms together, and cannot be hit while faded.', 'Learn the beat. Fire as they return.'],
+ ]],
+ ['ARMOUR', [
+  ['aegis', 'Aegis', 'Shielded missile', 'A missile in a shield that pulses on the platforms\' timing.', 'Shoot while the shield is down: 0.85 s windows.'],
+  ['chute', 'Parachute', 'Becomes three', 'Drops fast, slows under a canopy in the clouds, splits into three missiles.', 'Hit it while it drifts.'],
+ ]],
+ ['SHIPS', [
+  ['scout', 'Scout', 'Bomb run', 'Crosses and drops one or two bombs on set columns.', 'Shoot the ship, not the bombs.'],
+  ['bomber', 'Bomber', 'Bomb run', 'Crosses and drops three bombs in a row.', 'Shoot it before the first bomb.'],
+  ['gunner', 'Gunner', 'Armoured bomber', 'Two hit points, five bombs.', 'Two hits. Open early.'],
+  ['carrier', 'Carrier', 'Heavy bomber', 'Two hit points and a shield; drops heavy bombs on a strict rhythm.', 'Shoot while the shield is down.'],
+  ['smart', 'Smart ship', 'Dodger', 'Drifts down from the side, drops missiles on the way, and steps aside from nearby blasts.', 'Hit it directly; a near miss only pushes it away.'],
+  ['diver', 'Diver', 'Telegraph, then strike', 'Stops for 0.8 s with a dotted line to its target, then dives at 170 px/s.', 'It is easy to hit while it hangs.'],
+  ['sapper', 'Sapper', 'Wall layer', 'Crosses and hangs two orbital walls in the sky, then leaves.', 'Shoot it before it deploys, or plan around the walls.'],
+  ['bulwark', 'Orbital wall', 'Deployed obstacle', 'Hangs behind a pulsing shield. Takes three hits, each re-raising the shield. Every missile that hits it bounces off sideways. Lapses on its own after 16 s.', 'Hit it in the open window. Bounced missiles are unaimed: they can fall anywhere, so clear the wall first.'],
+  ['platform', 'Orbital platform', 'Launcher', 'Rides under the clouds behind a shield and launches missiles.', 'Hit it when the shield drops.'],
+  ['bandit', 'Bandit', 'Fast and valuable', 'Crosses very fast; carries nothing, worth 2000.', 'Lead it a long way.'],
+  ['satellite', 'Satellite', 'A poster', 'The fastest thing in the game, bobbing. Carries one gallery poster.', 'Lead it. It only passes once.'],
+ ]],
+ ['HAZARDS', [
+  ['meteor', 'Meteor', 'Sky hazard', 'Falls fast from space.', 'Fall time is short: shoot it as it enters.'],
+  ['lava', 'Lava', 'Ground hazard', 'Lobbed up and falls back, accelerating.', 'Shoot at the top of its arc.'],
+  ['shard', 'Shard', 'Ground hazard', 'Ice shards, accelerating.', 'Shoot at the top of its arc.'],
+  ['boulder', 'Boulder', 'Heavy hazard', 'Slow and large.', 'Needs a direct hit.'],
+ ]],
+];
+const be = document.getElementById('bestiary'), live = [];
+for (const [group, list] of BEASTS){
+  const g = document.createElement('div'); g.className = 'group'; g.innerHTML = '<h3>' + group + '</h3>'; be.appendChild(g);
+  for (const [id, name, role, act, beat] of list){
+    const spr = SPR[id]; if (!spr) continue;
+    const card = document.createElement('div'); card.className = 'card';
+    const cv = canvas(96, 96); card.appendChild(cv);
+    const tx = document.createElement('div');
+    tx.innerHTML = '<h4>' + name + '</h4><div class="role">' + role + '</div><p>' + act + '</p><p class="beat">' + beat + '</p>';
+    card.appendChild(tx); g.appendChild(card);
+    live.push({ cv, spr, phase: Math.random() * 3, sc: Math.max(2, Math.floor(80 / Math.max(spr.w, spr.h))) });
+  }
+}
+function tick(ms){
+  const t = ms / 1000;
+  for (const l of live){ const c = l.cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 96, 96); paint(l.cv, l.spr, Math.floor(t * l.spr.fps + l.phase) % l.spr.frames.length, l.sc, true); }
+  for (const [cv, sc] of [[live1, 1], [live6, 6]]){ const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); paint(cv, ex, Math.floor(t * ex.fps) % 2, sc, true); }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

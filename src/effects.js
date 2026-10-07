@@ -48,7 +48,7 @@ let boomSeq = 0;
 class Boom{
   constructor(x,y,kind,o){
     o=o||{};this.x=x;this.y=y;this.kind=kind;this.t=0;
-    this.delay=o.delay||0;this.dur=o.dur||0.55;this.rmax=o.r||24;
+    this.foe=!!o.foe;this.delay=o.delay||0;this.dur=o.dur||0.55;this.rmax=o.r||24;
     this.hue=(hueCounter++)%7;this.dead=false;
     this.sparksSpawned=false;
     this.intensity=Math.min(3,Math.max(1,Math.round(this.rmax/22)));

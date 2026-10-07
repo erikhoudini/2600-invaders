@@ -7,7 +7,7 @@ Chromium, so they need a static server and Playwright.
 python3 -m http.server 8770 &                      # from the repo root
 PW=$(npm root -g)/playwright
 node tools/balance/tele.mjs $PW 0,1,2,3,4 expert,good,average,novice 3 http://127.0.0.1:8770/index.html out.json 1
-node tools/balance/pat.js out.json                 # which patterns cost cities
+node tools/balance/pat.cjs out.json                 # which patterns cost cities
 node tools/balance/tele-end.mjs $PW                # Endless survival by skill
 ```
 

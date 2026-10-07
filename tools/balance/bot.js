@@ -19,7 +19,9 @@ function botThink(bot, now){
     if (bot.held.get(e) > now) continue;
     let urg;
     if (T.passing){
-      if (e.type === 'platform' || e.type === 'satellite'){ urg = e.type === 'satellite' ? 4 : 9; }
+      if (e.type === 'bulwark'){ urg = 6; }
+      else if (e.type === 'diver'){ urg = e.dive === 2 ? 1.2 : (e.dive === 1 ? 2.5 : 8); }
+      else if (e.type === 'platform' || e.type === 'satellite'){ urg = e.type === 'satellite' ? 4 : 9; }
       else if (e.dropPoints && e.dropIndex < e.dropPoints.length) urg = 4.5 + e.dropIndex * 0.3;
       else continue;
     } else if (e.vy > 0 && e.y > 6 && e.y < GROUND - 36){
@@ -37,6 +39,7 @@ function botThink(bot, now){
     }
   }
   if (!best || Math.random() > bot.sk.acc) return;
+  if (best.type === 'phantom' && phantomDim()) return;
   const T = ETYPES[best.type], S = speedOf(T);
   // lead the target, and for shields pick the moment the shield will be down on arrival
   let d = Math.hypot(best.x - 128, best.y - 380) / SHOT_SPEED;

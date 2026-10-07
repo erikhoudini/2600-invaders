@@ -85,16 +85,20 @@ const SPR = {
   heavybomb:{ w:5, h:8, col:P.org, data:[[0,0,1,0,0],[0,1,1,1,0],[0,1,1,1,0],[1,1,1,1,1],[1,1,1,1,1],[1,1,0,1,1],[0,1,0,1,0],[0,1,0,1,0]] },
 };
 
-function drawSprite2600(spr, cx, cy, alpha){
+function drawSprite2600(spr, cx, cy, alpha, t, phase, flash){
   const w=spr.w, h=spr.h;
   const ox=Math.round(cx-w/2), oy=Math.round(cy-h/2);
   const prevA = ctx.globalAlpha;
   const a = (alpha !== undefined) ? alpha : 1;
   ctx.globalAlpha = prevA * a;
+  let data = spr.data, px = null;
+  if (spr.frames){
+    const fr = spr.frames[spr.frames.length > 1 ? Math.floor((t || 0) * spr.fps + (phase || 0)) % spr.frames.length : 0];
+    data = fr.data; px = fr.px;
+  }
   ctx.fillStyle=P.blk;
-  for(let j=0;j<h;j++){const row=spr.data[j];for(let i=0;i<w;i++){if(row[i])ctx.fillRect(ox+i+1,oy+j+1,1,1);}}
-  ctx.fillStyle=spr.col;
-  for(let j=0;j<h;j++){const row=spr.data[j];for(let i=0;i<w;i++){if(row[i])ctx.fillRect(ox+i,oy+j,1,1);}}
+  for(let j=0;j<h;j++){const row=data[j];for(let i=0;i<w;i++){if(row[i])ctx.fillRect(ox+i+1,oy+j+1,1,1);}}
+  for(let j=0;j<h;j++){const row=data[j];for(let i=0;i<w;i++){if(row[i]){ctx.fillStyle=flash?P.wht:(px?px[j][i]:spr.col);ctx.fillRect(ox+i,oy+j,1,1);}}}
   ctx.globalAlpha=prevA;
 }
 

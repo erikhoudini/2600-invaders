@@ -77,6 +77,9 @@ function drawMenuTop(t, env){
     const tw = textW2x(title);
     drawText2x(title, Math.round((W-tw)/2), 22, P.blk);
     drawText2x(title, Math.round((W-tw)/2), 20, runVictory ? P.lgrn : P.red);
+    const qs = runVictory ? WIN_LINES[score % WIN_LINES.length] : LOSS_LINES[score % LOSS_LINES.length];
+    drawText(qs, Math.round((W-textW(qs))/2), 32, runVictory ? P.yel : P.pnk);
+    drawStar(Math.round(W/2) - 50, 21, P.rrd); drawStar(Math.round(W/2) + 43, 21, P.rrd);
     const mode = gameMode === 'rush' ? 'BOSS RUSH' : ((gameMode === 'wave' ? 'CAMPAIGN' : 'ENDLESS') + ' ' + currentEnv.name);
     drawText(mode, Math.round((W-textW(mode))/2), 40, P.lblu);
     const scoreStr = 'SCORE ' + String(score).padStart(6,'0');

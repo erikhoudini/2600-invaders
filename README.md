@@ -107,3 +107,9 @@ Use that file to share or host the game as one page.
 - **Tips** (`src/tips.js`): one-time notes the first time a wave pattern, shields, turret loss, satellites or power-ups show up. They are remembered and cleared by Reset Progress.
 - **Scoring**: one blast that takes 3 or more enemies pays a bonus (`X3 BLAST`, `X4 BLAST`, ...). With 2 or fewer cities left the screen pulses a warning.
 - **Balance tools** (`tools/balance/`): a human-like bot plus a telemetry harness. See its README. Enemies carry a `pat` tag so damage can be traced to the pattern that caused it.
+
+## The Xtari look
+
+`docs/xtari-look.html` is the style guide (rules, palette, animated bestiary, agitprop voice). Rebuild it with `node tools/make_doc.mjs`; its sprites and palette come from the game source. Enemy sprites are character art with two frames in `src/sprites.js`; the voice (slogans, enemy names) is in `src/agitprop.js`.
+
+New in this pass: weavers (snake), phantoms (fade on a beat), divers (telegraphed dive), sappers that hang orbital walls (3 hits, shielded, bounce every missile), shatter-into-pixels deaths, hit-stop, scorch marks, a wave roster under the banner, and the Soviet agitprop voice.

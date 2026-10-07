@@ -114,8 +114,13 @@ function drawGameplay(t){
       }
       ctx.globalAlpha = 1;
     }
-    drawSprite2600(spr,e.x,e.y+wob,cloud);
     const T = ETYPES[e.type];
+    if (e.type === 'diver' && e.dive === 1) drawDiveLine(e, t);
+    let sa = cloud;
+    if (e.type === 'phantom') sa = cloud * (phantomDim() ? (Math.sin(t * 40) > 0.4 ? 0.3 : 0.12) : 1);
+    drawSprite2600(spr,e.x,e.y+wob,sa,t,e.wobble,e.dive === 1 && Math.sin(t * 36) > 0);
+    if (e.spawnFx > 0) drawSpawnFx(e);
+    if (T.wall) drawWallFx(e, t);
     if (e.type === 'chute' && e.opened) drawCanopy(e, t, cloud);
     if (e.type === 'satellite') drawSatelliteFx(e, t);
     if (T.shield || T.hp > 1) drawPlatformFx(e, t, spr, cloud);
@@ -131,6 +136,7 @@ function drawGameplay(t){
   drawCrates(t);
   drawImpactWarnings(t);
   drawHazard(t);
+  drawScorches();
   for(const inst of installations)drawHabitatDome(inst,t);
   for(let i=0;i<turrets.length;i++){ if (turrets[i].alive) drawTurret(turrets[i],turretBarrels[i],_cachedActiveTurret); else drawTurretWreck(turrets[i], t); }
   drawSnowfall();
@@ -210,9 +216,10 @@ function drawGameplay(t){
     const slide = Math.round((1 - Math.min(1, el * 3)) * -40);
     const prevA = ctx.globalAlpha;
     const barH = bannerSub ? 26 : 16;
-    ctx.globalAlpha=a*0.9;
+    ctx.globalAlpha=a*0.92;
     ctx.fillStyle=P.blk;
     ctx.fillRect(0, cy-6, W, barH);
+    for (let r = 0; r < barH; r++){ if (r > 3 && r < barH - 4) continue; ctx.fillStyle = r % 2 ? P.dmag : P.rrd; ctx.fillRect(4, cy - 6 + r, W - 8, 1); }      // raster bars
     ctx.fillStyle = P.yel;
     ctx.fillRect(0, cy-6, 3, barH);
     ctx.fillRect(W - 3, cy-6, 3, barH);
@@ -222,6 +229,14 @@ function drawGameplay(t){
     for(let i=0;i<s.length;i++){
       const c = RAINBOW[(i+Math.floor(t*8))%7];
       drawText2x(s[i], Math.round((W-tw2)/2) + i*8 + slide, cy, c);
+    }
+    if (waveRoster.length && !bannerSub.startsWith('BOSS')){        // who is coming
+      const n = waveRoster.length, gap = 17, x0 = Math.round(W / 2 - (n - 1) * gap / 2), ry = cy + barH + 16;
+      ctx.globalAlpha = a * 0.75; ctx.fillStyle = P.blk;
+      ctx.fillRect(x0 - 12, ry - 8, (n - 1) * gap + 24, 16);
+      ctx.globalAlpha = a;
+      drawText('INCOMING', Math.round((W - textW('INCOMING')) / 2) + slide, ry - 15, P.lblu);
+      waveRoster.forEach((ty, i) => drawSprite2600(SPR[ETYPES[ty].spr], x0 + i * gap + slide, ry, 1, t, i * 0.37));
     }
     if (bannerSub){
       drawText(bannerSub, Math.round((W-textW(bannerSub))/2) + slide, cy + 14, P.lblu);
@@ -933,11 +948,11 @@ function drawWaveSummary(t){
   if (!waveFlow()) return;
   const lines = [];
   if (gameMode === 'rush') lines.push([rush.phase === 'boss' ? ('BOSS ' + (rush.bosses + 1) + ' DOWN') : 'WAVE CLEARED', P.yel]);
-  else lines.push([formatWave(wave) + ' CLEARED', P.yel]);
+  else lines.push([formatWave(wave) + ' CLEARED', P.yel], [planLineFor(wave), P.rrd]);
   const standing = installations.filter(i => i.alive).length;
-  lines.push(['CITIES  ' + standing + '/' + installations.length, standing === installations.length ? P.lgrn : (standing <= 2 ? P.red : P.org)]);
+  lines.push(['COLLECTIVES  ' + standing + '/' + installations.length, standing === installations.length ? P.lgrn : (standing <= 2 ? P.red : P.org)]);
   lines.push(['ROUND BEST  X' + roundBest, P.lblu]);
-  lines.push(['SCORE  ' + String(score).padStart(6, '0'), P.wht]);
+  lines.push(['OUTPUT  ' + String(score).padStart(6, '0'), P.wht]);
   if (waveBonus > 0) lines.push(['BONUS  +' + waveBonus, P.lgrn]);
   const bw = 150, bh = 12 + lines.length * 11, bx = Math.round((W - bw) / 2), by = 52;
   const k = easeOut(clamp((3.4 - Math.min(waveClearTimer, 3.4)) * 4, 0, 1));
@@ -1170,7 +1185,7 @@ function drawCanopy(e, t, alpha){
 function drawPlatformFx(e, t, spr, alpha){
   const prevA = ctx.globalAlpha;
   ctx.globalAlpha = prevA * alpha;
-  if (e.hurt > 0 && Math.sin(t * 50) > 0) drawSprite2600(Object.assign({}, spr, { col: P.wht }), e.x, e.y);
+  if (e.hurt > 0 && Math.sin(t * 50) > 0) drawSprite2600(spr, e.x, e.y, 1, t, 0, true);
   const warn = e.shT < 0.3 && Math.sin(t * 30) > 0;
   if (e.shieldUp || e.shFlash > 0){
     ctx.fillStyle = e.shFlash > 0 ? P.wht : (warn ? P.lgrn : P.lblu);
@@ -1203,4 +1218,47 @@ function drawSputnik(t){
     ctx.fillRect(px + dir * k, py + Math.round(k * 0.35), 1, 1);
   }
   if (Math.sin(t * 7) > 0.2){ ctx.fillStyle = P.rrd; ctx.fillRect(px, py, 1, 1); }
+}
+
+// The beat: phantoms are solid for most of each cycle and fade out for the rest, all in step
+const PHANTOM_CYCLE = 1.5, PHANTOM_SOLID = 0.95;
+const phantomDim = () => (runStats.time % PHANTOM_CYCLE) > PHANTOM_SOLID;
+// A diver hangs in the air, flashing, and a dotted line shows the column it will hit
+function drawDiveLine(e, t){
+  const prevA = ctx.globalAlpha;
+  ctx.globalAlpha = prevA * 0.8;
+  ctx.fillStyle = Math.sin(t * 30) > 0 ? P.wht : P.rrd;
+  const x = Math.round(e.tx);
+  for (let y = Math.round(e.y) + 8; y < GROUND; y += 6) ctx.fillRect(x, y, 1, 2);
+  ctx.fillRect(x - 3, GROUND - 3, 7, 1);
+  ctx.globalAlpha = prevA;
+}
+// New enemies materialise in a ring of white pixels
+function drawSpawnFx(e){
+  const k = e.spawnFx / 0.3, r = 3 + k * 8;
+  ctx.fillStyle = P.wht;
+  for (let a = 0; a < 6.283; a += 0.7) ctx.fillRect(Math.round(e.x + Math.cos(a) * r), Math.round(e.y + Math.sin(a) * r), 1, 1);
+}
+
+// An orbital wall: a dotted field between its pylons, hit points as pips, and a blink when it is about to lapse
+function drawWallFx(e, t){
+  const x = Math.round(e.x), y = Math.round(e.y), prevA = ctx.globalAlpha;
+  if (e.life < 3 && Math.sin(t * 24) > 0) ctx.globalAlpha = prevA * 0.35;
+  ctx.fillStyle = Math.sin(t * 18 + e.x) > 0 ? P.yel : P.wht;
+  for (let i = -6; i <= 6; i += 2) ctx.fillRect(x + i, y + 2 + ((i / 2 + Math.floor(t * 10)) & 1), 1, 1);
+  ctx.globalAlpha = prevA;
+  ctx.fillStyle = P.yel;
+  for (let i = 0; i < e.hp; i++) ctx.fillRect(x - 4 + i * 4, y + 5, 3, 1);
+}
+
+// Burn marks on the ground: a dark crescent of pixels that slowly cools
+function drawScorches(){
+  const pa = ctx.globalAlpha;
+  for (const s of scorches){
+    ctx.globalAlpha = pa * clamp(1 - s.t / 40, 0, 1) * 0.8;
+    ctx.fillStyle = P.blk;
+    ctx.fillRect(s.x - 4, GROUND - 2, 9, 1); ctx.fillRect(s.x - 2, GROUND - 3, 5, 1); ctx.fillRect(s.x - 6, GROUND - 1, 13, 1);
+    if (s.t < 6){ ctx.fillStyle = P.ora; ctx.globalAlpha = pa * (1 - s.t / 6); ctx.fillRect(s.x - 1, GROUND - 2, 3, 1); }
+  }
+  ctx.globalAlpha = pa;
 }

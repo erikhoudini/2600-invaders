@@ -8,6 +8,7 @@ const MISSILE_BOOST = 0.35;     // falling missiles end their fall this much fas
 const WIND_DRIFT = 1.1;         // px/s of sideways drift per unit of wind
 const SHIELD_PATTERN = [[1, 1.5], [0, 0.85], [1, 0.6], [0, 0.85]];   // [shield up?, seconds]
 const CHUTE_SLOW = 11;
+const DIVE_SPEED = 170;          // px/s of a diver on its way down
 const SHIP_SPEED = 1.725;        // ships (fliers, smart ships and platforms) move this much faster than their base speed
 const WIND_BOTTOM = 2.5;        // wind strength on the bottom screen, relative to the top
 const BOSS_TEMPO = 1.5;         // bosses attack this much faster
@@ -45,6 +46,16 @@ const ETYPES={
   chute:   { spr:'chute',   vy:72, vx:0,   homing:0,    death:'blast',    r:18, pts:90,  trailCol:P.lmag, trailDim:P.dmag, noAccel:true, noCluster:true },
   // Orbital platform: rides in below the clouds behind a pulsing shield and launches missiles
   platform:{ spr:'platform',vy:0,  vx:15,  homing:0,    death:'platform', r:26, pts:400, trailCol:P.lpur, trailDim:P.dpur, passing:true, shield:true, hp:2, lane:true, wide:true, launch:true, shieldR:[12, 8] },
+  // Weaver: a missile that snakes sideways on its way down; its snaking nets out to nothing, so it still lands on its column
+  weaver:  { spr:'weaver', vy:20, vx:0,   homing:0,    death:'blast',    r:18, pts:80,  trailCol:P.lgrn, trailDim:P.dgrn, wave:[64, 2.6], noCluster:true },
+  // Phantom: fades out on a fixed beat (see phantomDim) and cannot be hit while faded
+  phantom: { spr:'phantom', vy:19, vx:0,  homing:0.7,  death:'blast',    r:18, pts:110, trailCol:P.lblu, trailDim:P.dblu, noCluster:true },
+  // Diver: cruises, stops and flashes with a line down to its target, then dives at it
+  diver:   { spr:'diver',   vy:0,  vx:55,  homing:0,    death:'xblast',   r:16, pts:130, trailCol:P.rrd,  trailDim:P.dred, passing:true, diver:true, lowChance:0, noCluster:true },
+  // Sapper: a ship that deploys orbital walls as it crosses
+  sapper:  { spr:'sapper',  vy:0,  vx:26,  homing:0,    death:'xblast',   r:18, pts:200, trailCol:P.yel,  trailDim:P.dolk, passing:true, deploys:'bulwark', drops:[0.3, 0.62], lowChance:0, wide:true, noCluster:true },
+  // Bulwark: an orbital wall. Hangs in the sky behind a pulsing shield, takes three hits, and bounces every missile that hits it
+  bulwark: { spr:'bulwark', vy:0,  vx:0,   homing:0,    death:'platform', r:19, pts:500, trailCol:P.yel,  trailDim:P.dolk, passing:true, shield:true, hp:3, wall:true, wide:true, shieldR:[20, 6], noShipBoost:true, noCluster:true, life:16 },
   boulder: { spr:'boulder', vy:24, vx:0,   homing:0,    death:'boulder',  r:20, pts:80,  trailCol:P.gry,  trailDim:P.blk },
 };
 // How much faster than its listed speed an enemy moves: ships have their own boost, missiles theirs

@@ -41,6 +41,8 @@ let nameLock = 0;
 let _cachedActiveTurret = null;
 let _cachedComboTier = null;
 
+let hitStop = 0;
+let scorches = [];                 // burn marks where missiles hit bare ground
 let runStats = { kills:0, shots:0, perfect:false, time:0 };
 
 let nameEntry = { letters: ['A','A','A'], cursor: 0 };
@@ -128,7 +130,7 @@ function startGame(mode, wi){
   resetGame();
   setWorld(wi);
   orbTimer = (mode === 'endless') ? 6 : 9;
-  runStats = { kills:0, shots:0, perfect:true, time:0 };
+  runStats = { kills:0, shots:0, perfect:true, time:0 }; hitStop = 0; waveRoster = []; scorches = [];
   if (mode === 'endless'){
     wave = 1;
     speedMul = 1.0;
@@ -266,11 +268,13 @@ function spawnEnemy(type,x,y,vx,vy,o){
     vx: vx!==undefined?vx:T.vx,
     vy: vy!==undefined?vy:T.vy*speedMul,
     dead:false, trail:[], trailTimer:0,
+    spawnFx: (curParent && !bossFiring && curParent.pat !== 'hazard' && (!T.passing || T.wall)) ? 0.3 : 0, life: T.wall ? ((o && o.life) || T.life) : undefined, wallCd: 0,
+    dive: T.diver ? 0 : undefined, tx: o && o.target, diveAt: o && o.diveAt, telT: 0,
     fromLeft: (vx!==undefined?vx:T.vx)>0,
     pat: (o && o.pat) || (curParent && curParent.pat) || (bossFiring ? 'boss' : undefined),
     dropPoints: (o && o.drops) ? o.drops.slice() : (T.drops ? T.drops.slice() : null),
     dropIndex: 0,
-    wobble:Math.random()*6.28,
+    wobble:(o && o.ph !== undefined) ? o.ph : Math.random()*6.28,
     hasSplit: false,
     fallI: 0,
     opened: false, openT: 0,
@@ -329,7 +333,8 @@ function typePool(w, env){
   if(w>=2){p.push('smart');p.push('smart');p.push('bomber');p.push('platform');}
   if(w>=3){p.push('splitter'); p.push('splitter');}
   if(w>=3){p.push('chute'); p.push('aegis');}
-  if(w>=4){p.push('heavy'); p.push('multi'); p.push('gunner');}
+  if(w>=4){p.push('heavy'); p.push('multi'); p.push('gunner'); p.push('weaver');}
+  if(w>=6){p.push('phantom');}
   if(w>=5){p.push('shrapnel'); p.push('bomber'); p.push('smart'); p.push('smart');}
   if(w>=6){p.push('icbm'); p.push('midsplit'); p.push('carrier'); p.push('aegis');}
   if(w>=7){p.push('scout'); p.push('colbomb');}
@@ -369,6 +374,7 @@ function nextWave(fw){
   choreoReset();
   choreo.phrases = composeWave(dw, worldOf(wave), isBossWave(wave), gameMode === 'rush' && !isBossWave(wave));
   spawnRemaining = totalSpawnCount = choreo.phrases.length;
+  waveRoster = rosterOf(choreo.phrases);
   totalSpawned = 0;
   choreo.gapT = 2.4;                                  // a moment to read the banner before the first phrase
   waveState='spawning';
@@ -376,6 +382,7 @@ function nextWave(fw){
   let sub = '';
   if (waveIn(wave) === 1) sub = currentEnv.name;
   else if (isBossWave(wave)) sub = 'BOSS WAVE';
+  else sub = slogan(wave * 5 + worldOf(wave));
   if (gameMode === 'rush'){
     if (isBossWave(wave)) setBanner('BOSS ' + (rush.bosses + 1), BOSS_NAMES[worldOf(wave)], 2.2);
     else setBanner('WAVE', currentEnv.name, 1.6);
@@ -421,6 +428,9 @@ function onEnemyKilled(e,outBooms){
   runStats.kills++;
   stats.totalKills++;
   maybeDropCrate(e, T);
+  if (T.pts >= 25) shatterSprite(e, T.r >= 24 ? 1.4 : 1);
+  agitKill(e, T);
+  if (T.pts >= 100 && hitStop < 0.05) hitStop = T.pts >= 250 ? 0.08 : 0.045;
   if (e.poster !== undefined) unlockPoster(e.poster);
   const now = performance.now() / 1000;
   const momentum = (now - lastKillAt) < 0.35;
@@ -701,6 +711,9 @@ function rushAdvance(){
 }
 
 function update(dt){
+  if (foeCd > 0) foeCd -= dt;
+  for (const s of scorches) s.t += dt;
+  if (scorches.length && scorches[0].t > 40) scorches.shift();
   windPhase+=dt;
   if(shake>0)shake=Math.max(0,shake-dt*3);
   if(flashT>0)flashT=Math.max(0,flashT-dt*2.5);
@@ -720,6 +733,7 @@ function update(dt){
   }
 
   if (paused) return;
+  if (hitStop > 0){ hitStop -= dt; return; }
   runStats.time += dt;
   if (installations.some(i => i.alive) && installations.filter(i => i.alive).length <= 2){ lowCityT -= dt; if (lowCityT <= 0){ lowCityT = 7; sfx('warn'); } } else lowCityT = 1.5;
 
@@ -784,6 +798,13 @@ function update(dt){
     const T=ETYPES[e.type];
     curParent = e;
     e.wobble+=dt*3;
+    if (e.spawnFx > 0) e.spawnFx -= dt;
+    if (T.wall){
+      e.life -= dt;
+      if (e.life <= 0){ for (let i = 0; i < 14; i++) spawnParticle(e.x + rnd(-18, 18), e.y + rnd(-2, 3), rnd(-30, 30), rnd(-20, 20), rnd(0.3, 0.7), P.yel, 1); e.dead = true; continue; }
+    }
+    if (e.rebound > 0){ e.rebound -= dt; if (e.rebound <= 0) e.vy = e.vyKeep; }
+    if (e.wallCd > 0) e.wallCd -= dt;
     if(T.dodge){
       for(const b of booms){
         if(b.p>0&&b.p<0.6){
@@ -819,7 +840,34 @@ function update(dt){
     const windK = 1 + (WIND_BOTTOM - 1) * clamp((e.y - SH) / (BOT - SH), 0, 1);
     if (falling) e.x += windNow * WIND_DRIFT * windK * edt * (e.opened ? 2.2 : 1);
     const sp = speedOf(T);
+    if (T.diver){
+      if (e.dive === 0){
+        const prog = e.fromLeft ? (e.x + 14) / (W + 28) : (W + 14 - e.x) / (W + 28);
+        if (prog >= e.diveAt){ e.dive = 1; e.telT = 0.8; e.vx = 0; sfx('warn'); }
+      } else if (e.dive === 1){
+        e.telT -= edt;
+        if (e.telT <= 0){
+          e.dive = 2;
+          const ft = (GROUND - e.y) / DIVE_SPEED;
+          e.vx = (e.tx - e.x) / ft / sp; e.vy = DIVE_SPEED / sp;
+          launchSparks(e.x, e.y + 4, P.wht); sfx('dropHeavy');
+        }
+      }
+    }
+    if (T.wave) e.x += T.wave[0] * Math.cos(e.wobble * T.wave[1] / 3) * edt;
+    const prevY = e.y;
     e.x += e.vx*edt*k*sp; e.y += e.vy*edt*k*sp;
+    if (falling && e.vy > 0 && !(e.wallCd > 0)){
+      for (const w of enemies){
+        if (w.dead || w.type !== 'bulwark' || w.y < prevY || w.y > e.y + 1 || Math.abs(e.x - w.x) > 19) continue;
+        const side = Math.abs(e.x - w.x) < 3 ? (Math.random() < 0.5 ? -1 : 1) : (e.x > w.x ? 1 : -1);   // off the nearer end
+        e.vyKeep = e.vy; e.vy = -e.vy * 0.55; e.rebound = 0.3; e.wallCd = 0.6;
+        e.vx = side * (Math.abs(e.vx) + 58); e.y = w.y - 2; w.shFlash = 0.18;
+        for (let i = 0; i < 5; i++) spawnParticle(e.x, w.y, side * rnd(10, 50), rnd(-40, -5), rnd(0.15, 0.35), pick([P.wht, P.yel]), 1);
+        sfx('shieldHit');
+        break;
+      }
+    }
     if (T.bob) e.y = e.startY + Math.sin(e.wobble * 1.4) * T.bob;      // satellites ride a gentle wave
     if (T.fallDrops && e.fallI < T.fallDrops.length && e.y > SH * 0.4 && e.y < GROUND - 70){
       const prog = (e.y - e.startY) / e.totalFall;
@@ -884,7 +932,11 @@ function update(dt){
       const progress = e.fromLeft ? (e.x + 14) / (W + 28) : (W + 14 - e.x) / (W + 28);
       if(progress >= e.dropPoints[e.dropIndex]){
         e.dropIndex++;
-        if (T.dropsHeavy){
+        if (T.deploys){
+          booms.push(new Boom(e.x, e.y + 8, 'flash', { r: 9, dur: 0.3 }));
+          spawnEnemy(T.deploys, e.x, clamp(e.y + 26, 54, 150), 0, 0);
+          sfx('dropHeavy');
+        } else if (T.dropsHeavy){
           booms.push(new Boom(e.x, e.y + 6, 'flash', { r: 10, dur: 0.35 }));
           spawnEnemy('heavybomb', e.x, e.y + 6, 0, 32);
           sfx('dropHeavy');
@@ -910,7 +962,8 @@ function update(dt){
       }
 
       if (!hitDome){
-        booms.push(new Boom(e.x, GROUND - 4, 'circle', {r:14, dur:0.4}));
+        booms.push(new Boom(e.x, GROUND - 4, 'circle', {r:14, dur:0.4, foe:true}));
+        scorches.push({ x: Math.round(e.x), t: 0 }); if (scorches.length > 30) scorches.shift();
         for(let i=0;i<5;i++){
           spawnParticle(e.x,GROUND-4,rnd(-30,30),rnd(-50,-10),rnd(0.4,0.8),P.tan,1);
         }
@@ -980,7 +1033,7 @@ function update(dt){
 // A turret is destroyed: it is out of action until it rebuilds itself, the wave ends, or a repair crate arrives
 function destroyTurret(t){
   t.alive = false; t.rebuildT = TURRET_REBUILD;
-  booms.push(new Boom(t.x, t.y, 'nova', { r: 22, dur: 0.6, noBoss: true }));
+  booms.push(new Boom(t.x, t.y, 'nova', { r: 22, dur: 0.6, noBoss: true, foe: true }));
   for (let i = 0; i < 12; i++) spawnParticle(t.x, t.y, rnd(-60, 60), rnd(-70, 10), rnd(0.4, 1.0), pick([P.yel, P.org, P.wht, P.gry]), 2);
   shake = Math.max(shake, 0.8); flashT = Math.max(flashT, 0.12); buzz(50);
   tip('turret', 'A DOWNED TURRET REBUILDS ITSELF AFTER A WHILE. REPAIR CRATES FIX IT AT ONCE.');
@@ -991,7 +1044,7 @@ function destroyTurret(t){
 function rebuildTurret(t){
   t.alive = true; t.rebuildT = 0; t.flash = 0.25;
   for (let i = 0; i < 6; i++) spawnParticle(t.x + rnd(-6, 6), t.y, rnd(-20, 20), rnd(-40, -10), rnd(0.3, 0.7), P.lgrn, 1);
-  popups.push({ x: t.x, y: t.y - 16, text: 'TURRET ONLINE', t: 0, dur: 1.1, col: P.lgrn, big: false });
+  popups.push({ x: t.x, y: t.y - 16, text: 'WORKERS REPAIRED THE TURRET', t: 0, dur: 1.3, col: P.lgrn, big: false });
   sfx('pickup');
 }
 
@@ -1012,10 +1065,11 @@ function damageCity(inst, ex){
   stats.citiesLost++;
   runStats.perfect = false;
   combo=0;comboTimer=0;lastKillAt = -999;
-  shake=1.4;flashT=0.6;warningT=0.4;
+  shake=1.4;flashT=0.6;warningT=0.4;hitStop=0.12;
   sfx('cityHit');
+  popups.push({ x: W / 2, y: GROUND - 52, text: 'A COLLECTIVE HAS FALLEN', t: 0, dur: 1.6, col: P.red, big: false });
   if (gameMode === 'wave') tip('city', 'LOSE A CITY AND IT STAYS LOST UNTIL THE NEXT PLANET. SHOOT BOMBS BEFORE THEY LAND.');
-  booms.push(new Boom(ex, GROUND - 2, 'mushroom', {r:44, dur:1.6}));
+  booms.push(new Boom(ex, GROUND - 2, 'mushroom', {r:44, dur:1.6, foe:true}));
   for(let i=0;i<14;i++){
     spawnParticle(ex,GROUND-4,rnd(-80,80),rnd(-110,-30),rnd(0.6,1.2),Math.random()<0.5?P.wht:P.tan,2);
   }
@@ -1056,12 +1110,13 @@ function updateBooms(dt){
       const e = enemies[i];
       if(!e || e.dead) continue;
       if(boomHitsEnemy(b,e)){
+        if (e.type === 'phantom' && phantomDim()) continue;
         if ((ETYPES[e.type].shield || ETYPES[e.type].hp > 1) && !platformHit(e,b)) continue;
         e.dead=true; kills++; onEnemyKilled(e,newBooms);
       }
     }
     if (kills > 0) b.kills = (b.kills || 0) + kills;
-    if (b.kills >= 3 && b.kills > (b.paid || 2)){
+    if (!b.foe && b.kills >= 3 && b.kills > (b.paid || 2)){
       const n = b.kills, add = 100 * (n - (b.paid || 2)) * (n - 2);
       b.paid = n; score += add;
       popups.push({ x: b.x, y: b.y - 18, text: 'X' + n + ' BLAST +' + add, t: 0, dur: 1.2, col: P.yel, big: true });

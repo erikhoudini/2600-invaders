@@ -19,12 +19,12 @@ function updateTips(dt){
 function drawTip(t){
   if (!tipNow) return;
   const k = Math.min(1, tipNow.t * 5, (tipNow.dur - tipNow.t) * 5);
-  const lines = tipNow.lines, h = 13 + lines.length * 8, y = 128 + Math.round((1 - k) * 8);
+  const lines = tipNow.lines, h = 21 + lines.length * 8, y = 120 + Math.round((1 - k) * 8);
   const pa = ctx.globalAlpha;
   ctx.globalAlpha = pa * 0.94 * Math.max(0, k);
   uiPlate(14, y, W - 28, h, P.blk, null, null, P.yel);
-  drawStar(18, y + 3, P.yel);
-  drawText('TIP', 28, y + 4, P.yel);
-  for (let i = 0; i < lines.length; i++) drawText(lines[i], i === 0 ? 46 : 20, y + 4 + i * 8, P.wht);
+  drawStar(18, y + 3, P.rrd);
+  drawText('COMRADE, A WORD', 28, y + 4, P.yel);
+  for (let i = 0; i < lines.length; i++) drawText(lines[i], 20, y + 15 + i * 8, P.wht);
   ctx.globalAlpha = pa;
 }
