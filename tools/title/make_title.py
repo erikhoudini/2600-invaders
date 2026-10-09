@@ -46,69 +46,43 @@ def text_layer(txt,sz,fill,shadow=None,outline=None,off=6,skew=0.0,tracking=0):
     bb=tmp.getbbox(); return tmp.crop(bb)
 
 def top():
-    bg=cover(p4,(0,40,440,40+330),(W,H))
-    # a little night over the painting so the title and the red rocket carry
-    bg=ImageChops.multiply(bg,Image.new('RGB',(W,H),(215,215,240)))
-    # flame streaks from poster 4 stay; star-ships from poster 2 as a faint arc high on the left
-    sw=p2.crop((70,75,420,300)); sw=sw.resize((int(350*1.15),int(225*1.15)),Image.LANCZOS)
-    fm=Image.new('L',sw.size,0); ImageDraw.Draw(fm).ellipse([int(sw.width*0.08),int(sw.height*0.08),int(sw.width*0.92),int(sw.height*0.92)],fill=255)
-    fm=fm.filter(ImageFilter.GaussianBlur(40))
-    layer=Image.new('RGB',(W,H),(0,0,0)); layer.paste(sw,(int(W*0.0),int(H*0.28)),fm)
-    layer=ImageChops.multiply(layer,Image.new('RGB',(W,H),(150,150,185)))
-    bg=ImageChops.screen(bg,layer.point(lambda v:int(v*0.55)))
-    # Soyuz, hammer and sickle, and the red land from poster 3: three layers, so each reads on its own
-    mon=p3.crop((0,0,1075,1240)); al=np.asarray(key_alpha(mon),dtype=np.float32)/255.0
-    orig=np.asarray(mon).astype(np.float32); m=orig.copy(); R,G,B=orig[...,0],orig[...,1],orig[...,2]
-    ys_=np.arange(m.shape[0])[:,None]; xs=np.arange(m.shape[1])[None,:]
-    body=(xs>=468)&(xs<=614)
-    brown=((R>70)&(R<195)&(G<R*0.56)&(B<R*0.46))|(~body&(R>70)&(R<225)&(G<R*0.42)&(B<R*0.42)&(ys_>560))
-    # the emblem in gold
-    lum=(R*0.6+G*0.3+B*0.1)/110.0
-    gold=np.stack([np.clip(v*np.clip(lum,0.75,1.1),0,255) for v in (246,200,60)],axis=-1)
-    emb=np.where(brown[...,None],gold,m)
-    # the rocket: where the hammer head or the lettering sat on the body, copy the plain body beside it
-    rk=orig.copy()
-    txt=(R>215)&(G>105)&(G<205)&(B<130)
-    bad=(brown|txt)&body
-    for y in range(0,1240):
-        row=bad[y,468:615]
-        if row.any(): rk[y,468:615][row]=orig[y,476]
-    rkim=Image.fromarray(np.clip(rk,0,255).astype(np.uint8))
-    dm=ImageDraw.Draw(rkim); cx,cy,r=539,560,46
-    pts=[(cx+(r if i%2==0 else r*0.42)*math.sin(i*math.pi/5),cy-(r if i%2==0 else r*0.42)*math.cos(i*math.pi/5)) for i in range(10)]
-    dm.polygon(pts,fill=(250,226,90),outline=(120,10,10))
-    a_rocket=al*body*(ys_<1190)
-    a_emb=al*brown*(~body)
-    op=Image.fromarray((a_emb>0.5).astype(np.uint8)*255).filter(ImageFilter.MinFilter(11)).filter(ImageFilter.MaxFilter(15))
-    a_emb=a_emb*(np.asarray(op)>0)                          # drop the thin curling smoke lines of the poster
-    a_land=al*(~brown)*(~body)
-    sc=H*0.80/1240; mw,mh=int(1075*sc),int(1240*sc)
-    def lay(arr_rgb,alpha):
-        im=Image.fromarray(np.clip(arr_rgb,0,255).astype(np.uint8)).resize((mw,mh),Image.LANCZOS)
-        am=Image.fromarray((alpha*255).astype(np.uint8)).resize((mw,mh),Image.LANCZOS)
-        return im,am
-    def outlined(base,im,am,pos,r=5):
-        grown=am.filter(ImageFilter.MaxFilter(2*r+1))
-        base.paste(Image.new('RGB',am.size,(0,0,0)),pos,grown)
-        base.paste(im,pos,am)
-    px=int(W*0.69)-mw//2; py=H-mh-int(H*0.15)
-    ground=Image.new('RGB',(W,int(H*0.16)),(226,64,28)); gm=Image.linear_gradient('L').resize((W,ground.height)).transpose(Image.FLIP_TOP_BOTTOM)
-    bg.paste(ground,(0,H-ground.height),gm.point(lambda v:min(255,int(v*1.6))))
-    im,am=lay(m,a_land); bg.paste(im,(px,py),am)
-    im,am=lay(emb,a_emb)                                  # the emblem, a little wider than in the poster
-    ew,eh=int(mw*1.12),int(mh*1.04); im=im.resize((ew,eh),Image.LANCZOS); am=am.resize((ew,eh),Image.LANCZOS)
-    outlined(bg,im,am,(px-(ew-mw)//2,py-(eh-mh)+int(H*0.01)),r=4)
-    im,am=lay(np.asarray(rkim).astype(np.float32),a_rocket); outlined(bg,im,am,(px,py),r=6)
+    # a translucent collage: the planet and ship of poster 4 behind, the ships of poster 2 ghosted over the sky,
+    # and poster 2's red figure pointing at space in front
+    bg=cover(p4,(0,60,550,60+412),(W,H))
+    bg=ImageChops.multiply(bg,Image.new('RGB',(W,H),(225,225,245)))
+    # ghost: the light shapes of poster 2's star-ships and swooshes, screened over the sky
+    gh=p2.crop((20,45,436,330)); gh=gh.resize((int(416*1.45),int(285*1.45)),Image.LANCZOS)
+    lum=np.asarray(gh.convert('L')).astype(np.float32)
+    keepm=Image.fromarray(np.clip((lum-120)/90,0,1).__mul__(255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(2))
+    layer=Image.new('RGB',(W,H),(0,0,0)); layer.paste(gh,(int(W*0.30),int(H*0.00)),keepm)
+    bg=ImageChops.screen(bg,layer.point(lambda v:int(v*0.95)))
+    # a night falls from the left so the figure stands out
+    dk=Image.linear_gradient('L').rotate(90).resize((W,H)).transpose(Image.FLIP_LEFT_RIGHT)
+    dk=dk.point(lambda v:int(255-max(0,(v-0))*0.0))
+    ramp=Image.new('L',(W,H),0); rd_=ImageDraw.Draw(ramp)
+    for x in range(W):
+        t=max(0.0,1-x/(W*0.62)); rd_.line([(x,0),(x,H)],fill=int(255*(1-0.58*t)))
+    bg=ImageChops.multiply(bg,Image.merge('RGB',(ramp,ramp,ramp)))
+    # the red figure of poster 2, cut out by colour
+    a2=np.asarray(p2).astype(int); R,G,B=a2[...,0],a2[...,1],a2[...,2]
+    red=((R>150)&(G<120)&(B<110)&(R-G>70)); red[:150,:]=False
+    mk=Image.fromarray((red*255).astype(np.uint8)).filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.MinFilter(9))      # close the dark shading
+    mk=mk.filter(ImageFilter.MinFilter(5)).filter(ImageFilter.MaxFilter(5))                                                 # drop specks
+    box=(10,150,446,670); fg=p2.crop(box); fm=mk.crop(box)
+    sc=H*0.80/(box[3]-box[1]); fw,fh=int((box[2]-box[0])*sc),int((box[3]-box[1])*sc)
+    fg=fg.resize((fw,fh),Image.LANCZOS); fm=fm.resize((fw,fh),Image.LANCZOS).filter(ImageFilter.GaussianBlur(1))
+    pos=(int(-W*0.03),H-fh-int(H*0.10))
+    # an echo in deep blue, offset and see-through, for the collage depth
+    echo=Image.new('RGB',(fw,fh),(40,40,150)); em=fm.point(lambda v:int(v*0.45))
+    bg.paste(echo,(pos[0]+int(W*0.035),pos[1]-int(H*0.03)),em)
+    grown=fm.filter(ImageFilter.MaxFilter(9)); bg.paste(Image.new('RGB',(fw,fh),(0,0,0)),pos,grown)
+    bg.paste(fg,pos,fm)
     d=ImageDraw.Draw(bg)
-    rnd=random.Random(7)
+    rnd=random.Random(11)
     for _ in range(9):
-        x=rnd.randint(int(W*0.02),int(W*0.5)); y=rnd.randint(int(H*0.42),int(H*0.78)); sparkle(d,x,y,rnd.choice([6,8,12]))
-    # title, stacked on the left
-    t1=text_layer('STRELA-',int(H*0.165),(255,255,255),shadow=(190,20,20),outline=(0,0,0),off=7,tracking=4)
-    t2=text_layer('10',int(H*0.34),(250,224,80),shadow=(190,20,20),outline=(0,0,0),off=9,tracking=2)
-    bg.paste(t1,(int(W*0.04),int(H*0.06)),t1)
-    bg.paste(t2,(int(W*0.04),int(H*0.06)+t1.height+int(H*0.0)),t2)
-    # ribbon
+        x=rnd.randint(int(W*0.50),int(W*0.96)); y=rnd.randint(int(H*0.30),int(H*0.66)); sparkle(d,x,y,rnd.choice([6,9,13]))
+    t=text_layer('STRELA-10',int(H*0.17),(255,255,255),shadow=(190,20,20),outline=(0,0,0),off=7,tracking=4)
+    bg.paste(t,(W-t.width-int(W*0.035),int(H*0.05)),t)
     rb=Image.new('RGBA',(int(W*0.95),int(H*0.085)),(0,0,0,0)); rd=ImageDraw.Draw(rb)
     rd.polygon([(0,0),(rb.width-30,0),(rb.width,rb.height),(30,rb.height)],fill=(205,24,30,255))
     rd.polygon([(0,0),(rb.width-30,0),(rb.width-26,8),(4,8)],fill=(240,220,90,255))
