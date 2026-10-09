@@ -56,31 +56,49 @@ def top():
     layer=Image.new('RGB',(W,H),(0,0,0)); layer.paste(sw,(int(W*0.0),int(H*0.28)),fm)
     layer=ImageChops.multiply(layer,Image.new('RGB',(W,H),(150,150,185)))
     bg=ImageChops.screen(bg,layer.point(lambda v:int(v*0.55)))
-    # Soyuz, hammer and sickle, and the red land from poster 3
-    mon=p3.crop((0,0,1075,1240)); al=key_alpha(mon)
-    m=np.asarray(mon).astype(np.float32); R,G,B=m[...,0],m[...,1],m[...,2]
-    # the emblem is brown: make it gold so it holds against the sky
-    xs=np.arange(m.shape[1])[None,:]
-    outside=(xs<466)|(xs>616)
-    brown=((R>70)&(R<195)&(G<R*0.56)&(B<R*0.46))|(outside&(R>70)&(R<225)&(G<R*0.42)&(B<R*0.42)&(np.arange(m.shape[0])[:,None]>560))
+    # Soyuz, hammer and sickle, and the red land from poster 3: three layers, so each reads on its own
+    mon=p3.crop((0,0,1075,1240)); al=np.asarray(key_alpha(mon),dtype=np.float32)/255.0
+    orig=np.asarray(mon).astype(np.float32); m=orig.copy(); R,G,B=orig[...,0],orig[...,1],orig[...,2]
+    ys_=np.arange(m.shape[0])[:,None]; xs=np.arange(m.shape[1])[None,:]
+    body=(xs>=468)&(xs<=614)
+    brown=((R>70)&(R<195)&(G<R*0.56)&(B<R*0.46))|(~body&(R>70)&(R<225)&(G<R*0.42)&(B<R*0.42)&(ys_>560))
+    # the emblem in gold
     lum=(R*0.6+G*0.3+B*0.1)/110.0
-    for c,v in enumerate((246,206,70)): m[...,c]=np.where(brown,np.clip(v*np.clip(lum,0.75,1.15),0,255),m[...,c])
-    # clear the lettering on the rocket by copying the plain body from its left edge
-    x0,x1=486,592
+    gold=np.stack([np.clip(v*np.clip(lum,0.75,1.1),0,255) for v in (246,200,60)],axis=-1)
+    emb=np.where(brown[...,None],gold,m)
+    # the rocket: where the hammer head or the lettering sat on the body, copy the plain body beside it
+    rk=orig.copy()
     txt=(R>215)&(G>105)&(G<205)&(B<130)
-    for y in range(380,800):
-        row=txt[y,x0:x1]
-        if row.any(): m[y,x0:x1][row]=m[y,x0-8]
-    mon=Image.fromarray(np.clip(m,0,255).astype(np.uint8))
-    dm=ImageDraw.Draw(mon); cx,cy,r=539,560,46
+    bad=(brown|txt)&body
+    for y in range(0,1240):
+        row=bad[y,468:615]
+        if row.any(): rk[y,468:615][row]=orig[y,476]
+    rkim=Image.fromarray(np.clip(rk,0,255).astype(np.uint8))
+    dm=ImageDraw.Draw(rkim); cx,cy,r=539,560,46
     pts=[(cx+(r if i%2==0 else r*0.42)*math.sin(i*math.pi/5),cy-(r if i%2==0 else r*0.42)*math.cos(i*math.pi/5)) for i in range(10)]
-    dm.polygon(pts,fill=(250,226,90))
-    sc=H*0.86/1240; mw,mh=int(1075*sc),int(1240*sc)
-    mon=mon.resize((mw,mh),Image.LANCZOS); al=al.resize((mw,mh),Image.LANCZOS)
-    px=int(W*0.64)-mw//2; py=H-mh-int(H*0.12)
+    dm.polygon(pts,fill=(250,226,90),outline=(120,10,10))
+    a_rocket=al*body*(ys_<1190)
+    a_emb=al*brown*(~body)
+    op=Image.fromarray((a_emb>0.5).astype(np.uint8)*255).filter(ImageFilter.MinFilter(11)).filter(ImageFilter.MaxFilter(15))
+    a_emb=a_emb*(np.asarray(op)>0)                          # drop the thin curling smoke lines of the poster
+    a_land=al*(~brown)*(~body)
+    sc=H*0.80/1240; mw,mh=int(1075*sc),int(1240*sc)
+    def lay(arr_rgb,alpha):
+        im=Image.fromarray(np.clip(arr_rgb,0,255).astype(np.uint8)).resize((mw,mh),Image.LANCZOS)
+        am=Image.fromarray((alpha*255).astype(np.uint8)).resize((mw,mh),Image.LANCZOS)
+        return im,am
+    def outlined(base,im,am,pos,r=5):
+        grown=am.filter(ImageFilter.MaxFilter(2*r+1))
+        base.paste(Image.new('RGB',am.size,(0,0,0)),pos,grown)
+        base.paste(im,pos,am)
+    px=int(W*0.69)-mw//2; py=H-mh-int(H*0.15)
     ground=Image.new('RGB',(W,int(H*0.16)),(226,64,28)); gm=Image.linear_gradient('L').resize((W,ground.height)).transpose(Image.FLIP_TOP_BOTTOM)
     bg.paste(ground,(0,H-ground.height),gm.point(lambda v:min(255,int(v*1.6))))
-    bg.paste(mon,(px,py),al)
+    im,am=lay(m,a_land); bg.paste(im,(px,py),am)
+    im,am=lay(emb,a_emb)                                  # the emblem, a little wider than in the poster
+    ew,eh=int(mw*1.12),int(mh*1.04); im=im.resize((ew,eh),Image.LANCZOS); am=am.resize((ew,eh),Image.LANCZOS)
+    outlined(bg,im,am,(px-(ew-mw)//2,py-(eh-mh)+int(H*0.01)),r=4)
+    im,am=lay(np.asarray(rkim).astype(np.float32),a_rocket); outlined(bg,im,am,(px,py),r=6)
     d=ImageDraw.Draw(bg)
     rnd=random.Random(7)
     for _ in range(9):
