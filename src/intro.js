@@ -27,8 +27,8 @@ function wrapText(str, maxChars){
 // (the way a 2600 kernel changes colour between scanlines), with fine scanlines and a slow sweep.
 // Only compositing is used, so it also works from file:// where reading pixels back is blocked.
 const INTRO_BANDS = [
-  ['#ffffff', '#fff6d0', '#ffe9a8', '#ffd98a', '#f2bf74', '#e8a362'],
-  ['#e8a362', '#f2bf74', '#ffd98a', '#ffe9a8', '#fff6d0', '#ffffff'],
+  ['#ffffff', '#fffaf0', '#fff4e0', '#ffeed2', '#ffe6c4', '#ffdcb4'],
+  ['#ffdcb4', '#ffe6c4', '#ffeed2', '#fff4e0', '#fffaf0', '#ffffff'],
 ];
 const introTint = [];
 function introTintFor(i){

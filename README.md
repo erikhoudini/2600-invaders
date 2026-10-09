@@ -115,3 +115,5 @@ Use that file to share or host the game as one page.
 New in this pass: weavers (snake), phantoms (fade on a beat), divers (telegraphed dive), sappers that hang orbital walls (3 hits, shielded, bounce every missile), shatter-into-pixels deaths, hit-stop, scorch marks, a wave roster under the banner, and the Soviet agitprop voice.
 
 Music (`src/music.js`) is an original two-voice D-minor score on the emulated TIA, with calm / driving / urgent versions of one theme that swap on the beat, plus boss and menu themes. Options has separate MUSIC and FX switches.
+
+Title cards: `python3 tools/title/make_title.py` rebuilds assets/intro-0.png and intro-1.png from the posters in art/source/title (kit-bashed, then palettized to the game palette).
