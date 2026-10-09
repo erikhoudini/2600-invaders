@@ -41,7 +41,6 @@ function startPass(c){
 }
 function spawnOrbital(type){
   if (crates.length >= 1) return;
-  tip('pu', 'SHOOT THE FLYING POWER-UP TO COLLECT IT.');
   const c = { type: type || pickCrateType(), pass: 0, dir0: Math.random() < 0.5 ? 1 : -1, x: -20, y: 100, trail: [], wait: 0, tt: 0 };
   startPass(c);
   crates.push(c);

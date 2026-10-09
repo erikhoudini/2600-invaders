@@ -162,8 +162,8 @@ function leaveOptions(){
   else goToTitle();
 }
 function activateOption(i){
-  if (i === 5){ leaveOptions(); return; }
-  if (i === 3 || i === 4){
+  if (i === 6){ leaveOptions(); return; }
+  if (i === 4 || i === 5){
     if (optionsConfirm === i){ cycleOption(i); optionsConfirm = -1; }
     else { optionsConfirm = i; sfx('warn'); }
   } else {
@@ -233,7 +233,7 @@ function onPress(code){
       sfx('move');
     }
     if (code === 'ArrowLeft' || code === 'ArrowRight'){
-      if (optionsSelection <= 2) cycleOption(optionsSelection, code === 'ArrowRight' ? 1 : -1);
+      if (optionsSelection <= 3) cycleOption(optionsSelection, code === 'ArrowRight' ? 1 : -1);
     }
     if (code === 'Enter' || code === 'Space') activateOption(optionsSelection);
     if (code === 'Escape') leaveOptions();

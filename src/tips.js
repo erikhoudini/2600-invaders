@@ -5,13 +5,19 @@
 let tipsSeen = safeLoad(KEY('tips'), []);
 if (!Array.isArray(tipsSeen)) tipsSeen = [];
 let tipQ = [], tipNow = null;
+let lastTipT = -1e9;
 function tip(id, text){
+  if (opts.tips === false) return;
+  const now = runStats.time;
+  if (now < lastTipT) lastTipT = -1e9;                       // a new run
+  if (now < 20 || now - lastTipT < 90 || tipNow || tipQ.length) return;     // never at the start, and well apart
   if (tipsSeen.includes(id) || tipQ.some(t => t.id === id) || (tipNow && tipNow.id === id)) return;
+  lastTipT = now;
   tipsSeen.push(id);
   safeSave(KEY('tips'), tipsSeen);
   tipQ.push({ id, lines: wrapText(text.toUpperCase(), 50), t: 0, dur: 2.6 + text.length * 0.045 });
 }
-function resetTips(){ tipsSeen = []; tipQ = []; tipNow = null; safeSave(KEY('tips'), tipsSeen); }
+function resetTips(){ lastTipT = -1e9; tipsSeen = []; tipQ = []; tipNow = null; safeSave(KEY('tips'), tipsSeen); }
 function updateTips(dt){
   if (!tipNow && tipQ.length) tipNow = tipQ.shift();
   if (tipNow){ tipNow.t += dt; if (tipNow.t > tipNow.dur) tipNow = null; }

@@ -77,6 +77,13 @@ def top():
     bg.paste(echo,(pos[0]+int(W*0.035),pos[1]-int(H*0.03)),em)
     grown=fm.filter(ImageFilter.MaxFilter(9)); bg.paste(Image.new('RGB',(fw,fh),(0,0,0)),pos,grown)
     bg.paste(fg,pos,fm)
+    # the ship of poster 4, lifted off its own clouds and set against the planet
+    sh=p4.crop((95,385,385,700)); shh=int(H*0.60); shw=int(sh.width*shh/sh.height)
+    sh=sh.resize((shw,shh),Image.LANCZOS)
+    sm=Image.new('L',(shw,shh),0); ImageDraw.Draw(sm).ellipse([int(shw*0.36),int(shh*0.02),int(shw*0.88),int(shh*0.98)],fill=255)
+    sm=sm.filter(ImageFilter.GaussianBlur(int(shw*0.05)))
+    spos=(int(W*0.60)-shw//2,int(H*0.40))
+    bg.paste(sh,spos,sm)
     d=ImageDraw.Draw(bg)
     rnd=random.Random(11)
     for _ in range(9):

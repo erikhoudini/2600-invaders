@@ -615,12 +615,10 @@ function fire(){
   const best = pickTurret();
   if(!best){                                         // everything is reloading, or every turret is down
     for (const t of turrets) if (t.alive) t.dry = 0.18;
-    tip('dry', 'ALL TURRETS ARE RELOADING. WAIT FOR ONE TO CHARGE, OR AIM WITH PATIENCE.');
     fireCooldown = 0.08; sfx('dry'); return;
   }
   runStats.shots++;
   stats.totalShots++;
-  if (runStats.shots === 6) tip('lead', 'SHOTS TAKE TIME TO TRAVEL. AIM AHEAD OF MOVING TARGETS.');
   best.flash=0.10; best.cd = rearmTime(); fireCooldown = 0.07;
   let blastR = 28;
   if (fxBlast > 0){ blastR = 44; fxBlast--; }
@@ -1070,7 +1068,6 @@ function damageCity(inst, ex){
   shake=1.4;flashT=0.6;warningT=0.4;hitStop=0.12;musicDip();
   sfx('cityHit');
   popups.push({ x: W / 2, y: GROUND - 52, text: 'A COLLECTIVE HAS FALLEN', t: 0, dur: 1.6, col: P.red, big: false });
-  if (gameMode === 'wave') tip('city', 'LOSE A CITY AND IT STAYS LOST UNTIL THE NEXT PLANET. SHOOT BOMBS BEFORE THEY LAND.');
   booms.push(new Boom(ex, GROUND - 2, 'mushroom', {r:44, dur:1.6, foe:true}));
   for(let i=0;i<14;i++){
     spawnParticle(ex,GROUND-4,rnd(-80,80),rnd(-110,-30),rnd(0.6,1.2),Math.random()<0.5?P.wht:P.tan,2);
