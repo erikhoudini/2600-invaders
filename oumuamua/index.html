@@ -741,7 +741,7 @@ function orbitDone(d){
   if(gCd>0){gCd=Math.max(0,gCd-Math.round(gMax*.35));if(gCd===0)gReady=14;}
   popup(ship.x,ship.y-22,(deep?'DEEP ORBIT':'ORBIT')+(orbitChain>1?' ×'+orbitChain:'')+'  +'+pts,isColor()?P.lav:P.wht,true);
   ring(OX,OY,d,.9,22,isColor()?P.lav:P.wht);
-  if(orbitChain%3===0){mult++;multT=240;multFlash=20;SFX.multUp();}else SFX.collectWarp();
+  if(orbitChain%3===0){mult=Math.min(MULT_MAX,mult+1);multT=240;multFlash=20;SFX.multUp();}else SFX.collectWarp();
 }
 function slingDone(){
   ship.slCd=45;STATS.slings++;
@@ -877,6 +877,7 @@ const WARP_CD=300;let warpCd=0;
 
 // ── Multiplier ────────────────────────────────────────────────────────────────
 let mult=1,multT=0,multFlash=0;
+const MULT_MAX=8; // comets and orbit chains both raise it; past ×8 the score and extra lives run away
 const IST_INV=180;
 
 // ── Mine powerup ──────────────────────────────────────────────────────────────
@@ -1501,7 +1502,7 @@ function mineBlast(mx,my){
   comets=comets.filter(cm=>{
     if((cm.x-mx)**2+(cm.y-my)**2<(MBR+cm.r)**2){
       cm.hp--;burst(cm.x,cm.y,5,P.sky);
-      if(cm.hp<=0){burst(cm.x,cm.y,20,P.sky,true);SFX.cometDestroy();cometBoom(cm);if(!simple)for(let k=0;k<2;k++)particles.push({x:cm.x,y:cm.y,vx:0,vy:0,life:14+k*8,col:P.sky,sz:1,ring:true,rr:cm.dR*(k*.5+.3),grow:5+k*3});score+=250*mult;popup(cm.x,cm.y-cm.dR-8,'INTERSTELLAR!',P.yel,true);invT=Math.max(invT,IST_INV);SFX.multUp();mult++;multT=240;multFlash=20;STATS.comets++;if(cm.wd)spawnGW(cm.x,cm.y);return false;}
+      if(cm.hp<=0){burst(cm.x,cm.y,20,P.sky,true);SFX.cometDestroy();cometBoom(cm);if(!simple)for(let k=0;k<2;k++)particles.push({x:cm.x,y:cm.y,vx:0,vy:0,life:14+k*8,col:P.sky,sz:1,ring:true,rr:cm.dR*(k*.5+.3),grow:5+k*3});score+=250*mult;popup(cm.x,cm.y-cm.dR-8,'INTERSTELLAR!',P.yel,true);invT=Math.max(invT,IST_INV);SFX.multUp();mult=Math.min(MULT_MAX,mult+1);multT=240;multFlash=20;STATS.comets++;if(cm.wd)spawnGW(cm.x,cm.y);return false;}
     }
     return true;
   });
@@ -1851,7 +1852,7 @@ function update(){
   // Bullets vs comet
   const nb=[...bullets];
   comets=comets.filter(cm=>{
-    for(let i=nb.length-1;i>=0;i--){if(inComet(cm,nb[i].x,nb[i].y,6)){hitFx(nb[i],P.lav);cm.hit=5;nb.splice(i,1);cm.hp--;burst(cm.x,cm.y,5,P.sky);SFX.cometHit();if(cm.hp<=0){burst(cm.x,cm.y,20,P.sky,true);SFX.cometDestroy();cometBoom(cm);if(!simple)for(let k=0;k<2;k++)particles.push({x:cm.x,y:cm.y,vx:0,vy:0,life:14+k*8,col:P.sky,sz:1,ring:true,rr:cm.dR*(k*.5+.3),grow:5+k*3});score+=250*mult;popup(cm.x,cm.y-cm.dR-8,'INTERSTELLAR!',P.yel,true);invT=Math.max(invT,IST_INV);SFX.multUp();mult++;multT=240;multFlash=20;STATS.comets++;if(cm.wd)spawnGW(cm.x,cm.y);return false;}return true;}}
+    for(let i=nb.length-1;i>=0;i--){if(inComet(cm,nb[i].x,nb[i].y,6)){hitFx(nb[i],P.lav);cm.hit=5;nb.splice(i,1);cm.hp--;burst(cm.x,cm.y,5,P.sky);SFX.cometHit();if(cm.hp<=0){burst(cm.x,cm.y,20,P.sky,true);SFX.cometDestroy();cometBoom(cm);if(!simple)for(let k=0;k<2;k++)particles.push({x:cm.x,y:cm.y,vx:0,vy:0,life:14+k*8,col:P.sky,sz:1,ring:true,rr:cm.dR*(k*.5+.3),grow:5+k*3});score+=250*mult;popup(cm.x,cm.y-cm.dR-8,'INTERSTELLAR!',P.yel,true);invT=Math.max(invT,IST_INV);SFX.multUp();mult=Math.min(MULT_MAX,mult+1);multT=240;multFlash=20;STATS.comets++;if(cm.wd)spawnGW(cm.x,cm.y);return false;}return true;}}
     return true;
   });
 
