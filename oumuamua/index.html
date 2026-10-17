@@ -1237,8 +1237,8 @@ function handleKey(c){
   }
   if(gScreen==='menu'){
     const items=subMenu?MENUS[subMenu]:MENUS.menu;
-    if(up){menuSel=(menuSel-1+items.length)%items.length;SFX.menuNav();}
-    else if(down){menuSel=(menuSel+1)%items.length;SFX.menuNav();}
+    if(up||left){menuSel=(menuSel-1+items.length)%items.length;SFX.menuNav();}
+    else if(down||right){menuSel=(menuSel+1)%items.length;SFX.menuNav();}
     else if(ok){SFX.menuSelect();chooseMenu(menuSel);}
     else if(back&&subMenu)backToMenu('',subMenu==='modes'?2:3);
     return;
@@ -1274,7 +1274,7 @@ function doAction(a){
 const inBuf={push:0,warp:0}; // a push or warp pressed just before it recharges goes off when it does
 function menuRepeat(c){
   const ud=c==='ArrowUp'||c==='ArrowDown'||c==='KeyW'||c==='KeyS',lr=c==='ArrowLeft'||c==='ArrowRight'||c==='KeyA'||c==='KeyD';
-  if(ud&&gScreen!=='scores'||lr&&(gScreen==='map'||gScreen==='scores'||gScreen==='ach'||gScreen==='options'&&optRows()[optSel]==='vol'))handleKey(c);
+  if(ud&&gScreen!=='scores'||lr&&(gScreen==='map'||gScreen==='menu'||gScreen==='scores'||gScreen==='ach'||gScreen==='options'&&optRows()[optSel]==='vol'))handleKey(c);
 }
 document.addEventListener('keydown',e=>{
   const mod=/^(Control|Alt|Meta|OS)/.test(e.code);
@@ -1325,14 +1325,19 @@ function updateTCVis(){
 }
 
 // ── Shared layouts (drawing and tap hit-testing read the same numbers) ───────
-// Menu lists part round the black hole at the centre: the first half above it,
-// the rest below, so nothing sits on the singularity
+// The main menu is a dial: items sit evenly round an orbit about the black hole
+// and the ring turns to bring the selected one to the front, at the bottom
+const RING_FOCUS=Math.PI/2;
+let ringRot=null;
 function menuLayout(){
-  const items=subMenu?MENUS[subMenu]:MENUS.menu,n=items.length,h=Math.ceil(n/2),gap=106;
-  const sp=Math.min(MENU_SP,(R*1.3-gap)/(n-1)); // long lists tighten to stay clear of the title
-  const ys=items.map((_,i)=>i<h?OY-gap/2-(h-1-i)*sp:OY+gap/2+(i-h)*sp);
-  return{items,ys,sp};
+  const items=subMenu?MENUS[subMenu]:MENUS.menu,n=items.length,step=TAU/n,r=R*(isMobile?.5:.46);
+  let tgt=-menuSel*step;
+  if(ringRot===null)ringRot=tgt;
+  while(tgt-ringRot>Math.PI)tgt-=TAU;while(tgt-ringRot<-Math.PI)tgt+=TAU;
+  const angs=items.map((_,i)=>RING_FOCUS+i*step+ringRot);
+  return{items,n,step,r,tgt,angs,pos:angs.map(a=>[OX+Math.cos(a)*r,OY+Math.sin(a)*r])};
 }
+let menuHover=-1;
 function hitYs(y,ys,sp){for(let i=0;i<ys.length;i++)if(Math.abs(y-ys[i])<sp/2)return i;return -1;}
 function overLayout(){
   const topY=OY-R*(isMobile?.56:.5);
@@ -1398,7 +1403,7 @@ function tapAt(x,y){
     return;
   }
   if(gScreen==='menu'){
-    const L=menuLayout(),i=hitYs(y,L.ys,L.sp);
+    const pk=pickAt(x,y),i=pk?pk.i:-1;
     if(i>=0){menuSel=i;SFX.menuSelect();chooseMenu(i);}
     return;
   }
@@ -1446,7 +1451,7 @@ function pickAt(x,y){
   const inCol=Math.abs(x-OX)<R*.62;
   if(gScreen==='playing'){if(!paused||screensaver)return null;const i=hitRow(y,OY-PAUSE_SP,PAUSE_SP,3);return i>=0&&inCol?{k:'pause',i}:null;}
   if(gScreen==='over'){const i=hitRow(y,overLayout().items,OVER_SP,MENUS.over.length);return i>=0&&inCol?{k:'over',i}:null;}
-  if(gScreen==='menu'){const L=menuLayout(),i=hitYs(y,L.ys,L.sp);return i>=0&&inCol?{k:'menu',i}:null;}
+  if(gScreen==='menu'){const L=menuLayout();let b=-1,bd=(isMobile?46:38)**2;L.pos.forEach(([px,py],i)=>{const d=((x-px)*.55)**2+(y-py)**2;if(d<bd){bd=d;b=i;}});return b>=0?{k:'menu',i:b}:null;}
   if(gScreen==='map'){let hit=-1,bd=26*26;NODES.forEach((N,i)=>{const d=(N.x-x)**2+(N.y-y)**2;if(d<bd){bd=d;hit=i;}});return hit>=0?{k:'map',i:hit}:null;}
   if(gScreen==='brief'){const i=hitRow(y,briefY(),MENU_SP,2);return i>=0&&inCol?{k:'brief',i}:null;}
   if(gScreen==='options'){
@@ -1472,7 +1477,8 @@ function pickAt(x,y){
 function applyPick(p,sound){
   let ch=false;const to=(cur,v)=>{if(cur!==v)ch=true;return v;};
   if(p.k==='pause')pauseSel=to(pauseSel,p.i);
-  else if(p.k==='over'||p.k==='menu')menuSel=to(menuSel,p.i);
+  else if(p.k==='over')menuSel=to(menuSel,p.i);
+  else if(p.k==='menu'){if(menuHover!==p.i){menuHover=p.i;if(sound)SFX.menuNav();}}
   else if(p.k==='map')mapSel=to(mapSel,p.i);
   else if(p.k==='brief')briefSel=to(briefSel,p.i);
   else if(p.k==='opt')optSel=to(optSel,p.i);
@@ -1486,6 +1492,7 @@ function setCursor(k){if(k!==cursorKind){cursorKind=k;CVS.style.cursor=k;}}
 CVS.addEventListener('mousemove',e=>{
   if(gScreen==='playing'&&!paused){setCursor(screensaver?'default':'none');return;}
   const[x,y]=canvasXY(e),p=pickAt(x,y);
+  if(gScreen==='menu'&&(!p||p.k!=='menu'))menuHover=-1;
   if(p&&p.k!=='back'&&p.k!=='tab'&&!bindCap)applyPick(p,true);
   setCursor(p&&p.k!=='back'?'pointer':'default');
 });
@@ -1501,6 +1508,7 @@ CVS.addEventListener('mousedown',e=>{
   if(p.k==='ach')return;
   applyPick(p,false);
   if(p.k==='pause'){choosePause(p.i);return;}
+  if(p.k==='menu'){menuSel=p.i;menuHover=-1;SFX.menuSelect();chooseMenu(p.i);return;}
   if(p.k==='opt'&&optRows()[p.i]==='vol'&&x>VOL_X0-12){volAt(x);return;}
   if(p.k==='bind'&&p.s<0&&p.i<ACTIONS.length)return; // the label only selects the row
   handleKey('Enter');
@@ -2872,19 +2880,34 @@ function drawMainMenu(){
     });
   }
   const L=menuLayout(),items=L.items;
-  menuSel_(L.ys[menuSel],Math.min(isMobile?40:32,L.sp-4));
+  ringRot+=(L.tgt-ringRot)*ease(.18);
+  // The orbit itself, brightening toward the front
+  G.save();G.lineWidth=1;
+  for(let k=0;k<64;k++){const a=k/64*TAU,f=Math.cos(a-RING_FOCUS);G.strokeStyle=`rgba(140,181,237,${.07+Math.max(0,f)*.25})`;G.beginPath();G.arc(OX,OY,L.r,a,a+TAU/64*.6);G.stroke();}
+  // Front marker: brackets round the focus slot
+  const fx=OX+Math.cos(RING_FOCUS)*L.r,fy=OY+Math.sin(RING_FOCUS)*L.r;
+  G.strokeStyle=P.yel+'aa';G.lineWidth=1.5;G.beginPath();G.arc(OX,OY,L.r,RING_FOCUS-.34,RING_FOCUS-.2);G.stroke();G.beginPath();G.arc(OX,OY,L.r,RING_FOCUS+.2,RING_FOCUS+.34);G.stroke();
+  G.restore();
+  // The ship circles the hole inside the ring
+  {const sa=-menuT*.6,sr=L.r*.55,sx=OX+Math.cos(sa)*sr,sy=OY+Math.sin(sa)*sr;G.save();G.translate(sx,sy);G.rotate(sa-Math.PI/2);G.strokeStyle=P.lav;G.globalAlpha=.8;G.lineWidth=1.3;
+   G.beginPath();G.moveTo(9,0);G.lineTo(-6,5);G.lineTo(-3.5,0);G.lineTo(-6,-5);G.closePath();G.stroke();G.strokeStyle=P.red;G.beginPath();G.moveTo(-4,2.5);G.lineTo(-7-Math.random()*3,0);G.lineTo(-4,-2.5);G.stroke();G.restore();}
   items.forEach((item,i)=>{
-    const iy=L.ys[i],sel=i===menuSel,isBack=item==='← BACK',k=itemIn(i);
-    G.globalAlpha=k;G.textAlign='center';G.textBaseline='middle';
-    const dx=(1-k)*24;
-    if(sel){G.font='bold italic '+fpx(isBack?14:22)+'px '+FN;G.fillStyle=isBack?P.sky:P.yel;}
-    else{const dist=Math.abs(i-menuSel);G.font=`italic ${fpx(isBack?12:dist===1?16:14)}px `+FN;G.fillStyle=`rgba(${isBack?'43,101,226':'140,170,230'},${isBack?.45:dist===1?.7:.45})`;}
-    G.fillText(item,OX+dx,iy);
+    const [x,y]=L.pos[i],a=L.angs[i],f=(Math.cos(a-RING_FOCUS)+1)/2,sel=i===menuSel,hov=i===menuHover,k=itemIn(i),isBack=item==='← BACK';
+    G.globalAlpha=k*(sel?1:.5+.45*f+(hov?.25:0));
+    // node on the orbit
+    G.fillStyle=sel?P.yel:hov?P.lav:'rgba(140,181,237,.7)';G.beginPath();G.arc(x,y,sel?3.2:2,0,TAU);G.fill();
+    if(sel){G.strokeStyle=P.yel;G.lineWidth=1;G.beginPath();G.arc(x,y,7+Math.sin(menuT*4)*1.2,0,TAU);G.stroke();}
+    // label sits outside the node, away from the hole
+    const lx=x+Math.cos(a)*(sel?22:16),ly=y+Math.sin(a)*(sel?22:16)+(1-k)*10;
+    G.textAlign=Math.cos(a)>.35?'left':Math.cos(a)<-.35?'right':'center';G.textBaseline=Math.sin(a)>.35?'top':Math.sin(a)<-.35?'bottom':'middle';
+    G.font=(sel?'bold italic ':'italic ')+fpx(sel?(isBack?15:21):Math.round(11+4*f))+'px '+FN;
+    G.fillStyle=sel?(isBack?P.sky:P.yel):hov?P.lav:isBack?'rgba(100,140,230,.9)':'rgba(170,190,240,.95)';
+    G.fillText(item,lx,ly);
   });
   G.globalAlpha=1;
   const d=MENU_DESC[items[menuSel]];
-  if(d){G.font=`italic ${fpx(9)}px `+FN;G.fillStyle='rgba(228,219,240,.6)';G.textAlign='center';G.fillText(typeof d==='function'?d():d,OX,L.ys[items.length-1]+L.sp*.9);}
-  hint('↑↓  SELECT  ·  ENTER  OPEN'+(subMenu?'  ·  ESC  BACK':''),'TAP TO SELECT');
+  if(d){G.font=`italic ${fpx(9)}px `+FN;G.fillStyle='rgba(228,219,240,.62)';G.textAlign='center';G.textBaseline='middle';G.fillText(typeof d==='function'?d():d,OX,fy+(isMobile?66:52));}
+  hint('ARROWS  TURN  ·  ENTER  OPEN'+(subMenu?'  ·  ESC  BACK':''),'TAP TO SELECT');
 }
 function menuSel_(y,h){selBand(y,h||(isMobile?40:32));}
 
@@ -3316,7 +3339,7 @@ function render(al){
   if(isMobile)updateTCVis();
   pauseA+=((gScreen==='playing'&&paused?1:0)-pauseA)*ease(.3);
   if(gScreen!==scrKey){if(scrKey)iris=1;scrKey=gScreen;}
-  const mk=gScreen+'|'+subMenu+'|'+(gScreen==='playing'&&paused);if(mk!==menuKey){menuKey=mk;menuIn=0;selShipY=null;}
+  const mk=gScreen+'|'+subMenu+'|'+(gScreen==='playing'&&paused);if(mk!==menuKey){menuKey=mk;menuIn=0;selShipY=null;ringRot=null;menuHover=-1;}
   const mt=menuT,live=gScreen==='playing';
   ral=live?(hitStop>0?1:al):0;menuT+=al*.038;
   if(live)lerpOn(ral);
