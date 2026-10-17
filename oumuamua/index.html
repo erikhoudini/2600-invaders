@@ -187,6 +187,7 @@ document.addEventListener('keydown',audioUnlock,true);
 document.addEventListener('touchstart',audioUnlock,true);
 function sfx(name){
   if(!vol||!AC||!BUF[name])return;
+  if(!CFG.menuSfx&&(name==='menuNav'||name==='menuSelect'))return;
   const now=performance.now();
   if(now-(_sfxLast[name]||0)<(SFX_GAP[name]||45))return; // one copy per burst, not ten stacked
   _sfxLast[name]=now;
@@ -202,10 +203,14 @@ function playExplode(sz=2){if(sz>=4)SFX.explodeL();else if(sz>=3)SFX.explodeM();
 // an opt-in low-power toggle in Options, skips it.
 let simple=false;
 // Options. starsMode and guide are 0 full / 1 reduced / 2 off.
-let vol=8,lensOn=true,starsMode=0,shakeOn=true,flashOn=true,guide=0;
+let vol=8,lensOn=true,starsMode=0,flashOn=true,guide=0;
+// Every other setting in Options lives here; each value indexes that option's choices
+const CFG_DEF={glow:2,nebula:1,scan:0,fps:0,shake:2,hitstop:1,slowmo:1,parts:1,anim:1,trail:1,popups:0,combo:1,toasts:1,menuSfx:1,thrust:1,turnEase:1,holdFire:1};
+const CFG_N={glow:4,fps:3,shake:3,popups:3};
+const CFG={...CFG_DEF};
 function setVol(v){vol=v;if(master)master.gain.value=vol/10;}
-function addShake(n){if(shakeOn)shake=Math.max(shake,n);}
-function freeze(n){hitStop=Math.max(hitStop,n);}
+function addShake(n){if(CFG.shake)shake=Math.max(shake,n*(CFG.shake===1?.45:1));}
+function freeze(n){if(CFG.hitstop)hitStop=Math.max(hitStop,n);}
 function flash(col,n){if(flashOn){flashCol=col;flashT=Math.max(flashT,n);}}
 
 // ── Key bindings ──────────────────────────────────────────────────────────────
@@ -216,7 +221,7 @@ const ACTIONS=[['left','ROTATE LEFT'],['right','ROTATE RIGHT'],['thrust','THRUST
 const BIND_DEF={left:['ArrowLeft','KeyA'],right:['ArrowRight','KeyD'],thrust:['ArrowUp','KeyW'],fire:['Space','KeyJ'],push:['KeyV','KeyK'],warp:['KeyC','KeyL'],shield:['KeyE',''],pause:['KeyX','KeyP']};
 const copyBinds=b=>JSON.parse(JSON.stringify(b));
 let BINDS=copyBinds(BIND_DEF);
-const MENU_KEYS=new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','Space','Enter','NumpadEnter','Escape','Backspace','Delete']);
+const MENU_KEYS=new Set(['Tab','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','Space','Enter','NumpadEnter','Escape','Backspace','Delete']);
 const latch=new Set(); // keys pressed since the last update, so a tap shorter than a tick still counts
 const tcAct={};        // actions held on the touch deck
 function act(a){
@@ -299,7 +304,7 @@ function drawStars(alpha,ripple=0,lens=false){
   if(starsMode===1)alpha*=.55;
   G.save();G.beginPath();G.arc(OX,OY,R,0,TAU);G.clip();
   const t=menuT;
-  if(starsMode===0&&!simple){G.save();G.globalAlpha=Math.min(.3,alpha*.75);G.translate(OX,OY);G.rotate(-t*.01);G.drawImage(NEB,-R,-R,R*2,R*2);G.restore();}
+  if(starsMode===0&&!simple&&CFG.nebula){G.save();G.globalAlpha=Math.min(.3,alpha*.75);G.translate(OX,OY);G.rotate(-t*.01);G.drawImage(NEB,-R,-R,R*2,R*2);G.restore();}
   G.lineCap='round';
   for(const s of STARS){
     const a=s.a0-s.w*t;let x=OX+Math.cos(a)*s.d,y=OY+Math.sin(a)*s.d;
@@ -321,11 +326,11 @@ function drawStars(alpha,ripple=0,lens=false){
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 const LB={arcade:[],sweep:[],purist:[],sentry:[],quarantine:[]};
 const STATS={rocks:[0,0,0,0,0,0],ufos:0,pulsers:0,swirls:0,hexes:0,comets:0,gravPushes:0,warpsUsed:0,shields:0,minesPlaced:0,orbits:0,slings:0};
-function statRock(sz){if(sz>=1&&sz<=5)STATS.rocks[sz]++;}
+function statRock(sz){if(sz>=1&&sz<=5)STATS.rocks[sz]++;ach('first');}
 function recScore(v,mode){const t=LB[mode];t.push(v);t.sort((a,b)=>b-a);t.length=Math.min(t.length,10);}
 // Scores, lifetime stats and options persist between visits.
 const SAVE_KEY='oumuamua.v1';
-function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({lb:LB,stats:screensaver&&ssStats?JSON.parse(ssStats):STATS,opt:{simple,vol,lens:lensOn,stars:starsMode,shake:shakeOn,flash:flashOn,guide,binds:BINDS},camp:CAMP}));}catch(e){}}
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({lb:LB,stats:screensaver&&ssStats?JSON.parse(ssStats):STATS,opt:{simple,vol,lens:lensOn,stars:starsMode,flash:flashOn,guide,binds:BINDS,cfg:CFG},ach:ACH,achp:ACHP,camp:CAMP}));}catch(e){}}
 function loadSave(){try{
   const d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(!d)return;
   if(d.lb)for(const k in LB)if(Array.isArray(d.lb[k]))LB[k]=d.lb[k].filter(Number.isFinite).slice(0,10);
@@ -336,10 +341,13 @@ function loadSave(){try{
   if(d.opt){
     const o=d.opt,tri=v=>v===0||v===1||v===2;
     simple=!!o.simple;vol=Number.isFinite(o.vol)?Math.max(0,Math.min(10,o.vol|0)):o.sfx===false?0:8;
-    lensOn=o.lens!==false;shakeOn=o.shake!==false;flashOn=o.flash!==false;
+    lensOn=o.lens!==false;flashOn=o.flash!==false;if(o.shake===false)CFG.shake=0;
+    if(o.cfg)for(const k in CFG_DEF){const v=o.cfg[k];if(Number.isInteger(v)&&v>=0&&v<(CFG_N[k]||2))CFG[k]=v;}
     if(tri(o.stars))starsMode=o.stars;if(tri(o.guide))guide=o.guide;
     if(o.binds)for(const[a]of ACTIONS){const b=o.binds[a];if(Array.isArray(b)&&b.length===2&&b.every(k=>typeof k==='string'))BINDS[a]=b.slice();}
   }
+  if(d.ach&&typeof d.ach==='object')for(const[id]of ACH_DEF)if(Number.isFinite(d.ach[id]))ACH[id]=d.ach[id];
+  if(d.achp&&typeof d.achp==='object')for(const[id]of ACH_DEF)if(Number.isFinite(d.achp[id]))ACHP[id]=d.achp[id];
   if(d.camp&&typeof d.camp==='object')for(const k in d.camp){const i=+k,v=d.camp[k]|0;if(i>=0&&i<35)CAMP[i]=v&7;}
 }catch(e){}}
 
@@ -459,7 +467,7 @@ function finishRun(won){
   RUN.done=true;RUN.won=won;
   if(won){
     let m=1;if(RUN.t<=RUN.p.par*30)m|=2;if(RUN.deaths===0)m|=4;
-    const old=CAMP[RUN.id]||0;RUN.marks=m;RUN.newMarks=m&~old;CAMP[RUN.id]=old|m;save();
+    const old=CAMP[RUN.id]||0;RUN.marks=m;RUN.newMarks=m&~old;CAMP[RUN.id]=old|m;save();achProg('camp',clearedCount());
     banner={txt:'CLEARED',t:60,max:60};SFX.newRecord();
   }else banner={txt:'OUT OF TIME',t:60,max:60};
   invT=Math.max(invT,999);
@@ -578,6 +586,45 @@ function drawBrief(){
   hint('↑↓  SELECT  ·  SPACE  CONFIRM  ·  X  BACK','TAP TO SELECT');
 }
 
+// ── Achievements ──────────────────────────────────────────────────────────────
+// Tiers: 0 easy, 1 medium, 2 hard, 3 campaign. A goal turns on a progress bar,
+// fed by the best value reached so far (kept in ACHP).
+const ACH_DEF=[
+  ['first','FIRST CONTACT','Destroy an asteroid',0,'rock'],
+  ['lap','ROUND TRIP','Complete an orbit of the black hole',0,'orbit'],
+  ['push','PUSHBACK','Use the gravity push',0,'push'],
+  ['wave1','WARMED UP','Clear the first wave in Arcade',0,'wave'],
+  ['sling','SLINGSHOT','Whip past the hole fast enough for a slingshot',1,'sling'],
+  ['comet','INTERSTELLAR','Destroy a comet',1,'comet'],
+  ['roche','ROCHE LIMIT','Let the hole tear apart 20 rocks in one game',1,'tidal',20],
+  ['lure','EVENT HORIZON','Lure 3 enemies into the black hole in one game',1,'hole',3],
+  ['deep','DEEP DIVER','Finish a lap close in to the hole',1,'deep'],
+  ['chain3','ON A ROLL','Chain 3 orbits without dying',1,'orbit',3],
+  ['shield','FULL SHIELD','Collect 5 warps and raise the shield',1,'shield'],
+  ['wave5','HOLDING ON','Reach wave 5 in Arcade',1,'wave',5],
+  ['score25','TWENTY-FIVE','Score 25,000 in one Arcade game',1,'score',25000],
+  ['score100','ESCAPE VELOCITY','Score 100,000 in one game',2,'score',100000],
+  ['wave10','DEEP SPACE','Reach wave 10 in Arcade',2,'wave',10],
+  ['clean3','UNTOUCHABLE','Clear 3 waves in a row without losing a life',2,'shield',3],
+  ['chain10','PERPETUAL MOTION','Chain 10 orbits without dying',2,'orbit',10],
+  ['mult8','SINGULARITY','Reach the ×8 multiplier',2,'mult',8],
+  ['purist','PURIST','Score 20,000 in Purist mode',2,'score',20000],
+  ['camp','ʻOUMUAMUA','Clear every planet in the campaign',3,'star',35],
+];
+const ACH_BY={};ACH_DEF.forEach(a=>ACH_BY[a[0]]=a);
+const TIER=[['EASY','#14964c'],['MEDIUM','#8cb5ed'],['HARD','#c523ac'],['CAMPAIGN','#f1e038']];
+const ACH={},ACHP={};
+let achToasts=[];
+function ach(id){
+  if(ACH[id]||screensaver)return;
+  ACH[id]=Date.now();save();
+  if(CFG.toasts){achToasts.push({id,t:0});SFX.newRecord();}
+}
+function achProg(id,v){
+  if(ACH[id]||screensaver)return;
+  if(v>(ACHP[id]||0))ACHP[id]=v;
+  if(v>=ACH_BY[id][5])ach(id);
+}
 loadSave();
 
 // ── Rock constants ────────────────────────────────────────────────────────────
@@ -619,6 +666,7 @@ function launchComet(q){
   comets.push({x:ex,y:ey,vx:Math.cos(q.ta)*q.sp,vy:Math.sin(q.ta)*q.sp,r:CHIT,dR:CR,pts,a:q.ta,tail:[],hp:5,hit:0,wd:Math.random()<.35});
 }
 function cometBoom(cm){
+  ach('comet');
   if(RUN)RUN.comets++;
   freeze(4);flash('#fff',8);addShake(9);
   const c=Math.cos(cm.a),sn=Math.sin(cm.a),pts=cm.pts.map(([x,y])=>[x*c-y*sn,x*sn+y*c]);pts.push(pts[0]);
@@ -714,10 +762,18 @@ function capFlow(o,mv){
 // Laps of the hole are tracked and paid: each full sweep scores (double for a deep
 // lap, more again as laps chain), refunds a third of the push, and every third lap
 // in a chain lifts the multiplier. A fast, close pass by the hole is a slingshot.
-const ROT_MIN=.04,ROT_MAX=.075,ROT_RAMP=5;
+const ROT_MIN=.04,ROT_MAX=.075,ROT_RAMP=5,ROT_FLAT=.07;
+// Thrust. Tight (default) ramps to full power within a few ticks and bleeds off
+// sideways drift, measured against the orbital flow so burns don't fight the
+// orbit: the ship goes where it points. Classic is the old flat push.
+const THR_ACC0=.12,THR_ACC1=.17,THR_RAMP=4,THR_GRIP=.84,THR_CLASSIC=.15;
+// Invulnerability after starting, between waves, after a respawn and after a warp
+const START_INV=90,WAVE_INV=30,RESPAWN_INV=300,WARP_INV=300; // respawn and warp keep their full 10 s
+let invMax=1;
+function setInv(n){if(n>=invT)invMax=n;invT=Math.max(invT,n);}
 const SHIP_KR=.985,SHIP_KT=.996,SHIP_VMAX=7,PUSH_SPIN=.6;
 const ORBIT_PTS=150,SLING_PTS=200,PRED_N=120;
-let orbitChain=0;
+let gameLured=0,orbitChain=0,gameTorn=0,cleanWaves=0,waveDied=false,waveSweep=0;
 function slingR(){let r=0;for(const b of bodies)r=Math.max(r,b.hr*4.5);return r+40;}
 function trackOrbit(){
   if(screensaver||!ship)return;
@@ -736,6 +792,7 @@ function trackOrbit(){
 }
 function orbitDone(d){
   orbitChain++;STATS.orbits++;
+  ach('lap');achProg('chain3',orbitChain);achProg('chain10',orbitChain);if(ship.lapMin<R*.33)ach('deep');
   const deep=ship.lapMin<R*.33,pts=(deep?ORBIT_PTS*2:ORBIT_PTS)*Math.min(orbitChain,5)*mult;
   score+=pts;scoreVel+=pts;scoreVelT=18;
   if(gCd>0){gCd=Math.max(0,gCd-Math.round(gMax*.35));if(gCd===0)gReady=14;}
@@ -744,6 +801,7 @@ function orbitDone(d){
   if(orbitChain%3===0){mult=Math.min(MULT_MAX,mult+1);multT=240;multFlash=20;SFX.multUp();}else SFX.collectWarp();
 }
 function slingDone(){
+  ach('sling');
   ship.slCd=45;STATS.slings++;
   const pts=SLING_PTS*mult;score+=pts;scoreVel+=pts;scoreVelT=18;
   popup(ship.x,ship.y-20,'SLINGSHOT  +'+pts,P.yel,true);
@@ -768,7 +826,7 @@ function drawOrbitPath(){
   const sw=ship.sweep||0;
   if(guide===0&&Math.abs(sw)>.25){
     const rx=ship.x-OX,ry=ship.y-OY,d=Math.hypot(rx,ry),a=Math.atan2(ry,rx);
-    G.globalAlpha=.12+.3*Math.abs(sw)/TAU;G.strokeStyle=col;G.lineWidth=1;G.setLineDash([3,6]);
+    const nr=Math.abs(sw)/TAU>.8&&CFG.anim;G.globalAlpha=(.12+.3*Math.abs(sw)/TAU)*(nr?.75+.25*Math.sin(menuT*12):1);G.strokeStyle=col;G.lineWidth=nr?1.8:1;G.setLineDash([3,6]);
     G.beginPath();G.arc(OX,OY,d,sw>0?a-sw:a,sw>0?a:a-sw);G.stroke();G.setLineDash([]);
   }
   G.restore();
@@ -792,7 +850,7 @@ function swallowAll(){
       if(t){
         t.flare=Math.max(t.flare,6);burst(r.x,r.y,r.sz*2+2,r.col,r.sz>3);playExplode(r.sz);SFX.tidal();statRock(r.sz);
         if(!screensaver){const pts=(SZ_PTS[r.sz]||5)*mult;score+=pts;popup(r.x,r.y-r.r,'+'+pts,r.col);}
-        if(RUN)RUN.tidal++;torn.push(...split(r));return false;
+        if(RUN)RUN.tidal++;gameTorn++;achProg('roche',gameTorn);torn.push(...split(r));return false;
       }
     }
     return true;
@@ -802,7 +860,7 @@ function swallowAll(){
   // Enemies lured into the hole are worth full points
   const eat=(arr,pts,col,stat)=>arr.filter(o=>{
     const b=inHole(o,o.r*.4);if(!b)return true;
-    swallowFx(o,b,col);addShake(3);
+    swallowFx(o,b,col);addShake(3);achProg('lure',++gameLured);
     if(!screensaver){const p=pts*mult;score+=p;STATS[stat]++;popup(o.x,o.y-o.r-8,'+'+p,col,true);}
     return false;
   });
@@ -831,7 +889,14 @@ function drawBodies(){
     
     G.strokeStyle=push?P.mag:P.lav;G.lineWidth=1.6+fl;
     G.beginPath();G.arc(b.x,b.y,hr*1.18,0,TAU);G.stroke();
-    G.fillStyle='#000';G.beginPath();G.arc(b.x,b.y,hr,0,TAU);G.fill();
+    const br=CFG.anim?1+.035*Math.sin(menuT*1.7+b.ph):1;
+    G.fillStyle='#000';G.beginPath();G.arc(b.x,b.y,hr*br,0,TAU);G.fill();
+    if(CFG.anim&&!simple){G.save();G.setLineDash([2,7]);G.lineDashOffset=-menuT*14;G.strokeStyle=push?P.mag:P.lav;G.globalAlpha=.3;G.lineWidth=1;G.beginPath();G.arc(b.x,b.y,hr*1.5,0,TAU);G.stroke();G.restore();}
+    // Tidal warning: a dashed ring at the tearing distance lights up as a big rock nears it
+    if(CFG.anim&&b.m>0){
+      let tk=0;for(const r of rocks){if(r.sz<3||r.tc>0)continue;const d=Math.hypot(r.x-b.x,r.y-b.y)-(b.hr*4.5+r.r*.5);tk=Math.max(tk,1-d/70);}
+      if(tk>0){G.save();G.setLineDash([6,6]);G.lineDashOffset=menuT*20;G.strokeStyle=tk>.8?P.red:P.yel;G.globalAlpha=Math.min(1,tk)*(.35+.25*Math.sin(menuT*16));G.lineWidth=1.4;G.beginPath();G.arc(b.x,b.y,b.hr*4.5,0,TAU);G.stroke();G.restore();}
+    }
     if(push){const ph=(cyc-(PULSAR_PERIOD-PULSAR_PUSH))/PULSAR_PUSH;G.strokeStyle=`rgba(197,35,172,${(1-ph)*.6})`;G.lineWidth=2;G.beginPath();G.arc(b.x,b.y,hr+ph*220,0,TAU);G.stroke();}
   }
 }
@@ -936,7 +1001,7 @@ const COMBO_WORDS=['NICE','GREAT','SICK','AMAZING!','UNSTOPPABLE!'];
 const MENUS={
   menu:['CAMPAIGN','ARCADE','MODES','EXTRA'],
   modes:['MINESWEEPER','SENTRY','PURIST','QUARANTINE','← BACK'],
-  extra:['OPTIONS','SCORES','STATS','SCREENSAVER','CONTROLS','CREDITS','← BACK'],
+  extra:['OPTIONS','SCORES','STATS','ACHIEVEMENTS','SCREENSAVER','CONTROLS','CREDITS','← BACK'],
   over:['RESTART','MAIN MENU']
 };
 // menu navigation state
@@ -950,7 +1015,7 @@ function backToMenu(sub,sel){gScreen='menu';subMenu=sub;menuSel=sel;paused=false
 function exitScreensaver(){
   screensaver=false;
   if(ssStats){try{Object.assign(STATS,JSON.parse(ssStats));}catch(e){}ssStats=null;}
-  backToMenu('extra',3);
+  backToMenu('extra',4);
 }
 function pauseGame(){if(gScreen==='playing'&&!screensaver&&!paused){paused=true;pauseSel=0;releaseAll();}}
 
@@ -967,15 +1032,17 @@ function chooseMenu(i){
     if(i===0){gScreen='options';optFrom='menu';optSel=0;}
     else if(i===1){gScreen='scores';scoreSel=0;}
     else if(i===2)gScreen='stats';
-    else if(i===3)startGame('arcade',true);
-    else if(i===4){if(isMobile)gScreen='controls';else openBinds('extra');}
-    else if(i===5)gScreen='credits';
+    else if(i===3){gScreen='ach';achSel=0;}
+    else if(i===4)startGame('arcade',true);
+    else if(i===5){if(isMobile)gScreen='controls';else openBinds('extra');}
+    else if(i===6)gScreen='credits';
     else backToMenu('',3);
   }
 }
 function chooseOption(i){
   const r=optRows()[i];
-  if(r==='keys')openBinds('options');
+  if(r==='tab')switchTab(1);
+  else if(r==='keys')openBinds('options');
   else if(r==='back')leaveOptions();
   else if(r==='vol'){setVol((vol+1)%11);SFX.menuNav();save();}
   else optStep(r,1);
@@ -988,7 +1055,7 @@ function optStep(k,d){
 // ── Key binding panel ─────────────────────────────────────────────────────────
 let bindSel=0,bindSlot=0,bindCap=false,bindFrom='options',bindMsg=null;
 function openBinds(from){bindFrom=from;gScreen='binds';bindSel=0;bindSlot=0;bindCap=false;bindMsg=null;}
-function leaveBinds(){bindCap=false;if(bindFrom==='options'){gScreen='options';optSel=optRows().indexOf('keys');}else backToMenu('extra',4);}
+function leaveBinds(){bindCap=false;if(bindFrom==='options'){gScreen='options';optTab=4;optSel=optRows().indexOf('keys');}else backToMenu('extra',5);}
 function bindChoose(){
   if(bindSel<ACTIONS.length){bindCap=true;SFX.menuSelect();}
   else if(bindSel===ACTIONS.length){BINDS=copyBinds(BIND_DEF);save();SFX.menuSelect();bindMsg={txt:'DEFAULTS RESTORED',t:75};}
@@ -1024,6 +1091,15 @@ function handleKey(c){
       return;
     }
     doAction(a);
+    return;
+  }
+  if(gScreen==='ach'){
+    const n=ACH_DEF.length,c5=ACH_COLS;
+    if(up){achSel=(achSel-c5+n)%n;SFX.menuNav();}
+    else if(down){achSel=(achSel+c5)%n;SFX.menuNav();}
+    else if(left){achSel=(achSel-1+n)%n;SFX.menuNav();}
+    else if(right){achSel=(achSel+1)%n;SFX.menuNav();}
+    else if(ok||back)backToMenu('extra',3);
     return;
   }
   if(gScreen==='binds'){
@@ -1068,6 +1144,8 @@ function handleKey(c){
     const rows=optRows(),r=rows[optSel];
     if(up){optSel=(optSel-1+rows.length)%rows.length;SFX.menuNav();}
     else if(down){optSel=(optSel+1)%rows.length;SFX.menuNav();}
+    else if((left||right)&&r==='tab')switchTab(left?-1:1);
+    else if(c==='Tab')switchTab(1);
     else if((left||right)&&(r==='vol'||OPT[r]&&OPT[r].vals))optStep(r,left?-1:1);
     else if(ok)chooseOption(optSel);
     else if(back)leaveOptions();
@@ -1079,7 +1157,7 @@ function handleKey(c){
     else if(ok||back)backToMenu('extra',1);
     return;
   }
-  if(ok||back)backToMenu('extra',gScreen==='stats'?2:gScreen==='credits'?5:4); // stats / controls / credits
+  if(ok||back)backToMenu('extra',gScreen==='stats'?2:gScreen==='credits'?6:gScreen==='ach'?3:5); // stats / controls / credits
 }
 
 // In-play actions fire once per press (auto-repeat used to burn warps and
@@ -1093,7 +1171,7 @@ function doAction(a){
 const inBuf={push:0,warp:0}; // a push or warp pressed just before it recharges goes off when it does
 function menuRepeat(c){
   const ud=c==='ArrowUp'||c==='ArrowDown'||c==='KeyW'||c==='KeyS',lr=c==='ArrowLeft'||c==='ArrowRight'||c==='KeyA'||c==='KeyD';
-  if(ud&&gScreen!=='scores'||lr&&(gScreen==='map'||gScreen==='scores'||gScreen==='options'&&optRows()[optSel]==='vol'))handleKey(c);
+  if(ud&&gScreen!=='scores'||lr&&(gScreen==='map'||gScreen==='scores'||gScreen==='ach'||gScreen==='options'&&optRows()[optSel]==='vol'))handleKey(c);
 }
 document.addEventListener('keydown',e=>{
   const mod=/^(Control|Alt|Meta|OS)/.test(e.code);
@@ -1159,19 +1237,46 @@ function overLayout(){
     ?{topY,label:topY+56,score:topY+130,rec:topY+180,sep:topY+204,items:topY+254}
     :{topY,label:topY+36,score:topY+86,rec:topY+108,sep:topY+122,items:topY+160};
 }
-function optRows(){return isMobile?['simple','lens','stars','shake','flash','guide','vol','back']:['simple','lens','stars','shake','flash','guide','vol','keys','back'];}
+// Options are split into pages; row 0 of every page is the page tabs
+const OPT_TABS=[['GRAPHICS','GFX',['simple','glow','lens','stars','nebula','scan','fps']],
+  ['EFFECTS','FX',['shake','flash','hitstop','slowmo','parts','anim','trail']],
+  ['HUD','HUD',['guide','popups','combo','toasts']],
+  ['AUDIO','AUDIO',['vol','menuSfx']],
+  ['CONTROLS','CTRL',['keys','thrust','turnEase','holdFire']]];
+let optTab=0;
+function optRows(){return['tab',...OPT_TABS[optTab][2].filter(k=>!(isMobile&&k==='keys')),'back'];}
 function optSp(){return isMobile?44:30;}
-function optYs(){const sp=optSp(),base=OY-R*(isMobile?.46:.42);return optRows().map((r,i)=>base+i*sp+(r==='back'?10:0));}
+function optYs(){const sp=optSp(),base=OY-R*(isMobile?.47:.44);return optRows().map((r,i)=>r==='tab'?base:base+sp*.5+i*sp+(r==='back'?10:0));}
+function optTabX(i){return OX+(i-2)*R*.3;}
+function switchTab(d){optTab=(optTab+d+OPT_TABS.length)%OPT_TABS.length;optSel=0;SFX.menuNav();}
 const VOL_X0=OX+R*.1,VOL_X1=OX+R*.4;
+const ON_OFF=['OFF','ON'],RG=[P.red,P.grn];
+const cfgOpt=(k,label,vals,cols,desc)=>({label,vals,cols,get:()=>CFG[k],set:v=>{CFG[k]=v;},desc});
 const OPT={
-  simple:{label:'SIMPLE MODE',vals:['OFF','ON'],cols:[P.grn,P.mag],get:()=>+simple,set:v=>{simple=!!v;},desc:['Full glow, particles and effects','Flat drawing, best performance']},
-  lens:{label:'RIM LENS',vals:['OFF','ON'],cols:[P.red,P.grn],get:()=>+lensOn,set:v=>{lensOn=!!v;},desc:['The rim of the field stays flat','The rim bends light like a gravity lens']},
-  stars:{label:'STARFIELD',vals:['FULL','DIM','OFF'],cols:[P.grn,P.yel,P.red],get:()=>starsMode,set:v=>{starsMode=v;},desc:['Turning stars and a drifting nebula','Fainter stars, no nebula','A plain black sky']},
-  shake:{label:'SCREEN SHAKE',vals:['OFF','ON'],cols:[P.red,P.grn],get:()=>+shakeOn,set:v=>{shakeOn=!!v;},desc:['The camera holds still','Impacts shake the camera']},
-  flash:{label:'SCREEN FLASHES',vals:['OFF','ON'],cols:[P.red,P.grn],get:()=>+flashOn,set:v=>{flashOn=!!v;},desc:['No full-screen flashes','Big hits flash the screen']},
+  simple:{label:'SIMPLE MODE',vals:ON_OFF,cols:[P.grn,P.mag],get:()=>+simple,set:v=>{simple=!!v;},desc:['Full glow, particles and effects','Flat drawing, best performance (overrides glow and particles)']},
+  glow:cfgOpt('glow','GLOW',['OFF','LOW','MED','HIGH'],[P.red,P.yel,P.grn,P.mag],['No bloom','Soft bloom','Standard bloom','Heavy neon bloom']),
+  lens:{label:'RIM LENS',vals:ON_OFF,cols:RG,get:()=>+lensOn,set:v=>{lensOn=!!v;},desc:['The rim of the field stays flat','The rim bends light like a gravity lens']},
+  stars:{label:'STARFIELD',vals:['FULL','DIM','OFF'],cols:[P.grn,P.yel,P.red],get:()=>starsMode,set:v=>{starsMode=v;},desc:['Turning, twinkling stars','Fainter stars','A plain black sky']},
+  nebula:cfgOpt('nebula','NEBULA',ON_OFF,RG,['Stars only','A faint spiral nebula turns behind the stars']),
+  scan:cfgOpt('scan','CRT SCANLINES',ON_OFF,[P.grn,P.mag],['A clean picture','Scanlines and a soft vignette']),
+  fps:cfgOpt('fps','FRAME RATE',['AUTO','60','30'],[P.grn,P.sky,P.yel],['60 fps, dropping to 30 if the device struggles','Always draw at 60 fps','Draw at 30 fps to save power']),
+  shake:cfgOpt('shake','SCREEN SHAKE',['OFF','LOW','FULL'],[P.red,P.yel,P.grn],['The camera holds still','A gentle nudge on big impacts','Impacts shake the camera']),
+  flash:{label:'SCREEN FLASHES',vals:ON_OFF,cols:RG,get:()=>+flashOn,set:v=>{flashOn=!!v;},desc:['No full-screen flashes','Big hits flash the screen']},
+  hitstop:cfgOpt('hitstop','HIT-STOP',ON_OFF,RG,['No pause on big hits','A split-second freeze sells big hits']),
+  slowmo:cfgOpt('slowmo','DEATH SLOW-MO',ON_OFF,RG,['Deaths play out at full speed','Time slows as your ship breaks up']),
+  parts:cfgOpt('parts','PARTICLES',['LOW','FULL'],[P.yel,P.grn],['Fewer sparks and debris','Full sparks and debris']),
+  anim:cfgOpt('anim','ANIMATIONS',['REDUCED','FULL'],[P.yel,P.grn],['Only essential motion','Banking, sweeps, shockwaves, tidal warnings and more']),
+  trail:cfgOpt('trail','SHIP TRAIL',ON_OFF,RG,['No ship trail','A fading trail traces your path']),
   guide:{label:'ORBIT GUIDE',vals:['FULL','PATH','OFF'],cols:[P.grn,P.yel,P.red],get:()=>guide,set:v=>{guide=v;},desc:['Predicted path and lap progress arc','Predicted path only','No orbit guide']},
+  popups:cfgOpt('popups','SCORE POPUPS',['ALL','BIG ONLY','OFF'],[P.grn,P.yel,P.red],['Every point gain pops up','Only bonuses and big kills','No score popups']),
+  combo:cfgOpt('combo','COMBO CALLOUTS',ON_OFF,RG,['No callouts','NICE, GREAT, SICK… as the multiplier climbs']),
+  toasts:cfgOpt('toasts','ACHIEVEMENT POPUPS',ON_OFF,RG,['Unlock quietly','Announce achievements as they unlock']),
   vol:{label:'SOUND VOLUME',desc:()=>vol?'Sound effects at '+vol*10+'%':'Sound off'},
+  menuSfx:cfgOpt('menuSfx','MENU SOUNDS',ON_OFF,RG,['Silent menus','Blips as you move through menus']),
   keys:{label:'KEY BINDINGS',desc:()=>'Two keys for every action  ·  click or press Enter'},
+  thrust:cfgOpt('thrust','THRUST',['CLASSIC','TIGHT'],[P.yel,P.grn],['Thrust adds to your drift','Thrust bites: sideways drift bleeds off as you burn']),
+  turnEase:cfgOpt('turnEase','TURN EASING',ON_OFF,RG,['Constant turning speed','Taps nudge for fine aim, holds ramp up']),
+  holdFire:cfgOpt('holdFire','HOLD TO FIRE',ON_OFF,RG,['One shot per press','Hold fire to keep shooting']),
 };
 function scoreTabs(){
   const y1=OY-R*.62,y2=y1+lsp(22);
@@ -1205,14 +1310,15 @@ function tapAt(x,y){
   }
   if(gScreen==='options'){
     const ys=optYs();
-    for(let i=0;i<ys.length;i++)if(Math.abs(y-ys[i])<optSp()/2){optSel=i;if(optRows()[i]==='vol'&&x>VOL_X0-12)volAt(x);else chooseOption(i);return;}
+    if(Math.abs(y-ys[0])<optSp()/2){let b=0;for(let t=1;t<OPT_TABS.length;t++)if(Math.abs(x-optTabX(t))<Math.abs(x-optTabX(b)))b=t;if(b!==optTab){optTab=b;optSel=0;SFX.menuNav();}return;}
+    for(let i=1;i<ys.length;i++)if(Math.abs(y-ys[i])<optSp()/2){optSel=i;if(optRows()[i]==='vol'&&x>VOL_X0-12)volAt(x);else chooseOption(i);return;}
     return;
   }
   if(gScreen==='scores'){
     for(const t of scoreTabs())if(Math.abs(y-t.y)<lsp(13)&&Math.abs(x-t.x)<R*.25){scoreSel=t.i;return;}
     backToMenu('extra',1);return;
   }
-  backToMenu('extra',gScreen==='stats'?2:gScreen==='credits'?5:4);
+  backToMenu('extra',gScreen==='stats'?2:gScreen==='credits'?6:gScreen==='ach'?3:5);
 }
 
 CVS.addEventListener('touchstart',e=>{
@@ -1238,7 +1344,13 @@ function pickAt(x,y){
   if(gScreen==='menu'){const L=menuLayout(),i=hitRow(y,L.start,MENU_SP,L.items.length);return i>=0&&inCol?{k:'menu',i}:null;}
   if(gScreen==='map'){let hit=-1,bd=26*26;NODES.forEach((N,i)=>{const d=(N.x-x)**2+(N.y-y)**2;if(d<bd){bd=d;hit=i;}});return hit>=0?{k:'map',i:hit}:null;}
   if(gScreen==='brief'){const i=hitRow(y,briefY(),MENU_SP,2);return i>=0&&inCol?{k:'brief',i}:null;}
-  if(gScreen==='options'){const ys=optYs();for(let i=0;i<ys.length;i++)if(Math.abs(y-ys[i])<optSp()/2&&Math.abs(x-OX)<R*.58)return{k:'opt',i};return null;}
+  if(gScreen==='options'){
+    const ys=optYs();
+    if(Math.abs(y-ys[0])<optSp()/2){for(let t=0;t<OPT_TABS.length;t++)if(Math.abs(x-optTabX(t))<R*.15)return{k:'otab',i:t};return null;}
+    for(let i=1;i<ys.length;i++)if(Math.abs(y-ys[i])<optSp()/2&&Math.abs(x-OX)<R*.58)return{k:'opt',i};
+    return null;
+  }
+  if(gScreen==='ach'){const g=achCell(x,y);return g>=0?{k:'ach',i:g}:{k:'back'};}
   if(gScreen==='binds'){
     const L=bindLayout();
     for(let i=0;i<L.ys.length;i++){
@@ -1259,6 +1371,8 @@ function applyPick(p,sound){
   else if(p.k==='map')mapSel=to(mapSel,p.i);
   else if(p.k==='brief')briefSel=to(briefSel,p.i);
   else if(p.k==='opt')optSel=to(optSel,p.i);
+  else if(p.k==='otab')optSel=to(optSel,0);
+  else if(p.k==='ach')achSel=to(achSel,p.i);
   else if(p.k==='bind'){bindSel=to(bindSel,p.i);if(p.s>=0)bindSlot=to(bindSlot,p.s);}
   if(ch&&sound)SFX.menuNav();
 }
@@ -1278,6 +1392,8 @@ CVS.addEventListener('mousedown',e=>{
   const[x,y]=canvasXY(e),p=pickAt(x,y);if(!p)return;
   if(p.k==='back'){handleKey('Escape');return;}
   if(p.k==='tab'){if(scoreSel!==p.i){scoreSel=p.i;SFX.menuNav();}return;}
+  if(p.k==='otab'){if(optTab!==p.i){optTab=p.i;optSel=0;SFX.menuNav();}return;}
+  if(p.k==='ach')return;
   applyPick(p,false);
   if(p.k==='pause'){choosePause(p.i);return;}
   if(p.k==='opt'&&optRows()[p.i]==='vol'&&x>VOL_X0-12){volAt(x);return;}
@@ -1336,7 +1452,7 @@ function spawnRocks(n){
     do{const a=Math.random()*TAU,d=hasHole()?rn(lo,Math.max(lo+1,hi)):rn(rr+12,R-rr-12);x=OX+Math.cos(a)*d;y=OY+Math.sin(a)*d;}
     while(++t<50&&((!hasHole()&&(x-OX)**2+(y-OY)**2<(160+rr)**2)||(ship&&(x-ship.x)**2+(y-ship.y)**2<(110+rr)**2)));
     const nr=mkRock(x,y,sz,null,null);
-    if(hasHole()){const o=orbitV(x,y,Math.random()<.92?-1:1),k=rn(.92,1.04);nr.vx=o[0]*k+rn(-.15,.15);nr.vy=o[1]*k+rn(-.15,.15);}nr.born=18+i*3;rocks.push(nr); // staggered arrival
+    if(hasHole()){const o=orbitV(x,y,Math.random()<.92?-1:1),k=rn(.92,1.04);nr.vx=o[0]*k+rn(-.15,.15);nr.vy=o[1]*k+rn(-.15,.15);}nr.born=18+i*3;nr.rim=1;rocks.push(nr); // staggered arrival
   }
 }
 function spawnPUAt(){let x,y,t=0;do{const a=Math.random()*TAU,d=rn(50,R-32);x=OX+Math.cos(a)*d;y=OY+Math.sin(a)*d;}while(++t<12&&ship&&(x-ship.x)**2+(y-ship.y)**2<70*70);return{x,y,r:10,p:0,vx:0,vy:0,born:14};}
@@ -1346,10 +1462,10 @@ function startGame(mode='arcade',ss=false,keepRun=false){
   if(!keepRun)RUN=null;
   setupBodies(RUN?RUN.p.body:(mode==='purist'?'none':'hole'));
   screensaver=ss;ssStats=ss?JSON.stringify(STATS):null;
-  gameMode=mode;gScreen='playing';paused=false;pauseSel=0;score=0;lives=RUN&&RUN.p.lives||3;level=1;invT=HYINV;gMax=RUN&&RUN.p.gcd||GCD;
+  gameMode=mode;gScreen='playing';paused=false;pauseSel=0;score=0;lives=RUN&&RUN.p.lives||3;level=1;invT=0;setInv(START_INV);gMax=RUN&&RUN.p.gcd||GCD;
   shootCd=0;mPlaceCd=0;sentryReadyT=0;streak=0;streakT=0;scoreVel=0;scoreVelT=0;
   shake=0;shakeX=0;shakeY=0;multFlash=0;newRecord=false;keys.Space=0;keys.Enter=0;for(const k of BINDS.fire)if(k)keys[k]=0;latch.clear();inBuf.push=inBuf.warp=0;
-  gCd=0;gPulse=0;warpCd=0;mult=1;multT=0;orbitChain=0;
+  gCd=0;gPulse=0;warpCd=0;mult=1;multT=0;orbitChain=0;gameTorn=0;gameLured=0;cleanWaves=0;waveDied=false;achToasts=[];waveSweep=0;
   minesH=0;activeMines=[];minePUs=[];spreadPUs=[];spreadT=0;
   hyperC=0;hypPUs=[];shieldActive=false;shieldT=0;
   gWells=[];comets=[];ufos=[];pulsers=[];swirls=[];hexes=[];particles=[];popups=[];if(gameMode==='quarantine')resetQRing();
@@ -1386,12 +1502,12 @@ function fireBullet(){
       bullets.push({x:ship.x+Math.cos(sa)*12,y:ship.y+Math.sin(sa)*12,vx:ship.vx+Math.cos(sa)*spd,vy:ship.vy+Math.sin(sa)*spd,a:sa,life:28,trail:[],px:Math.sin(sa)*1.8,py:-Math.cos(sa)*1.8,wr:false});
     }
   }
-  SFX.shot();ship.muzzle=3;
+  SFX.shot();ship.muzzle=3;ship.rec=3;
 }
 function doGravity(){
   if(gCd>0)return;
   if(!ship&&gameMode!=='sentry'&&!screensaver)return;
-  gCd=gMax;gPulse=30;if(!screensaver)STATS.gravPushes++;SFX.gravPush();
+  gCd=gMax;gPulse=30;if(!screensaver)STATS.gravPushes++;SFX.gravPush();ach('push');
   // Sentry: push from field centre; others: push from ship
   // Push from the ship; Sentry without a hole (or with no ship) pushes from the centre
   const fromC=screensaver||!ship||(gameMode==='sentry'&&!hasHole());
@@ -1403,7 +1519,7 @@ function doGravity(){
   const push=(o,m)=>{const dx=o.x-cx,dy=o.y-cy,d=Math.sqrt(dx*dx+dy*dy)||1;const s2=4.5*m*(1-Math.min(d/220,1));if(s2>0){
     o.vx+=dx/d*s2*(1-spin*.5);o.vy+=dy/d*s2*(1-spin*.5);
     if(spin){const rx=o.x-OX,ry=o.y-OY,rd=Math.sqrt(rx*rx+ry*ry)||1,sg=rx*o.vy-ry*o.vx>=0?1:-1;o.vx+=-ry/rd*sg*s2*spin;o.vy+=rx/rd*sg*s2*spin;}
-    if(o.sz)o.pf=9;}};
+    if(o.sz){o.pf=9;if(CFG.anim)o.spin+=rn(-.05,.05);}}};
   rocks.forEach(r=>push(r,1));comets.forEach(c=>push(c,.5));activeMines.forEach(m=>push(m,.35));minePUs.forEach(p=>push(p,.4));hypPUs.forEach(p=>push(p,.4));spreadPUs.forEach(p=>push(p,.4));
   if(!simple){const gpx=cx,gpy=cy;for(let i=0;i<14;i++){const a=Math.random()*TAU,s2=rn(1.5,5);particles.push({x:gpx,y:gpy,vx:Math.cos(a)*s2,vy:Math.sin(a)*s2,life:rn(14,40),col:P.mag,sz:1.6});}}
 }
@@ -1411,10 +1527,10 @@ function doHyperOrShield(){
   if(hyperC>=5){doShield();return;}
   if(hyperC<=0||!ship)return;hyperC--;STATS.warpsUsed++;SFX.warp();
   const a=Math.random()*TAU,d=rn(30,R-34),wx=ship.x,wy=ship.y;
-  ship.x=OX+Math.cos(a)*d;ship.y=OY+Math.sin(a)*d;ship.vx=0;ship.vy=0;invT=HYINV;warpTrace(wx,wy,P.sky);
+  ship.x=OX+Math.cos(a)*d;ship.y=OY+Math.sin(a)*d;ship.vx=0;ship.vy=0;setInv(WARP_INV);warpTrace(wx,wy,P.sky);
   if(!simple)for(let i=0;i<18;i++){const aa=Math.random()*TAU,s2=rn(1,5);particles.push({x:ship.x,y:ship.y,vx:Math.cos(aa)*s2,vy:Math.sin(aa)*s2,life:rn(16,46),col:P.sky,sz:1.6});}
 }
-function doShield(){if(hyperC<5||shieldActive||!ship)return;hyperC-=5;shieldActive=true;shieldT=SHIELD_MAX;invT=SHIELD_MAX;STATS.shields++;ring(ship.x,ship.y,46,-3.6,14,P.grn);flash(P.grn,4);}
+function doShield(){if(hyperC<5||shieldActive||!ship)return;hyperC-=5;shieldActive=true;shieldT=SHIELD_MAX;setInv(SHIELD_MAX);STATS.shields++;ach('shield');ring(ship.x,ship.y,46,-3.6,14,P.grn);flash(P.grn,4);}
 function warpTrace(x0,y0,col){warpFx.push({x0,y0,x1:ship.x,y1:ship.y,t:14,col});ship.born=10;}
 function doPuristWarp(){
   if(warpCd>0||!ship)return;warpCd=WARP_CD;STATS.warpsUsed++;
@@ -1423,11 +1539,11 @@ function doPuristWarp(){
     const wx=ship.x,wy=ship.y;SFX.warp();sentryAngle=((sentryAngle+Math.PI)%(TAU)+TAU)%(TAU);
     const sr=R-ship.r-2;
     ship.x=OX+Math.cos(sentryAngle)*sr;ship.y=OY+Math.sin(sentryAngle)*sr;
-    ship.a=sentryAngle+Math.PI;ship.vx=0;ship.vy=0;invT=60;warpTrace(wx,wy,P.wht);
+    ship.a=sentryAngle+Math.PI;ship.vx=0;ship.vy=0;setInv(60);warpTrace(wx,wy,P.wht);
     if(!simple)for(let i=0;i<10;i++){const aa=Math.random()*TAU,s2=rn(1,3);particles.push({x:ship.x,y:ship.y,vx:Math.cos(aa)*s2,vy:Math.sin(aa)*s2,life:rn(10,30),col:P.wht,sz:1.2});}
   } else {
     const a=Math.random()*TAU,d=rn(30,R-34),wx=ship.x,wy=ship.y;
-    SFX.warp();ship.x=OX+Math.cos(a)*d;ship.y=OY+Math.sin(a)*d;ship.vx=0;ship.vy=0;invT=60;warpTrace(wx,wy,P.wht);
+    SFX.warp();ship.x=OX+Math.cos(a)*d;ship.y=OY+Math.sin(a)*d;ship.vx=0;ship.vy=0;setInv(60);warpTrace(wx,wy,P.wht);
     if(!simple)for(let i=0;i<14;i++){const aa=Math.random()*TAU,s2=rn(1,4);particles.push({x:ship.x,y:ship.y,vx:Math.cos(aa)*s2,vy:Math.sin(aa)*s2,life:rn(14,40),col:'#fff',sz:1.4});}
   }
 }
@@ -1435,11 +1551,11 @@ function doPuristWarp(){
 // ── Particles / FX ────────────────────────────────────────────────────────────
 function burst(x,y,n,col,big){
   if(simple)return;
-  for(let i=0,cap=big?16:9;i<cap&&i<n;i++){const a=Math.random()*TAU,s2=rn(.3,big?3.2:2.4);particles.push({x,y,vx:Math.cos(a)*s2,vy:Math.sin(a)*s2,life:rn(big?20:11,big?55:36),col,sz:rn(.6,big?2:1.4)});}
+  for(let i=0,cap=(big?16:9)*(CFG.parts?1:.5);i<cap&&i<n;i++){const a=Math.random()*TAU,s2=rn(.3,big?3.2:2.4);particles.push({x,y,vx:Math.cos(a)*s2,vy:Math.sin(a)*s2,life:rn(big?20:11,big?55:36),col,sz:rn(.6,big?2:1.4)});}
 }
 function mineRings(mx,my){if(simple)return;for(let i=0;i<3;i++)particles.push({x:mx,y:my,vx:0,vy:0,life:rn(8,16)+i*4,col:P.yel,sz:1,ring:true,rr:MBR*(i*.3+.3),grow:i*2+3});}
 function popup(x,y,txt,col,big){
-  if(screensaver)return;
+  if(screensaver||CFG.popups===2||CFG.popups===1&&!big)return;
   // Slight random horizontal drift for variety
   const vx=rn(-.3,.3);
   popups.push({x,y,txt,vx,vy:big?-1.1:-.85,life:big?110:44,ml:big?110:44,col,big});
@@ -1474,10 +1590,10 @@ function killShip(){
   // Dying clears warp charges and mine PU in arcade/sweep
   if(gameMode!=='purist'){hyperC=0;hypPUs=[];minesH=0;minePUs=[];spreadPUs=[];spreadT=0;}
   if(shieldActive){shieldActive=false;shieldT=0;}
-  lives--;if(RUN)RUN.deaths++;
+  lives--;if(RUN)RUN.deaths++;waveDied=true;cleanWaves=0;
   if(lives<=0){ship=null;deathT=45;}
   else if(gameMode==='sentry'){ship=null;sentryReadyT=30;}
-  else{ship=mkShip();invT=HYINV;}
+  else{ship=mkShip();invT=0;setInv(RESPAWN_INV);}
   qRing.exposed=0;
   SFX.destroyed();freeze(4);slowMo=16;flash(P.red,7);lifeLost=18;
 }
@@ -1502,7 +1618,7 @@ function mineBlast(mx,my){
   comets=comets.filter(cm=>{
     if((cm.x-mx)**2+(cm.y-my)**2<(MBR+cm.r)**2){
       cm.hp--;burst(cm.x,cm.y,5,P.sky);
-      if(cm.hp<=0){burst(cm.x,cm.y,20,P.sky,true);SFX.cometDestroy();cometBoom(cm);if(!simple)for(let k=0;k<2;k++)particles.push({x:cm.x,y:cm.y,vx:0,vy:0,life:14+k*8,col:P.sky,sz:1,ring:true,rr:cm.dR*(k*.5+.3),grow:5+k*3});score+=250*mult;popup(cm.x,cm.y-cm.dR-8,'INTERSTELLAR!',P.yel,true);invT=Math.max(invT,IST_INV);SFX.multUp();mult=Math.min(MULT_MAX,mult+1);multT=240;multFlash=20;STATS.comets++;if(cm.wd)spawnGW(cm.x,cm.y);return false;}
+      if(cm.hp<=0){burst(cm.x,cm.y,20,P.sky,true);SFX.cometDestroy();cometBoom(cm);if(!simple)for(let k=0;k<2;k++)particles.push({x:cm.x,y:cm.y,vx:0,vy:0,life:14+k*8,col:P.sky,sz:1,ring:true,rr:cm.dR*(k*.5+.3),grow:5+k*3});score+=250*mult;popup(cm.x,cm.y-cm.dR-8,'INTERSTELLAR!',P.yel,true);setInv(IST_INV);SFX.multUp();mult=Math.min(MULT_MAX,mult+1);multT=240;multFlash=20;STATS.comets++;if(cm.wd)spawnGW(cm.x,cm.y);return false;}
     }
     return true;
   });
@@ -1555,7 +1671,14 @@ function update(){
   if(deathT>0&&--deathT===0){endGame();return;}
   // Wave intermission: a short beat, then the next wave arrives
   checkGoal();
-  if(waveT>0&&--waveT===0){level++;spawnRocks(waveSize());if(!screensaver)invT=Math.max(invT,60);if(gameMode==='quarantine')resetQRing();}
+  // Running totals for the score and multiplier achievements
+  if(!RUN){if(gameMode==='arcade')achProg('score25',score);if(gameMode==='purist')achProg('purist',score);achProg('score100',score);}
+  achProg('mult8',mult);
+  if(waveT>0&&--waveT===0){
+    level++;waveSweep=26;
+    if(!waveDied){cleanWaves++;achProg('clean3',cleanWaves);}waveDied=false;
+    if(gameMode==='arcade'&&!RUN){if(level>=2)ach('wave1');achProg('wave5',level);achProg('wave10',level);}
+spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantine')resetQRing();}
   // Sentry respawn countdown
   if(sentryReadyT>0){
     sentryReadyT--;
@@ -1569,7 +1692,7 @@ function update(){
       ship.y=OY+Math.sin(sentryAngle)*sr;
       ship.a=sentryAngle+Math.PI;
       ship.vx=0;ship.vy=0;
-      invT=60;
+      setInv(60);
     }
   }
 
@@ -1591,11 +1714,22 @@ function update(){
       // Turning eases in: a tap nudges a couple of degrees for fine aim, a hold
       // ramps to full speed within a few ticks
       const rl=act('left'),rr=act('right');
-      if(rl!==rr){ship.rh=(ship.rh||0)+1;const rs=ROT_MIN+(ROT_MAX-ROT_MIN)*Math.min(1,(ship.rh-1)/ROT_RAMP);ship.a+=rl?-rs:rs;}else ship.rh=0;
-      if(act('thrust')){ship.vx+=Math.cos(ship.a)*.15;ship.vy+=Math.sin(ship.a)*.15;}
+      if(rl!==rr){ship.rh=(ship.rh||0)+1;const rs=CFG.turnEase?ROT_MIN+(ROT_MAX-ROT_MIN)*Math.min(1,(ship.rh-1)/ROT_RAMP):ROT_FLAT;ship.a+=rl?-rs:rs;}else ship.rh=0;
+      if(act('thrust')){
+        const hx=Math.cos(ship.a),hy=Math.sin(ship.a);ship.th=Math.min(THR_RAMP,(ship.th||0)+1);
+        if(CFG.thrust){
+          let fx=0,fy=0;if(hasHole()&&!pulsarPushing()){const L=(ship.x-OX)*ship.vy-(ship.y-OY)*ship.vx,f=orbitV(ship.x,ship.y,L>=0?1:-1);fx=f[0];fy=f[1];}
+          const rx=ship.vx-fx,ry=ship.vy-fy,al=rx*hx+ry*hy,pe=(ry*hx-rx*hy)*THR_GRIP,ac=THR_ACC0+(THR_ACC1-THR_ACC0)*ship.th/THR_RAMP;
+          ship.vx=fx+hx*(al+ac)-hy*pe;ship.vy=fy+hy*(al+ac)+hx*pe;
+        }else{ship.vx+=hx*THR_CLASSIC;ship.vy+=hy*THR_CLASSIC;}
+      }else ship.th=0;
       if(hasHole()&&!pulsarPushing()){const th=act('thrust');circularize(ship,th?.996:SHIP_KR,th?1:SHIP_KT);capFlow(ship,SHIP_VMAX);}
       else{ship.vx*=.985;ship.vy*=.985;}
       ship.x+=ship.vx;ship.y+=ship.vy;wrapO(ship);
+      ship.bank=(ship.bank||0)+((rl&&!rr?-1:rr&&!rl?1:0)-(ship.bank||0))*.3;
+      // Trail: recent positions, broken where the ship wraps or warps
+      const tr=ship.trail||(ship.trail=[]),lp=tr[0];if(lp&&(lp.x-ship.x)**2+(lp.y-ship.y)**2>2500)tr.length=0;
+      tr.unshift({x:ship.x,y:ship.y,th:!!act('thrust')});if(tr.length>22)tr.pop();
     }
     // Thrust trail
     if(act('thrust')&&gameMode!=='sentry'&&!simple&&Math.random()<.55){
@@ -1609,7 +1743,7 @@ function update(){
   if(gPulse>0)gPulse--;if(multT>0)multT--;if(spreadT>0)spreadT--;if(multFlash>0)multFlash--;
   if(shieldActive){shieldT--;if(shieldT<=0)shieldActive=false;}
   shootCd--;
-  if(act('fire')&&shootCd<=0&&ship)fireBullet(),shootCd=12;
+  if(act('fire')&&CFG.holdFire&&shootCd<=0&&ship)fireBullet(),shootCd=12;
   if(inBuf.push>0){inBuf.push--;if(gCd<=0){inBuf.push=0;doGravity();}}
   if(inBuf.warp>0){inBuf.warp--;if(warpCd<=0){inBuf.warp=0;doPuristWarp();}}
 
@@ -1852,7 +1986,7 @@ function update(){
   // Bullets vs comet
   const nb=[...bullets];
   comets=comets.filter(cm=>{
-    for(let i=nb.length-1;i>=0;i--){if(inComet(cm,nb[i].x,nb[i].y,6)){hitFx(nb[i],P.lav);cm.hit=5;nb.splice(i,1);cm.hp--;burst(cm.x,cm.y,5,P.sky);SFX.cometHit();if(cm.hp<=0){burst(cm.x,cm.y,20,P.sky,true);SFX.cometDestroy();cometBoom(cm);if(!simple)for(let k=0;k<2;k++)particles.push({x:cm.x,y:cm.y,vx:0,vy:0,life:14+k*8,col:P.sky,sz:1,ring:true,rr:cm.dR*(k*.5+.3),grow:5+k*3});score+=250*mult;popup(cm.x,cm.y-cm.dR-8,'INTERSTELLAR!',P.yel,true);invT=Math.max(invT,IST_INV);SFX.multUp();mult=Math.min(MULT_MAX,mult+1);multT=240;multFlash=20;STATS.comets++;if(cm.wd)spawnGW(cm.x,cm.y);return false;}return true;}}
+    for(let i=nb.length-1;i>=0;i--){if(inComet(cm,nb[i].x,nb[i].y,6)){hitFx(nb[i],P.lav);cm.hit=5;nb.splice(i,1);cm.hp--;burst(cm.x,cm.y,5,P.sky);SFX.cometHit();if(cm.hp<=0){burst(cm.x,cm.y,20,P.sky,true);SFX.cometDestroy();cometBoom(cm);if(!simple)for(let k=0;k<2;k++)particles.push({x:cm.x,y:cm.y,vx:0,vy:0,life:14+k*8,col:P.sky,sz:1,ring:true,rr:cm.dR*(k*.5+.3),grow:5+k*3});score+=250*mult;popup(cm.x,cm.y-cm.dR-8,'INTERSTELLAR!',P.yel,true);setInv(IST_INV);SFX.multUp();mult=Math.min(MULT_MAX,mult+1);multT=240;multFlash=20;STATS.comets++;if(cm.wd)spawnGW(cm.x,cm.y);return false;}return true;}}
     return true;
   });
 
@@ -1947,7 +2081,7 @@ function update(){
     for(let i=fb.length-1;i>=0;i--){
       if((fb[i].x-r.x)**2+(fb[i].y-r.y)**2<r.r*r.r){
         hitFx(fb[i],r.col);fb.splice(i,1);dst.add(ri2);burst(r.x,r.y,r.sz*3+3,r.col,r.sz>2);playExplode(r.sz);
-        if(r.sz>=4)addShake(r.sz===5?5:3);
+        if(r.sz>=4){addShake(r.sz===5?5:3);if(CFG.anim){ring(r.x,r.y,r.r*.5,6,14,r.col);ring(r.x,r.y,r.r*.3,3.5,10,'#fff');}}
         statRock(r.sz);
         const pts=(SZ_PTS[r.sz]||5)*(gameMode==='purist'?1:mult);
         score+=pts;scoreVel+=pts;scoreVelT=18;
@@ -2010,7 +2144,7 @@ function update(){
       if(p.frag){p.x+=p.vx;p.y+=p.vy;p.vx*=.97;p.vy*=.97;p.spinA+=p.spin;return--p.life>0;}
       p.x+=p.vx;p.y+=p.vy;p.vx*=.97;p.vy*=.97;return--p.life>0;
     });
-    if(particles.length>170)particles.splice(0,particles.length-170); // drop oldest, not newest
+    const pcap=CFG.parts?170:70;if(particles.length>pcap)particles.splice(0,particles.length-pcap); // drop oldest, not newest
   }else particles=[];
   popups=popups.filter(p=>{p.x+=p.vx||0;p.y+=p.vy;return--p.life>0;});
   flashRings=flashRings.filter(f=>{f.r+=((f.maxR-f.r)*.25);return--f.life>0;});
@@ -2028,9 +2162,11 @@ function ageFx(){
   comets.forEach(dec);ufos.forEach(dec);pulsers.forEach(dec);hexes.forEach(dec);swirls.forEach(dec);
   minePUs.forEach(dec);hypPUs.forEach(dec);spreadPUs.forEach(dec);
   for(const r of rocks){if(r.flash>0)r.flash--;if(r.pf>0)r.pf--;if(r.born>0)r.born--;}
-  if(ship){if(ship.born>0)ship.born--;if(ship.muzzle>0)ship.muzzle--;}
+  if(ship){if(ship.born>0)ship.born--;if(ship.muzzle>0)ship.muzzle--;if(ship.rec>0)ship.rec--;}
+  if(waveSweep>0)waveSweep--;
   if(flashT>0)flashT--;if(gReady>0)gReady--;if(wReady>0)wReady--;if(lifeGain>0)lifeGain--;if(lifeLost>0)lifeLost--;
   if(qRing.hitFx>0)qRing.hitFx--;
+  if(achToasts.length&&++achToasts[0].t>120)achToasts.shift();
   warpFx=warpFx.filter(w=>--w.t>0);
   if(banner&&--banner.t<=0)banner=null;
   shownScore+=(score-shownScore)*.3;if(Math.abs(score-shownScore)<1)shownScore=score;
@@ -2072,7 +2208,7 @@ function drawHypPU(p){const pl=Math.sin(p.p*1.2)*1.8;G.save();G.translate(p.x,p.
 // far side, which is where they will come back in.
 const LENS_BAND=64,LENS_OUT=42,LENS_N=14,LENS_TWIST=.05;
 const LC=document.createElement('canvas');LC.width=LC.height=CVS.width;const LCg=LC.getContext('2d',{alpha:false});
-function lensActive(){return lensOn&&!simple&&!lowFps;}
+function lensActive(){return lensOn&&!simple&&!lowFx();}
 function rimLens(){
   LCg.drawImage(CVS,0,0);
   G.save();G.setTransform(DPR,0,0,DPR,0,0);
@@ -2102,6 +2238,7 @@ function drawGame(){
   G.save();G.beginPath();G.arc(OX,OY,R+(lensActive()?LENS_OUT:0),0,TAU);G.clip();
   drawBodies();
   drawOrbitPath();
+  if(waveSweep>0&&CFG.anim){const k=1-waveSweep/26,rr=20+k*(R-20);G.strokeStyle=isColor()?P.sky:P.wht;G.globalAlpha=(1-k)*.55;G.lineWidth=3*(1-k)+1;G.beginPath();G.arc(OX,OY,rr,0,TAU);G.stroke();G.globalAlpha=(1-k)*.25;G.lineWidth=10*(1-k);G.beginPath();G.arc(OX,OY,rr*.96,0,TAU);G.stroke();G.globalAlpha=1;}
 
   // Gravity shockwave, from ship position, or field centre in sentry/screensaver
   if(gPulse>0){
@@ -2249,19 +2386,32 @@ function drawGame(){
   // Ship, always visible; invincibility shown via bubble, not flashing
   if(ship){
     if(ship.born>0){const k=ship.born/20;G.globalAlpha=k*.8;G.strokeStyle=isColor()?P.sky:P.wht;G.lineWidth=1.2;G.beginPath();G.arc(ship.x,ship.y,12+k*40,0,TAU);G.stroke();G.globalAlpha=1;}
+    // Trail behind the ship, thicker and warmer where it was burning
+    if(CFG.trail&&ship.trail&&ship.trail.length>2&&!simple){
+      const tr=ship.trail;G.lineCap='round';
+      for(let i=0;i<tr.length-1;i++){const k=1-i/tr.length;G.globalAlpha=k*k*.45;G.strokeStyle=tr[i].th&&isColor()?P.red:(isColor()?P.lav:P.wht);G.lineWidth=k*(tr[i].th?2.6:1.6);
+        G.beginPath();G.moveTo(i?tr[i].x:ship.x,i?tr[i].y:ship.y);G.lineTo(tr[i+1].x,tr[i+1].y);G.stroke();}
+      G.globalAlpha=1;
+    }
     G.save();G.translate(ship.x,ship.y);G.rotate(ship.a);
+    // Bank into turns (the hull narrows as it rolls) and kick back on each shot
+    if(CFG.anim){if(ship.rec>0)G.translate(-ship.rec*.9,0);const bk=Math.abs(ship.bank||0);if(bk>.02)G.scale(1,1-bk*.3);}
     if(ship.born>0){const k=ship.born/20;G.globalAlpha=1-k;G.scale(1+k*1.6,1+k*1.6);}
     const th=act('thrust')&&gameMode!=='sentry';
-    if(th){const fl=Math.random()*2.2;G.strokeStyle=isColor()?'rgba(200,35,42,.65)':'rgba(255,255,255,.6)';G.lineWidth=1.5;G.beginPath();G.moveTo(-5,4);G.lineTo(-10-fl,0);G.lineTo(-5,-4);G.stroke();G.strokeStyle=isColor()?'rgba(241,224,56,.85)':'rgba(255,255,255,.9)';G.lineWidth=1;G.beginPath();G.moveTo(-5,2);G.lineTo(-8-fl*.5,0);G.lineTo(-5,-2);G.stroke();}
+    if(th){const fl=Math.random()*2.2+(CFG.anim?(ship.th||0)*1.3:0);G.strokeStyle=isColor()?'rgba(200,35,42,.65)':'rgba(255,255,255,.6)';G.lineWidth=1.5;G.beginPath();G.moveTo(-5,4);G.lineTo(-10-fl,0);G.lineTo(-5,-4);G.stroke();G.strokeStyle=isColor()?'rgba(241,224,56,.85)':'rgba(255,255,255,.9)';G.lineWidth=1;G.beginPath();G.moveTo(-5,2);G.lineTo(-8-fl*.5,0);G.lineTo(-5,-2);G.stroke();}
     const sc=shieldActive?P.grn:(isColor()?P.lav:P.wht);const shipGC=shieldActive?P.grn:(isColor()?P.sky:P.wht);
     G.strokeStyle=sc;G.lineWidth=1.6;G.beginPath();G.moveTo(12,0);G.lineTo(-8,7);G.lineTo(-5,0);G.lineTo(-8,-7);G.closePath();G.stroke();
     if(ship.muzzle>0){const k=ship.muzzle/3,ga=G.globalAlpha;G.strokeStyle=isColor()?P.yel:P.wht;G.globalAlpha=ga*k;G.lineWidth=1.4;G.beginPath();G.moveTo(14,0);G.lineTo(14+8*k,0);G.moveTo(14,0);G.lineTo(18,4*k);G.moveTo(14,0);G.lineTo(18,-4*k);G.stroke();G.globalAlpha=ga;}
-    if(invT>0&&!simple){const isFull=shieldActive,ic=isFull?P.grn:isColor()?P.sky:P.wht,ia=isFull?.4:(invT/HYINV)*.3;G.strokeStyle=isFull?`rgba(20,150,76,${ia})`:`rgba(255,255,255,${ia})`;G.lineWidth=isFull?3:1.5;G.beginPath();G.arc(0,0,isFull?20:16,0,TAU);G.stroke();const arc=menuT*2;G.strokeStyle=isFull?`rgba(20,200,76,${ia*.6})`:`rgba(255,255,255,${ia*.5})`;G.lineWidth=1;G.beginPath();G.arc(0,0,isFull?20:16,arc,arc+Math.PI*.6);G.stroke();G.beginPath();G.arc(0,0,isFull?20:16,arc+Math.PI,arc+Math.PI*1.6);G.stroke();}
+    if(invT>0&&!simple){const isFull=shieldActive,ic=isFull?P.grn:isColor()?P.sky:P.wht,ia=isFull?.4:Math.min(1,invT/invMax)*.32*(invT<20&&invT%6<3?.35:1);G.strokeStyle=isFull?`rgba(20,150,76,${ia})`:`rgba(255,255,255,${ia})`;G.lineWidth=isFull?3:1.5;G.beginPath();G.arc(0,0,isFull?20:16,0,TAU);G.stroke();const arc=menuT*2;G.strokeStyle=isFull?`rgba(20,200,76,${ia*.6})`:`rgba(255,255,255,${ia*.5})`;G.lineWidth=1;G.beginPath();G.arc(0,0,isFull?20:16,arc,arc+Math.PI*.6);G.stroke();G.beginPath();G.arc(0,0,isFull?20:16,arc+Math.PI,arc+Math.PI*1.6);G.stroke();}
     G.restore();
   }
 
   // Rocks: spin, warp-in on new waves, white flash when freshly split, magenta when pushed
   rocks.forEach(r=>{
+    if(r.rim&&r.born>0&&CFG.anim){ // streak in from the rim
+      const k=Math.min(1,r.born/18),dx=r.x-OX,dy=r.y-OY,d=Math.hypot(dx,dy)||1,ex=OX+dx/d*R,ey=OY+dy/d*R,hx=r.x+(ex-r.x)*k,hy=r.y+(ey-r.y)*k;
+      G.globalAlpha=.55*k;G.strokeStyle=r.col;G.lineWidth=2;G.beginPath();G.moveTo(ex,ey);G.lineTo(hx,hy);G.stroke();G.globalAlpha=1;
+    }
     G.save();G.translate(r.x,r.y);G.rotate(r.rot);
     const bk=r.born>0?Math.min(1,r.born/18):0;
     if(bk>0){const sc=1-bk*bk;G.scale(Math.max(.01,sc),Math.max(.01,sc));G.globalAlpha=1-bk;}
@@ -2336,6 +2486,7 @@ function drawGame(){
   // ── In-field HUD, hidden in screensaver ─────────────────────────────────
   if(screensaver){G.restore();G.restore();return;} // skip all HUD; restore shake+clip
   drawBanner();
+  drawToast();
   if(RUN){G.textAlign='center';G.textBaseline='middle';G.font=`bold italic ${hpx(11)}px `+FN;G.fillStyle=P.yel;G.globalAlpha=.85;G.fillText(goalStatus(),OX,OY+R*.82);G.globalAlpha=1;}
   G.textAlign='center';
 
@@ -2347,7 +2498,10 @@ function drawGame(){
   const scoreY=OY-R+12;
   
   G.font=`bold italic ${scoreSize}px `+FN;G.fillStyle=scoreCol;
-  G.textBaseline='top';G.fillText(Math.round(shownScore).toLocaleString(),OX,scoreY);
+  G.textBaseline='top';
+  const sPop=CFG.anim?Math.min(1,Math.max(0,score-shownScore)/800):0;
+  if(sPop>.02){G.save();G.translate(OX,scoreY);G.scale(1+sPop*.16,1+sPop*.16);G.fillText(Math.round(shownScore).toLocaleString(),0,0);G.restore();}
+  else G.fillText(Math.round(shownScore).toLocaleString(),OX,scoreY);
 
   // Multiplier, centred below score, well spaced
   if(gameMode!=='purist'&&mult>1){
@@ -2379,7 +2533,7 @@ function drawGame(){
     G.restore();
 
     // Combo word burst, appears offset so it doesn't overlay score
-    if(flash&&frac>.6&&mult>2){
+    if(flash&&frac>.6&&mult>2&&CFG.combo){
       const word=COMBO_WORDS[Math.min(mult-3,COMBO_WORDS.length-1)]||'GREAT';
       const wordY=multY+(flash?40:32);
       G.save();G.translate(OX,wordY);G.globalAlpha=((frac-.6)/.4)*.85;
@@ -2454,6 +2608,8 @@ function drawGame(){
   // Border, clean mask ring + thin inner line
   G.strokeStyle='#000';G.lineWidth=8;G.beginPath();G.arc(OX,OY,R+4,0,TAU);G.stroke();
   G.strokeStyle='rgba(30,30,60,.9)';G.lineWidth=1.5;G.beginPath();G.arc(OX,OY,R,0,TAU);G.stroke();
+  // Last life: the rim beats like a heart
+  if(lives===1&&ship&&CFG.anim&&!screensaver&&isColor()){const hb=Math.pow(Math.max(0,Math.sin(menuT*2.6)),8);G.strokeStyle=`rgba(200,35,42,${.12+hb*.45})`;G.lineWidth=2+hb*3;G.beginPath();G.arc(OX,OY,R-2,0,TAU);G.stroke();}
 
   // Spread ring, red depleting arc at R+16, arcade only
   if(gameMode==='arcade'&&spreadT>0){
@@ -2772,10 +2928,17 @@ function drawGameOverMenu(){
 function drawOptions(){
   menuBg();G.textAlign='center';G.textBaseline='middle';
   G.font=`bold italic ${fpx(24)}px `+FN;G.fillStyle=P.sky;G.fillText('OPTIONS',OX,OY-R*.62);
-  const tl=OY-R*.62+(isMobile?24:18);
-  G.strokeStyle='rgba(43,101,226,.3)';G.lineWidth=1;G.beginPath();G.moveTo(OX-R*.42,tl);G.lineTo(OX+R*.42,tl);G.stroke();
   const rows=optRows(),ys=optYs(),sp=optSp(),lx=OX-R*.5,rx=OX+R*.5;
+  // Page tabs
+  OPT_TABS.forEach(([full,short],t)=>{
+    const x=optTabX(t),on=t===optTab,lbl=isMobile?short:full;
+    G.font=(on?'bold italic ':'italic ')+fpx(on?10:9)+'px '+FN;G.fillStyle=on?P.yel:'rgba(140,181,237,.5)';G.fillText(lbl,x,ys[0]);
+    if(on){const w=G.measureText(lbl).width/2+4;G.strokeStyle=P.yel;G.lineWidth=1.5;G.beginPath();G.moveTo(x-w,ys[0]+(isMobile?13:10));G.lineTo(x+w,ys[0]+(isMobile?13:10));G.stroke();
+      if(optSel===0){G.strokeStyle=P.yel+'88';G.lineWidth=1;G.strokeRect(x-w-6,ys[0]-sp/2+4,w*2+12,sp-6);}}
+  });
+  G.strokeStyle='rgba(43,101,226,.25)';G.lineWidth=1;G.beginPath();G.moveTo(OX-R*.56,ys[0]+sp*.55);G.lineTo(OX+R*.56,ys[0]+sp*.55);G.stroke();
   rows.forEach((k,i)=>{
+    if(k==='tab')return;
     const y=ys[i],sel=optSel===i;
     if(k==='back'){
       G.textAlign='center';
@@ -2794,11 +2957,77 @@ function drawOptions(){
     }else if(k==='keys'){G.fillStyle=sel?P.yel:P.sky+'99';G.fillText('EDIT  ▸',rx,y);}
     else{const v=O.get();G.fillStyle=O.cols[v];G.fillText(sel?'◂  '+O.vals[v]+'  ▸':O.vals[v],rx,y);}
   });
-  const O=OPT[rows[optSel]];
-  if(O){G.textAlign='center';G.font=`italic ${fpx(9)}px `+FN;G.fillStyle='rgba(140,181,237,.6)';G.fillText(typeof O.desc==='function'?O.desc():O.desc[O.get()],OX,OY+R*(isMobile?.7:.6));}
-  hint('↑↓  SELECT  ·  ← →  CHANGE  ·  ESC  BACK  ·  MOUSE OK','TAP TO CHANGE');
+  const r=rows[optSel],O=OPT[r],d=r==='tab'?'← →  SWITCH PAGE':O?(typeof O.desc==='function'?O.desc():O.desc[O.get()]):'';
+  G.textAlign='center';G.font=`italic ${fpx(9)}px `+FN;G.fillStyle='rgba(140,181,237,.62)';
+  if(isMobile)G.fillText(d,OX,OY+R*.86);
+  else{G.fillText(d,OX,OY+R*.6);hint('↑↓  SELECT  ·  ← →  CHANGE  ·  TAB  NEXT PAGE  ·  ESC  BACK','');}
 }
 
+let achSel=0;
+const ACH_COLS=5;
+function achPos(i){const c=i%ACH_COLS,r=(i/ACH_COLS)|0;return[OX+(c-2)*R*.27,OY-R*.37+r*R*.235];}
+function achCell(x,y){for(let i=0;i<ACH_DEF.length;i++){const[cx,cy]=achPos(i);if(Math.abs(x-cx)<R*.12&&Math.abs(y-cy)<R*.11)return i;}return -1;}
+// Small vector glyphs for the badges, drawn round (0,0) at size s
+function glyph(kind,s){
+  G.beginPath();
+  if(kind==='rock'){const k=[1,.8,1.05,.75,.95,.85,1];for(let i=0;i<7;i++){const a=i/7*TAU;G.lineTo(Math.cos(a)*s*k[i],Math.sin(a)*s*k[i]);}G.closePath();G.stroke();}
+  else if(kind==='orbit'||kind==='deep'){const rr=kind==='deep'?s*.55:s;G.arc(0,0,rr,0,TAU);G.stroke();G.beginPath();G.arc(0,0,s*.22,0,TAU);G.fill();G.beginPath();G.arc(rr*.71,-rr*.71,s*.2,0,TAU);G.fill();}
+  else if(kind==='push'){for(let k=1;k<=3;k++){G.beginPath();G.arc(0,0,s*k/3,-.9,.9);G.stroke();G.beginPath();G.arc(0,0,s*k/3,Math.PI-.9,Math.PI+.9);G.stroke();}}
+  else if(kind==='wave'){for(const dx of[-.45,.25]){G.beginPath();G.moveTo(dx*s,-s*.7);G.lineTo((dx+.45)*s,0);G.lineTo(dx*s,s*.7);G.stroke();}}
+  else if(kind==='sling'){G.arc(0,0,s*.75,Math.PI*.15,Math.PI*1.55);G.stroke();G.beginPath();G.moveTo(s*.65,-s*.6);G.lineTo(s,-s*.95);G.moveTo(s,-s*.95);G.lineTo(s*.95,-s*.45);G.stroke();G.beginPath();G.arc(0,0,s*.18,0,TAU);G.fill();}
+  else if(kind==='comet'){G.ellipse(s*.35,s*-.35,s*.4,s*.22,-Math.PI/4,0,TAU);G.stroke();for(const o of[-.15,0,.15]){G.beginPath();G.moveTo(s*(.05+o),s*(-.05+o));G.lineTo(s*(-.8+o),s*(.8+o));G.stroke();}}
+  else if(kind==='tidal'){G.arc(0,0,s*.3,0,TAU);G.fill();G.beginPath();G.arc(0,0,s*.85,0,TAU);G.setLineDash([3,3]);G.stroke();G.setLineDash([]);}
+  else if(kind==='hole'){G.arc(0,0,s*.4,0,TAU);G.stroke();G.beginPath();G.arc(0,0,s*.75,-.4,1.4);G.stroke();G.beginPath();G.arc(0,0,s*.75,Math.PI-.4,Math.PI+1.4);G.stroke();}
+  else if(kind==='shield'){for(let i=0;i<5;i++){G.beginPath();G.arc(0,0,s*.8,i/5*TAU+.12,(i+1)/5*TAU-.12);G.stroke();}G.beginPath();G.moveTo(s*.5,0);G.lineTo(-s*.35,s*.3);G.lineTo(-s*.2,0);G.lineTo(-s*.35,-s*.3);G.closePath();G.stroke();}
+  else if(kind==='score'){for(let i=0;i<3;i++){G.fillRect(-s*.7+i*s*.5,s*.6-(i+1)*s*.4,s*.32,(i+1)*s*.4);}}
+  else if(kind==='mult'){G.font=`bold italic ${Math.round(s*1.2)}px `+FN;G.textAlign='center';G.textBaseline='middle';G.fillText('×8',0,1);}
+  else if(kind==='star'){for(let i=0;i<8;i++){const a=i/8*TAU-Math.PI/2,rr=i%2?s*.38:s;G.lineTo(Math.cos(a)*rr,Math.sin(a)*rr);}G.closePath();G.stroke();}
+}
+function badge(x,y,a,got,sel,sc=1){
+  const col=TIER[a[3]][1],rr=(isMobile?30:24)*sc;
+  G.save();G.translate(x,y);
+  if(sel){G.strokeStyle=P.yel;G.lineWidth=1.4;G.beginPath();G.arc(0,0,rr+7+Math.sin(menuT*4)*1.5,0,TAU);G.stroke();}
+  G.beginPath();for(let i=0;i<6;i++){const t=i/6*TAU+Math.PI/6;G.lineTo(Math.cos(t)*rr,Math.sin(t)*rr);}G.closePath();
+  if(got){G.fillStyle=col+'2e';G.fill();G.strokeStyle=col;G.lineWidth=2;}else{G.strokeStyle='rgba(140,181,237,.25)';G.lineWidth=1.2;}
+  G.stroke();
+  G.strokeStyle=got?col:'rgba(140,181,237,.3)';G.fillStyle=G.strokeStyle;G.lineWidth=1.4;
+  glyph(a[4],rr*.5);
+  G.restore();
+}
+function drawAch(){
+  menuBg();G.textAlign='center';G.textBaseline='middle';
+  const got=ACH_DEF.filter(a=>ACH[a[0]]).length;
+  G.font=`bold italic ${fpx(22)}px `+FN;G.fillStyle=P.sky;G.fillText('ACHIEVEMENTS',OX,OY-R*.66);
+  G.font=`italic ${fpx(9)}px `+FN;G.fillStyle='rgba(140,181,237,.6)';G.fillText(got+' / '+ACH_DEF.length+' UNLOCKED',OX,OY-R*.66+lsp(22));
+  ACH_DEF.forEach((a,i)=>{const[x,y]=achPos(i);badge(x,y,a,!!ACH[a[0]],i===achSel);});
+  // Detail of the selected one
+  const a=ACH_DEF[achSel],has=!!ACH[a[0]],[tn,tc]=TIER[a[3]],dy=OY+R*.6;
+  G.font=`bold italic ${fpx(14)}px `+FN;G.fillStyle=has?tc:P.lav;G.fillText(a[1],OX,dy-lsp(18));
+  G.font=`italic ${fpx(10)}px `+FN;G.fillStyle='rgba(228,219,240,.8)';G.fillText(a[2],OX,dy+lsp(2));
+  let sub=tn+(has?'  ·  UNLOCKED '+new Date(ACH[a[0]]).toLocaleDateString():'');
+  if(!has&&a[5]){
+    const pr=Math.min(1,(ACHP[a[0]]||0)/a[5]),w=R*.5,bx=OX-w/2,by=dy+lsp(20);
+    G.fillStyle='rgba(140,181,237,.16)';G.fillRect(bx,by-3,w,6);G.fillStyle=tc;G.fillRect(bx,by-3,w*pr,6);
+    sub+='  ·  BEST '+(ACHP[a[0]]||0).toLocaleString()+' / '+a[5].toLocaleString();
+  }
+  G.font=`italic ${fpx(8)}px `+FN;G.fillStyle=tc+'cc';G.fillText(sub,OX,dy+lsp(a[5]&&!has?34:22));
+  hint('ARROWS  BROWSE  ·  ESC  BACK','TAP A BADGE  ·  TAP ELSEWHERE TO GO BACK');
+}
+// Unlock toast: a badge and name rise into view above the lives, then fade
+function drawToast(){
+  const q=achToasts[0];if(!q)return;
+  const a=ACH_BY[q.id],k=q.t,inK=Math.min(1,k/12),outK=k>100?Math.max(0,1-(k-100)/20):1,al=inK*outK,[tn,tc]=TIER[a[3]];
+  const y=OY+R*.6+(1-easeBack(inK))*24,w=R*.78,h=hpx(40);
+  G.save();G.globalAlpha=al;
+  G.fillStyle='rgba(0,0,0,.78)';G.fillRect(OX-w/2,y-h/2,w,h);G.strokeStyle=tc+'aa';G.lineWidth=1.2;G.strokeRect(OX-w/2,y-h/2,w,h);
+  // A light sweep runs across as it lands
+  if(k<34&&CFG.anim){const sx=OX-w/2+w*(k/34);G.fillStyle='rgba(255,255,255,.12)';G.fillRect(sx-14,y-h/2,28,h);}
+  badge(OX-w/2+h*.62,y,a,true,false,.62);
+  G.textAlign='left';G.textBaseline='middle';
+  G.font=`italic ${hpx(8)}px `+FN;G.fillStyle=tc;G.fillText('ACHIEVEMENT  ·  '+tn,OX-w/2+h*1.25,y-h*.2);
+  G.font=`bold italic ${hpx(13)}px `+FN;G.fillStyle=P.lav;G.fillText(a[1],OX-w/2+h*1.25,y+h*.18);
+  G.restore();
+}
 function bindLayout(){
   const sp=lsp(25),y0=OY-R*.42,ys=[];
   for(let i=0;i<ACTIONS.length;i++)ys.push(y0+i*sp);
@@ -3122,10 +3351,11 @@ function render(al){
   else if(gScreen==='credits')drawCredits();
   else if(gScreen==='brief')drawBrief();
   else if(gScreen==='binds')drawBinds();
+  else if(gScreen==='ach')drawAch();
   else drawScores();
   if(live)lerpOff();
   menuT=mt;
-  bloom();
+  bloom();scanlines();
   // Iris: each new screen opens out from the centre of the disc
   if(iris>0){
     const rr=R*(1-iris*iris);
@@ -3138,28 +3368,38 @@ function render(al){
 // on top. One cheap pass replaces dozens of per-shape blurs.
 const BL=[1,2,3].map(k=>{const c=document.createElement('canvas');c.width=c.height=Math.max(1,(S*DPR/2**k)|0);const g=c.getContext('2d',{alpha:false});g.imageSmoothingEnabled=true;return{c,g};});
 function bloom(){
-  if(simple)return;
+  if(simple||!CFG.glow)return;
+  const gk=[0,.5,1,1.35][CFG.glow];
   let src=CVS;
   for(const b of BL){b.g.drawImage(src,0,0,b.c.width,b.c.height);src=b.c;}
   G.save();G.setTransform(1,0,0,1,0,0);G.globalCompositeOperation='lighter';G.imageSmoothingEnabled=true;
-  G.globalAlpha=.65;G.drawImage(BL[1].c,0,0,CVS.width,CVS.height);
-  G.globalAlpha=.8;G.drawImage(BL[2].c,0,0,CVS.width,CVS.height);
+  G.globalAlpha=Math.min(1,.65*gk);G.drawImage(BL[1].c,0,0,CVS.width,CVS.height);
+  G.globalAlpha=Math.min(1,.8*gk);G.drawImage(BL[2].c,0,0,CVS.width,CVS.height);
   G.restore();
 }
+// Scanlines and vignette, painted once at device resolution
+const SCAN=(()=>{const c=document.createElement('canvas');c.width=c.height=CVS.width;const g=c.getContext('2d');
+  g.fillStyle='rgba(0,0,0,.22)';const st=Math.max(2,Math.round(3*DPR));for(let y=0;y<c.height;y+=st)g.fillRect(0,y,c.width,Math.max(1,Math.round(DPR)));
+  const h=c.width/2,vg=g.createRadialGradient(h,h,h*.55,h,h,h*.98);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.45)');g.fillStyle=vg;g.fillRect(0,0,c.width,c.height);
+  return c;})();
+function scanlines(){if(!CFG.scan)return;G.save();G.setTransform(1,0,0,1,0,0);G.drawImage(SCAN,0,0);G.restore();}
+// 30 fps drawing when forced in Options, or (on Auto) once the device proves it can't hold 60
+function lowFx(){return CFG.fps===2||CFG.fps===0&&lowFps;}
 function loop(ts){
-  const step=slowMo>0?STEP*2:STEP; // death slow motion stretches each tick
+  const step=slowMo>0&&CFG.slowmo?STEP*2:STEP; // death slow motion stretches each tick
   if(last&&!lowFps)gapAvg=gapAvg*.97+Math.min(ts-last,100)*.03;
   acc+=last?Math.min(ts-last,250):step;last=ts;
   let n=0;while(acc>=step&&n<12){snap();tick();acc-=step;n++;}
   if(n===12)acc=0;
   // Devices that can't draw at 60 drop to drawing once per update
-  if(ts-lastDraw>=15.5&&(!lowFps||n>0)){
-    rdt=Math.min(100,ts-lastDraw)||16.67;lastDraw=ts;const t0=performance.now();render(lowFps?1:Math.min(acc/step,1));
+  if(ts-lastDraw>=15.5&&(!lowFx()||n>0)){
+    rdt=Math.min(100,ts-lastDraw)||16.67;lastDraw=ts;const t0=performance.now();render(lowFx()?1:Math.min(acc/step,1));
     rAvg=rAvg*.9+(performance.now()-t0)*.1;
-    if(!lowFps&&(rAvg>9||gapAvg>26))lowFps=true; // once a device can't hold 60, stay at 30
+    if(!lowFps&&CFG.fps===0&&(rAvg>9||gapAvg>26))lowFps=true; // once a device can't hold 60, stay at 30
   }
   requestAnimationFrame(loop);
 }
+achProg('camp',clearedCount()); // in case an older save already cleared it all
 requestAnimationFrame(loop);
 </script>
 </body>
