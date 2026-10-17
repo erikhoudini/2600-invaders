@@ -205,7 +205,7 @@ let simple=false;
 // Options. starsMode and guide are 0 full / 1 reduced / 2 off.
 let vol=8,lensOn=true,starsMode=0,flashOn=true,guide=0;
 // Every other setting in Options lives here; each value indexes that option's choices
-const CFG_DEF={glow:2,nebula:1,scan:0,fps:0,shake:2,hitstop:1,slowmo:1,parts:1,anim:1,trail:1,popups:0,combo:1,toasts:1,menuSfx:1,thrust:1,turnEase:1,holdFire:1};
+const CFG_DEF={glow:2,nebula:1,scan:0,fps:0,shake:2,hitstop:1,slowmo:1,parts:1,anim:1,trail:1,popups:0,combo:1,toasts:1,tips:1,menuSfx:1,thrust:1,turnEase:1,holdFire:1};
 const CFG_N={glow:4,fps:3,shake:3,popups:3};
 const CFG={...CFG_DEF};
 function setVol(v){vol=v;if(master)master.gain.value=vol/10;}
@@ -330,7 +330,7 @@ function statRock(sz){if(sz>=1&&sz<=5)STATS.rocks[sz]++;ach('first');}
 function recScore(v,mode){const t=LB[mode];t.push(v);t.sort((a,b)=>b-a);t.length=Math.min(t.length,10);}
 // Scores, lifetime stats and options persist between visits.
 const SAVE_KEY='oumuamua.v1';
-function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({lb:LB,stats:screensaver&&ssStats?JSON.parse(ssStats):STATS,opt:{simple,vol,lens:lensOn,stars:starsMode,flash:flashOn,guide,binds:BINDS,cfg:CFG},ach:ACH,achp:ACHP,camp:CAMP}));}catch(e){}}
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({lb:LB,stats:screensaver&&ssStats?JSON.parse(ssStats):STATS,opt:{simple,vol,lens:lensOn,stars:starsMode,flash:flashOn,guide,binds:BINDS,cfg:CFG},ach:ACH,achp:ACHP,tips:TIPSEEN,camp:CAMP}));}catch(e){}}
 function loadSave(){try{
   const d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(!d)return;
   if(d.lb)for(const k in LB)if(Array.isArray(d.lb[k]))LB[k]=d.lb[k].filter(Number.isFinite).slice(0,10);
@@ -347,6 +347,7 @@ function loadSave(){try{
     if(o.binds)for(const[a]of ACTIONS){const b=o.binds[a];if(Array.isArray(b)&&b.length===2&&b.every(k=>typeof k==='string'))BINDS[a]=b.slice();}
   }
   if(d.ach&&typeof d.ach==='object')for(const[id]of ACH_DEF)if(Number.isFinite(d.ach[id]))ACH[id]=d.ach[id];
+  if(d.tips&&typeof d.tips==='object')for(const k in d.tips)TIPSEEN[k]=1;
   if(d.achp&&typeof d.achp==='object')for(const[id]of ACH_DEF)if(Number.isFinite(d.achp[id]))ACHP[id]=d.achp[id];
   if(d.camp&&typeof d.camp==='object')for(const k in d.camp){const i=+k,v=d.camp[k]|0;if(i>=0&&i<35)CAMP[i]=v&7;}
 }catch(e){}}
@@ -620,7 +621,53 @@ const ACH_DEF=[
 ];
 const ACH_BY={};ACH_DEF.forEach(a=>ACH_BY[a[0]]=a);
 const TIER=[['EASY','#14964c'],['MEDIUM','#8cb5ed'],['HARD','#c523ac'],['CAMPAIGN','#f1e038']];
-const ACH={},ACHP={};
+const ACH={},ACHP={},TIPSEEN={};
+// ── Tips ──────────────────────────────────────────────────────────────────────
+// Shown once each, the first time the thing they explain turns up, in Arcade and
+// the first five campaign planets. Options > HUD > Tips turns them off (or, back
+// on, replays them).
+const KEY_GLYPH={left:'◀',right:'▶',thrust:'▲',fire:'●',push:'V',warp:'C',shield:'C'};
+function kl(a){return isMobile?KEY_GLYPH[a]:keyName(BINDS[a][0]||BINDS[a][1]);}
+const TIPS=[
+  ['move',()=>tipT>45,()=>kl('left')+' '+kl('right')+' TURN  ·  '+kl('thrust')+' THRUST  ·  '+kl('fire')+' FIRE',"Blast the asteroids. Big ones split into smaller, faster ones."],
+  ['orbit',()=>tipT>330&&hasHole(),()=>'YOU ARE IN ORBIT',"Thrust along your motion to climb, against it to dive. The dots show where you'll drift."],
+  ['push',()=>gCd<=0&&ship&&rocks.some(r=>Math.hypot(r.x-ship.x,r.y-ship.y)<r.r+90),()=>kl('push')+'  GRAVITY PUSH',"Shoves everything nearby away, flinging rocks into wider orbits. The magenta rim arc shows the recharge."],
+  ['lap',()=>STATS.orbits>0&&tipLap,()=>'ORBIT BONUS',"Every full lap of the hole scores, refunds a third of your push, and every third lap in a row raises the multiplier."],
+  ['warp',()=>hypPUs.length>0,()=>'WARPS  ·  BLUE SQUARES',()=>"Fly through to collect. "+kl('warp')+" jumps you somewhere random. Hold 5 and "+kl('warp')+" raises a shield instead."],
+  ['mine',()=>minePUs.length>0,()=>'MINES  ·  YELLOW STARS',"Collect for 5 mines. Thrusting drops them behind you; they blow when rocks come near. Keep clear yourself."],
+  ['spread',()=>spreadPUs.length>0,()=>'SPREAD SHOT  ·  RED BARS',"Fire three shots at once for 7 seconds."],
+  ['comet',()=>cometQ.length>0,()=>'COMET INCOMING',"It crosses along the blue chevrons. Five hits destroy it and raise your multiplier."],
+  ['tidal',()=>hasHole()&&rocks.some(r=>r.sz>=3&&bodies.some(b=>Math.hypot(r.x-b.x,r.y-b.y)<b.hr*4.5+r.r*.5+50)),()=>'TIDAL FORCES',"Big rocks that stray inside the dashed ring are torn apart by the hole, and you get the points."],
+  ['swirl',()=>swirls.length>0,()=>'SPIRALS',"They wind into the hole and burst at the core with a push. Shoot one to set it off early."],
+  ['ufo',()=>ufos.length>0,()=>'SAUCERS',"Fire in three directions. Three hits bring one down."],
+  ['hex',()=>hexes.length>0,()=>'HEXES',"Slow, tough, and they scatter mines. Rocks shatter against them."],
+  ['pulser',()=>pulsers.length>0,()=>'PULSERS',"Pulse a push every second or two that shoves you and the rocks. Four hits."],
+];
+let tip=null,tipT=0,tipGap=0,tipLap=false;
+function tipsOn(){return CFG.tips&&!screensaver&&(RUN?RUN.id<5:gameMode==='arcade');}
+function updateTips(){
+  tipT++;if(tip){if(++tip.t>230)tip=null;return;}
+  if(tipGap>0){tipGap--;return;}
+  if(!tipsOn()||deathT>0)return;
+  for(const t of TIPS){if(TIPSEEN[t[0]]||t[0]!=='move'&&!TIPSEEN.move)continue; // controls first
+    let ok=false;try{ok=t[1]();}catch(e){}if(ok){TIPSEEN[t[0]]=1;save();tip={d:t,t:0};tipGap=90;return;}}
+}
+function wrapText(txt,w){const out=[];let line='';for(const wd of txt.split(' ')){const tl=line?line+' '+wd:wd;if(G.measureText(tl).width>w&&line){out.push(line);line=wd;}else line=tl;}if(line)out.push(line);return out;}
+function drawTip(){
+  if(!tip)return;
+  const k=tip.t,al=Math.min(1,k/10)*Math.min(1,(230-k)/20),y0=OY-R*.5,w=R*1.1;
+  const head=tip.d[2](),body=typeof tip.d[3]==='function'?tip.d[3]():tip.d[3];
+  G.save();G.globalAlpha=al;G.font=`italic ${hpx(10)}px `+FN;const lines=wrapText(body,w-24),lh=hpx(14),h=hpx(22)+lines.length*lh+10;
+  const yy=y0-(1-Math.min(1,k/10))*10;
+  G.fillStyle='rgba(0,0,0,.72)';G.fillRect(OX-w/2,yy,w,h);G.strokeStyle='rgba(140,181,237,.45)';G.lineWidth=1;G.strokeRect(OX-w/2,yy,w,h);
+  G.fillStyle=P.yel;G.fillRect(OX-w/2,yy,3,h);
+  G.textAlign='center';G.textBaseline='top';
+  G.font=`bold italic ${hpx(11)}px `+FN;G.fillStyle=P.yel;G.fillText(head,OX,yy+6);
+  G.font=`italic ${hpx(10)}px `+FN;G.fillStyle=P.lav;lines.forEach((l,i)=>G.fillText(l,OX,yy+hpx(22)+i*lh));
+  // time left
+  G.fillStyle='rgba(241,224,56,.5)';G.fillRect(OX-w/2,yy+h-2,w*(1-k/230),2);
+  G.restore();
+}
 let achToasts=[];
 function ach(id){
   if(ACH[id]||screensaver)return;
@@ -799,7 +846,7 @@ function trackOrbit(){
 }
 function orbitDone(d){
   orbitChain++;STATS.orbits++;
-  ach('lap');achProg('chain3',orbitChain);achProg('chain10',orbitChain);if(ship.lapMin<R*.33)ach('deep');
+  ach('lap');tipLap=true;achProg('chain3',orbitChain);achProg('chain10',orbitChain);if(ship.lapMin<R*.33)ach('deep');
   const deep=ship.lapMin<R*.33,pts=(deep?ORBIT_PTS*2:ORBIT_PTS)*Math.min(orbitChain,5)*mult;
   score+=pts;scoreVel+=pts;scoreVelT=18;
   if(gCd>0){gCd=Math.max(0,gCd-Math.round(gMax*.35));if(gCd===0)gReady=14;}
@@ -1282,7 +1329,7 @@ function overLayout(){
 // Options are split into pages; row 0 of every page is the page tabs
 const OPT_TABS=[['GRAPHICS','GFX',['simple','glow','lens','stars','nebula','scan','fps']],
   ['EFFECTS','FX',['shake','flash','hitstop','slowmo','parts','anim','trail']],
-  ['HUD','HUD',['guide','popups','combo','toasts']],
+  ['HUD','HUD',['tips','guide','popups','combo','toasts']],
   ['AUDIO','AUDIO',['vol','menuSfx']],
   ['CONTROLS','CTRL',['keys','thrust','turnEase','holdFire']]];
 let optTab=0;
@@ -1312,6 +1359,7 @@ const OPT={
   guide:{label:'ORBIT GUIDE',vals:['FULL','PATH','OFF'],cols:[P.grn,P.yel,P.red],get:()=>guide,set:v=>{guide=v;},desc:['Predicted path and lap progress arc','Predicted path only','No orbit guide']},
   popups:cfgOpt('popups','SCORE POPUPS',['ALL','BIG ONLY','OFF'],[P.grn,P.yel,P.red],['Every point gain pops up','Only bonuses and big kills','No score popups']),
   combo:cfgOpt('combo','COMBO CALLOUTS',ON_OFF,RG,['No callouts','NICE, GREAT, SICK… as the multiplier climbs']),
+  tips:{label:'TIPS',vals:ON_OFF,cols:RG,get:()=>CFG.tips,set:v=>{CFG.tips=v;if(v)for(const k in TIPSEEN)delete TIPSEEN[k];},desc:['No tips','Tips explain mechanics as you meet them (turning on again replays them)']},
   toasts:cfgOpt('toasts','ACHIEVEMENT POPUPS',ON_OFF,RG,['Unlock quietly','Announce achievements as they unlock']),
   vol:{label:'SOUND VOLUME',desc:()=>vol?'Sound effects at '+vol*10+'%':'Sound off'},
   menuSfx:cfgOpt('menuSfx','MENU SOUNDS',ON_OFF,RG,['Silent menus','Blips as you move through menus']),
@@ -1507,7 +1555,7 @@ function startGame(mode='arcade',ss=false,keepRun=false){
   gameMode=mode;gScreen='playing';paused=false;pauseSel=0;score=0;lives=RUN&&RUN.p.lives||3;level=1;invT=0;setInv(START_INV);gMax=RUN&&RUN.p.gcd||GCD;
   shootCd=0;mPlaceCd=0;sentryReadyT=0;streak=0;streakT=0;scoreVel=0;scoreVelT=0;
   shake=0;shakeX=0;shakeY=0;multFlash=0;newRecord=false;keys.Space=0;keys.Enter=0;for(const k of BINDS.fire)if(k)keys[k]=0;latch.clear();inBuf.push=inBuf.warp=0;
-  gCd=0;gPulse=0;warpCd=0;mult=1;multT=0;orbitChain=0;gameTorn=0;gameLured=0;cleanWaves=0;waveDied=false;achToasts=[];waveSweep=0;
+  gCd=0;gPulse=0;warpCd=0;mult=1;multT=0;orbitChain=0;gameTorn=0;gameLured=0;cleanWaves=0;waveDied=false;achToasts=[];waveSweep=0;tip=null;tipT=0;tipGap=0;tipLap=false;
   minesH=0;activeMines=[];minePUs=[];spreadPUs=[];spreadT=0;
   hyperC=0;hypPUs=[];shieldActive=false;shieldT=0;
   gWells=[];comets=[];ufos=[];pulsers=[];swirls=[];hexes=[];particles=[];popups=[];if(gameMode==='quarantine')resetQRing();
@@ -1708,6 +1756,7 @@ function update(){
   if(deathT>0&&--deathT===0){endGame();return;}
   // Wave intermission: a short beat, then the next wave arrives
   checkGoal();
+  updateTips();
   // Running totals for the score and multiplier achievements
   if(!RUN){if(gameMode==='arcade')achProg('score25',score);if(gameMode==='purist')achProg('purist',score);achProg('score100',score);}
   achProg('mult8',mult);
@@ -2520,7 +2569,7 @@ function drawGame(){
   // ── In-field HUD, hidden in screensaver ─────────────────────────────────
   if(screensaver){G.restore();G.restore();return;} // skip all HUD; restore shake+clip
   drawBanner();
-  drawToast();
+  drawToast();drawTip();
   if(RUN){G.textAlign='center';G.textBaseline='middle';G.font=`bold italic ${hpx(11)}px `+FN;G.fillStyle=P.yel;G.globalAlpha=.85;G.fillText(goalStatus(),OX,OY+R*.82);G.globalAlpha=1;}
   G.textAlign='center';
 
