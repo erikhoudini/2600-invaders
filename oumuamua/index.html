@@ -457,6 +457,13 @@ function allowE(k){return!RUN||!RUN.p.enemies||RUN.p.enemies.includes(k);}
 function pickupsOn(){return!RUN||RUN.p.pickups!==false;}
 function waveSize(){if(RUN&&RUN.p.rocks&&level===1)return RUN.p.rocks.length;return Math.min(16,Math.round((4+level)*1.2*(RUN&&RUN.p.rockMul||1)));}
 function openMap(){RUN=null;gScreen='map';paused=false;}
+// After a mission: back to the map with the cursor on where to go next, an open
+// neighbour not yet cleared, else any open planet not yet cleared, else this one
+function continueRun(){
+  const id=RUN.id,open=i=>unlocked(i)&&!(CAMP[i]&1);
+  const next=NEIGH[id].find(open)??PLANETS.findIndex((_,i)=>open(i));
+  openMap();mapSel=next>=0?next:id;
+}
 function startPlanet(id){
   const p=PLANETS[id];mapSel=id;
   RUN={id,p,t:0,deaths:0,cleared:0,comets:0,tidal:0,done:false,won:false,marks:0,newMarks:0};
@@ -865,7 +872,7 @@ function swallowAll(){
     return false;
   });
   ufos=eat(ufos,UFO_PTS,'#fff','ufos');pulsers=eat(pulsers,PULSER_PTS,P.mag,'pulsers');
-  hexes=eat(hexes,HEX_PTS,P.yel,'hexes');swirls=eat(swirls,SWIRL_PTS,'#fff','swirls');
+  hexes=eat(hexes,HEX_PTS,P.yel,'hexes');
   activeMines=activeMines.filter(m=>!inHole(m,0));
   minePUs=minePUs.filter(p=>!inHole(p,0));hypPUs=hypPUs.filter(p=>!inHole(p,0));spreadPUs=spreadPUs.filter(p=>!inHole(p,0));
   if(ship&&invT===0&&gameMode!=='sentry'){const b=inHole(ship,4);if(b){swallowFx(ship,b,P.lav);killShip();}}
@@ -920,9 +927,44 @@ function spawnPulser(){
 // Spawns in place of mine PU 20% of the time (arcade/sweep only)
 let swirls=[];
 const SWIRL_R=14,SWIRL_PTS=200;
-function spawnSwirl(x,y){
-  swirls.push({x,y,vx:rn(-.4,.4),vy:rn(-.4,.4),r:SWIRL_R,spin:0,hp:2,born:16,hit:0});
+// With a hole they ride the orbital flow and slowly lose speed, so they spiral in;
+// one that reaches the core bursts there and fires a gravity push from the centre
+const SWIRL_CORE=2.4;
+// Spiral: circular speed round the hole plus a steady inward drift, quicker
+// further out, so a swirl winds in over one to three laps
+function swirlOrbit(o){
+  const m=holeMass();if(m<=0)return;
+  const rx=o.x-OX,ry=o.y-OY,d=Math.sqrt(rx*rx+ry*ry)||1,ux=rx/d,uy=ry/d,vt=o.vy*ux-o.vx*uy;
+  const t=circV(Math.max(d,20),m)*(vt>=0?1:-1),vr=-(.14+d*.0015);
+  o.vx=ux*vr-uy*t;o.vy=uy*vr+ux*t; // set outright: a blend lags the turning frame and stalls the spiral
 }
+function spawnSwirl(x,y){
+  let vx=rn(-.4,.4),vy=rn(-.4,.4);
+  if(hasHole()){const o=orbitV(x,y,-1);vx=o[0]*.96;vy=o[1]*.96;}
+  swirls.push({x,y,vx,vy,r:SWIRL_R,spin:0,hp:2,born:16,hit:0});
+}
+// A swirl's push. core = the body it reached: then the push comes from the centre,
+// wider, and turns prograde like the player's, flinging the field into high orbits.
+function swirlBlast(sw,core){
+  const x=core?core.x:sw.x,y=core?core.y:sw.y,rng=core?270:220,spin=core&&!pulsarPushing()?PUSH_SPIN:0;
+  burst(sw.x,sw.y,8,P.wht,true);SFX.swirlDestroy();
+  const sp=[];for(let k=0;k<=16;k++){const a=k/16*TAU*.75,rd=SWIRL_R*k/16;sp.push([Math.cos(a)*rd,Math.sin(a)*rd]);}
+  shatter(sw.x,sw.y,sp,P.wht,3);
+  const push=(o,m=1)=>{const dx=o.x-x,dy=o.y-y,d=Math.sqrt(dx*dx+dy*dy)||1;if(d>=rng)return;const f=4.5*m*(1-d/rng);
+    o.vx+=dx/d*f*(1-spin*.5);o.vy+=dy/d*f*(1-spin*.5);
+    if(spin){const rx=o.x-OX,ry=o.y-OY,rd=Math.sqrt(rx*rx+ry*ry)||1,sg=rx*o.vy-ry*o.vx>=0?1:-1;o.vx+=-ry/rd*sg*f*spin;o.vy+=rx/rd*sg*f*spin;}
+    if(o.sz)o.pf=9;};
+  rocks.forEach(r=>push(r));activeMines.forEach(m=>push(m,.6));if(ship)push(ship,core?.6:1);
+  if(core){
+    comets.forEach(c=>push(c,.5));core.flare=12;gPulse=30;gPX=x;gPY=y;SFX.gravPush();addShake(5);
+    if(!simple)for(let k=0;k<3;k++)particles.push({x,y,vx:0,vy:0,life:16+k*6,col:k?P.mag:'#fff',sz:1,ring:true,rr:core.hr+k*10,grow:9-k*2});
+    popup(x,y-core.hr-16,'CORE BURST',P.mag,true);
+  }else{
+    if(!simple)particles.push({x,y,vx:0,vy:0,life:20,col:P.mag,sz:1,ring:true,rr:5,grow:8});
+    addShake(3);
+  }
+}
+function swirlCore(sw){for(const b of bodies)if(b.m>0&&(sw.x-b.x)**2+(sw.y-b.y)**2<(b.hr*SWIRL_CORE)**2)return b;return null;}
 
 // ── Hexagon enemy ─────────────────────────────────────────────────────────────────
 // Sluggish, toss mines, kill rocks, immune to mines, 3 HP, D6 roll 1
@@ -1117,7 +1159,7 @@ function handleKey(c){
     const n=MENUS.over.length;
     if(up){menuSel=(menuSel-1+n)%n;SFX.menuNav();}
     else if(down){menuSel=(menuSel+1)%n;SFX.menuNav();}
-    else if(ok){SFX.menuSelect();if(!menuSel){if(RUN)startPlanet(RUN.id);else startGame(gameMode);}else{if(RUN)openMap();else backToMenu(...menuBack);}}
+    else if(ok){SFX.menuSelect();if(RUN){if(!menuSel)continueRun();else startPlanet(RUN.id);}else if(!menuSel)startGame(gameMode);else backToMenu(...menuBack);}
     return;
   }
   if(gScreen==='map'){
@@ -1653,13 +1695,8 @@ function mineBlast(mx,my){
   // Mines destroy swirls (and trigger their gravity push)
   swirls=swirls.filter(sw=>{
     if((sw.x-mx)**2+(sw.y-my)**2<(MBR+sw.r)**2){
-      burst(sw.x,sw.y,8,P.wht,true);SFX.swirlDestroy();const swPts2=SWIRL_PTS*mult;score+=swPts2;STATS.swirls++;popup(sw.x,sw.y-sw.r-8,'+'+swPts2,P.wht,true);
-      {const sTP=[];for(let k=0;k<=12;k++){const a=k/12*TAU*.75,rd=SWIRL_R*k/12;sTP.push([Math.cos(a)*rd,Math.sin(a)*rd]);}shatter(sw.x,sw.y,sTP,P.wht,2.8);}
-      const swx2=sw.x,swy2=sw.y;
-      const pushS2=(o)=>{const dx=o.x-swx2,dy=o.y-swy2,d=Math.sqrt(dx*dx+dy*dy)||1;if(d<220){const f=4.5*(1-d/220);if(f>0){o.vx+=dx/d*f;o.vy+=dy/d*f;}}};
-      rocks.forEach(pushS2);activeMines.forEach(pushS2);if(ship)pushS2(ship);
-      if(!simple)particles.push({x:swx2,y:swy2,vx:0,vy:0,life:20,col:P.mag,sz:1,ring:true,rr:5,grow:8});
-      addShake(3);return false;
+      const swPts2=SWIRL_PTS*mult;score+=swPts2;STATS.swirls++;popup(sw.x,sw.y-sw.r-8,'+'+swPts2,P.wht,true);
+      swirlBlast(sw,null);return false;
     }
     return true;
   });
@@ -1807,7 +1844,7 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
       if(!pulsarPushing()){circularize(r,.994,.997);rimTurn(r);}
       capFlow(r,RMAXV[r.sz]);
     }
-    ufos.forEach(u=>grav(u,.35));pulsers.forEach(o=>grav(o,.35));hexes.forEach(o=>grav(o,.35));swirls.forEach(o=>grav(o,.5));
+    ufos.forEach(u=>grav(u,.35));pulsers.forEach(o=>grav(o,.35));hexes.forEach(o=>grav(o,.35));swirls.forEach(o=>{if(pulsarPushing())grav(o,.5);else swirlOrbit(o);});
     activeMines.forEach(m=>grav(m,.6,0));minePUs.forEach(p=>grav(p,.5,0));hypPUs.forEach(p=>grav(p,.5,0));spreadPUs.forEach(p=>grav(p,.5,0));
     if(ship&&gameMode!=='sentry'){grav(ship,1);trackOrbit();}
     swallowAll();
@@ -1964,7 +2001,11 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
   // Swirls (arcade+sweep+sentry)
   if(gameMode==='arcade'||gameMode==='sweep'||gameMode==='sentry'){
     swirls=swirls.filter(sw=>{
-      sw.x+=sw.vx;sw.y+=sw.vy;sw.spin+=.06;wrapO(sw);
+      sw.x+=sw.vx;sw.y+=sw.vy;wrapO(sw);
+      // Spins up as it nears the core, then bursts there
+      const cd=hasHole()?Math.min(...bodies.map(b=>Math.hypot(sw.x-b.x,sw.y-b.y)/b.hr)):99;sw.near=Math.max(0,1-(cd-SWIRL_CORE)/6);
+      sw.spin+=.06+sw.near*.3;
+      const core=swirlCore(sw);if(core){swirlBlast(sw,core);return false;}
       // Player collision
       if(ship&&invT===0&&(ship.x-sw.x)**2+(ship.y-sw.y)**2<(sw.r+ship.r)**2)killShip();
       return sw.hp>0;
@@ -2015,17 +2056,8 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
   // Bullets vs swirl
   swirls=swirls.filter(sw=>{
     for(let i=nb.length-1;i>=0;i--){if((nb[i].x-sw.x)**2+(nb[i].y-sw.y)**2<sw.r*sw.r){hitFx(nb[i],'#fff');sw.hit=4;nb.splice(i,1);sw.hp--;burst(sw.x,sw.y,5,'#fff');if(sw.hp<=0){
-          burst(sw.x,sw.y,8,P.wht,true);SFX.swirlDestroy();const swPts2=SWIRL_PTS*mult;score+=swPts2;STATS.swirls++;popup(sw.x,sw.y-sw.r-8,'+'+swPts2,P.wht,true);
-          // Spiral as a series of pts
-          const sPts=[];for(let k=0;k<=16;k++){const a=k/16*TAU*.75,rd=SWIRL_R*k/16;sPts.push([Math.cos(a)*rd,Math.sin(a)*rd]);}
-          const sPts2=[];for(let k=0;k<=16;k++){const a=k/16*TAU*.75+Math.PI,rd=SWIRL_R*k/16;sPts2.push([Math.cos(a)*rd,Math.sin(a)*rd]);}
-          shatter(sw.x,sw.y,[...sPts,...sPts2],P.wht,3);
-          const swx=sw.x,swy=sw.y;
-      const pushSwirl=(o)=>{const dx=o.x-swx,dy=o.y-swy,d=Math.sqrt(dx*dx+dy*dy)||1;if(d<220){const f=4.5*(1-d/220);if(f>0){o.vx+=dx/d*f;o.vy+=dy/d*f;}}};
-      rocks.forEach(pushSwirl);activeMines.forEach(pushSwirl);if(ship)pushSwirl(ship);
-      // Purple ring burst
-      if(!simple)particles.push({x:swx,y:swy,vx:0,vy:0,life:20,col:P.mag,sz:1,ring:true,rr:5,grow:8});
-      addShake(3);return false;}return true;}}
+          const swPts2=SWIRL_PTS*mult;score+=swPts2;STATS.swirls++;popup(sw.x,sw.y-sw.r-8,'+'+swPts2,P.wht,true);
+          swirlBlast(sw,null);return false;}return true;}}
     return true;
   });
 
@@ -2356,8 +2388,10 @@ function drawGame(){
 
   // Swirls
   swirls.forEach(sw=>{
-    G.save();G.translate(sw.x,sw.y);const sh=fxPre(sw,'#fff');G.rotate(sw.spin);
-    G.strokeStyle='#fff';G.lineWidth=sh?2.6:1.5;
+    G.save();G.translate(sw.x,sw.y);const sh=fxPre(sw,'#fff');
+    if(sw.near>0){const k=sw.near;G.strokeStyle=P.mag;G.globalAlpha=Math.min(1,k)*(.5+.4*Math.sin(menuT*(10+k*20)));G.lineWidth=1.5;G.beginPath();G.arc(0,0,SWIRL_R+4+(1-k)*20,0,TAU);G.stroke();G.globalAlpha=1;}
+    G.rotate(sw.spin);
+    G.strokeStyle=sw.near>.5&&Math.sin(menuT*30)>0?P.mag:'#fff';G.lineWidth=sh?2.6:1.5;
     for(let arm=0;arm<2;arm++){
       const baseA=arm*Math.PI;G.beginPath();
       for(let t=0;t<=1;t+=0.06){const a=baseA+t*TAU*.75,r2=SWIRL_R*t;const cx2=Math.cos(a)*r2,cy2=Math.sin(a)*r2;t===0?G.moveTo(cx2,cy2):G.lineTo(cx2,cy2);}
@@ -2915,7 +2949,7 @@ function drawGameOverMenu(){
   G.fillStyle='rgba(43,101,226,.38)';G.beginPath();G.moveTo(OX,sep-5);G.lineTo(OX+5,sep);G.lineTo(OX,sep+5);G.lineTo(OX-5,sep);G.closePath();G.fill();
 
   const ulo=isMobile?20:14;
-  (RUN?['RETRY','MAP']:MENUS.over).forEach((item,i)=>{
+  (RUN?['CONTINUE','RETRY']:MENUS.over).forEach((item,i)=>{
     const iy=L.items+i*OVER_SP,sel=i===menuSel;G.globalAlpha=overT>0?.3:1;
     if(sel){
       G.font=`bold italic ${fpx(18)}px `+FN;G.fillStyle=P.yel;G.fillText(item,OX,iy);
