@@ -269,7 +269,7 @@ function drawStars(alpha,ripple=0,lens=false){
 
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 const LB={arcade:[],sweep:[],purist:[],sentry:[],quarantine:[]};
-const STATS={rocks:[0,0,0,0,0,0],ufos:0,pulsers:0,swirls:0,hexes:0,comets:0,gravPushes:0,warpsUsed:0,shields:0,minesPlaced:0};
+const STATS={rocks:[0,0,0,0,0,0],ufos:0,pulsers:0,swirls:0,hexes:0,comets:0,gravPushes:0,warpsUsed:0,shields:0,minesPlaced:0,orbits:0,slings:0};
 function statRock(sz){if(sz>=1&&sz<=5)STATS.rocks[sz]++;}
 function recScore(v,mode){const t=LB[mode];t.push(v);t.sort((a,b)=>b-a);t.length=Math.min(t.length,10);}
 // Scores, lifetime stats and options persist between visits.
@@ -588,8 +588,12 @@ function spawnGW(x,y){
 // ── Central mass ──────────────────────────────────────────────────────────────
 // A black hole at the centre of the disc, as in Spacewar!. Everything except the
 // comet can fall in. Big rocks are torn apart (and scored) before they reach it.
-const RMAXV=[0,2.6,2.2,1.9,1.6,1.4];
-const GM=160; // circular orbit speed is 1 px/tick at r=160
+const RMAXV=[0,2.6,2.2,1.9,1.6,1.4]; // fastest a rock may stray from the orbital flow
+// The pull is a Newtonian core plus a flat halo term, like a galaxy's dark matter:
+// near the hole it bites hard (dives, slingshots, tidal tears), further out the
+// halo keeps orbital speed up so the whole disc actually turns. Circular speed is
+// about 1.9 px/tick at r=100 and 1.6 at the rim, a lap every 10-40 seconds.
+const GM=160,HALO=1.96,GSOFT=300;
 let bodies=[],bodyKind='hole',pulsarT=0;
 const PULSAR_PERIOD=150,PULSAR_PUSH=45; // the last 45 ticks of each period push outward
 function setupBodies(kind){
@@ -606,18 +610,107 @@ function updateBodies(){
   for(const b of bodies)if(b.flare>0)b.flare--;
 }
 function hasHole(){return bodies.length>0;}
-function grav(o,k){
+// h scales the halo; drifting pickups and mines leave it out so they don't sink
+function grav(o,k,h=1){
   for(const b of bodies){
-    const dx=b.x-o.x,dy=b.y-o.y,d2=dx*dx+dy*dy+300,d=Math.sqrt(d2),a=GM*b.m*k/d2;
+    const dx=b.x-o.x,dy=b.y-o.y,d2=dx*dx+dy*dy+GSOFT,d=Math.sqrt(d2),a=b.m*k*(GM/d2+HALO*h/d);
     o.vx+=dx/d*a;o.vy+=dy/d*a;
   }
 }
+function holeMass(){let m=0;for(const b of bodies)m+=b.m>0?b.m:bodyKind==='pulsar'?1:0;return m;}
+// Circular speed at distance d for exactly the softened pull above, so orbit
+// assists and spawns agree with gravity instead of fighting it
+function circV(d,m){const d2=d*d+GSOFT;return Math.sqrt(m*d*d*(GM/Math.pow(d2,1.5)+HALO/d2));}
 // Circular orbit velocity at a point; s picks the direction of travel (+1 / -1)
 function orbitV(x,y,s){
-  let m=0;for(const b of bodies)m+=b.m>0?b.m:bodyKind==='pulsar'?1:0;
-  if(m<=0)return[0,0];
-  const rx=x-OX,ry=y-OY,d=Math.sqrt(rx*rx+ry*ry)||1,v=Math.sqrt(GM*m/Math.max(d,40));
+  const m=holeMass();if(m<=0)return[0,0];
+  const rx=x-OX,ry=y-OY,d=Math.sqrt(rx*rx+ry*ry)||1,v=circV(Math.max(d,20),m);
   return[-ry/d*v*s,rx/d*v*s];
+}
+// Ease toward a circular orbit without stealing angular momentum: radial drift is
+// damped by kr, tangential speed eases toward circular by kt. A prograde burn
+// raises the orbit and a retrograde burn drops it, as in the real thing.
+function circularize(o,kr,kt){
+  const m=holeMass();if(m<=0)return;
+  const rx=o.x-OX,ry=o.y-OY,d=Math.sqrt(rx*rx+ry*ry)||1,ux=rx/d,uy=ry/d;
+  let vr=o.vx*ux+o.vy*uy,vt=o.vy*ux-o.vx*uy;
+  const vc=circV(Math.max(d,20),m)*(vt>=0?1:-1);
+  vr*=kr;vt=vc+(vt-vc)*kt;
+  o.vx=ux*vr-uy*vt;o.vy=uy*vr+ux*vt;
+}
+// The outer band bleeds off outward drift, so a rock flung high turns into a
+// wide orbit along the rim instead of wrapping through it
+const RIM_BAND=90;
+function rimTurn(o){
+  const rx=o.x-OX,ry=o.y-OY,d=Math.sqrt(rx*rx+ry*ry)||1;if(d<R-RIM_BAND)return;
+  const vr=(o.vx*rx+o.vy*ry)/d;if(vr<=0)return;
+  const k=vr*(1-.93)*Math.min(1,(d-R+RIM_BAND)/(RIM_BAND*.5))/d;o.vx-=rx*k;o.vy-=ry*k;
+}
+// Clamp how far a velocity strays from the local orbital flow
+function capFlow(o,mv){
+  const L=(o.x-OX)*o.vy-(o.y-OY)*o.vx,f=orbitV(o.x,o.y,L>=0?1:-1),dx=o.vx-f[0],dy=o.vy-f[1],d2=dx*dx+dy*dy;
+  if(d2>mv*mv){const k=mv/Math.sqrt(d2);o.vx=f[0]+dx*k;o.vy=f[1]+dy*k;}
+}
+// ── Orbits ────────────────────────────────────────────────────────────────────
+// Laps of the hole are tracked and paid: each full sweep scores (double for a deep
+// lap, more again as laps chain), refunds a third of the push, and every third lap
+// in a chain lifts the multiplier. A fast, close pass by the hole is a slingshot.
+const SHIP_KR=.985,SHIP_KT=.996,SHIP_VMAX=7,PUSH_SPIN=.6;
+const ORBIT_PTS=150,SLING_PTS=200,PRED_N=120;
+let orbitChain=0;
+function slingR(){let r=0;for(const b of bodies)r=Math.max(r,b.hr*4.5);return r+40;}
+function trackOrbit(){
+  if(screensaver||!ship)return;
+  const rx=ship.x-OX,ry=ship.y-OY,d=Math.sqrt(rx*rx+ry*ry)||1,a=Math.atan2(ry,rx);
+  if(ship.oa===undefined){ship.oa=a;ship.sweep=0;ship.lapMin=d;ship.pvr=0;ship.slCd=0;return;}
+  let da=a-ship.oa;if(da>Math.PI)da-=TAU;else if(da<-Math.PI)da+=TAU;
+  ship.oa=a;
+  if(Math.abs(da)>.6){ship.sweep=0;ship.lapMin=d;return;} // wrapped through the rim or warped
+  ship.sweep+=da;ship.lapMin=Math.min(ship.lapMin,d);
+  if(Math.abs(ship.sweep)>=TAU){ship.sweep-=Math.sign(ship.sweep)*TAU;orbitDone(d);ship.lapMin=d;}
+  // Slingshot: periapsis near the hole while moving well above circular speed
+  const vr=(ship.vx*rx+ship.vy*ry)/d;
+  if(ship.slCd>0)ship.slCd--;
+  else if(ship.pvr<0&&vr>=0&&d<slingR()){const v=Math.hypot(ship.vx,ship.vy);if(v>circV(d,holeMass())*1.25)slingDone();}
+  ship.pvr=vr;
+}
+function orbitDone(d){
+  orbitChain++;STATS.orbits++;
+  const deep=ship.lapMin<R*.33,pts=(deep?ORBIT_PTS*2:ORBIT_PTS)*Math.min(orbitChain,5)*mult;
+  score+=pts;scoreVel+=pts;scoreVelT=18;
+  if(gCd>0){gCd=Math.max(0,gCd-Math.round(gMax*.35));if(gCd===0)gReady=14;}
+  popup(ship.x,ship.y-22,(deep?'DEEP ORBIT':'ORBIT')+(orbitChain>1?' ×'+orbitChain:'')+'  +'+pts,isColor()?P.lav:P.wht,true);
+  ring(OX,OY,d,.9,22,isColor()?P.lav:P.wht);
+  if(orbitChain%3===0){mult++;multT=240;multFlash=20;SFX.multUp();}else SFX.collectWarp();
+}
+function slingDone(){
+  ship.slCd=45;STATS.slings++;
+  const pts=SLING_PTS*mult;score+=pts;scoreVel+=pts;scoreVelT=18;
+  popup(ship.x,ship.y-20,'SLINGSHOT  +'+pts,P.yel,true);
+  sparks(ship.x,ship.y,Math.atan2(-ship.vy,-ship.vx),8,P.yel,3);addShake(2);SFX.collectSpread();
+}
+// Where the ship will coast with no input: dots fading out ahead, a red ring where
+// the path falls in, and a dashed arc round the hole showing this lap's progress
+function drawOrbitPath(){
+  if(!ship||screensaver||gameMode==='sentry'||!hasHole()||deathT>0)return;
+  const th=keys['ArrowUp']||keys['KeyW'],push=pulsarPushing(),o={x:ship.x,y:ship.y,vx:ship.vx,vy:ship.vy},col=isColor()?P.lav:P.wht;
+  G.save();G.fillStyle=col;
+  let hit=null;
+  for(let i=1;i<=PRED_N;i++){
+    grav(o,1);if(!push){circularize(o,SHIP_KR,SHIP_KT);capFlow(o,SHIP_VMAX);}
+    o.x+=o.vx;o.y+=o.vy;
+    if((o.x-OX)**2+(o.y-OY)**2>R*R)break;
+    if(inHole(o,4)){hit=o;break;}
+    if(i%4===0){G.globalAlpha=(1-i/PRED_N)*(th?.7:.3);G.beginPath();G.arc(o.x,o.y,i<24?1.5:1.1,0,TAU);G.fill();}
+  }
+  if(hit){G.globalAlpha=.55+.35*Math.sin(menuT*12);G.strokeStyle=P.red;G.lineWidth=1.5;G.beginPath();G.arc(hit.x,hit.y,7,0,TAU);G.stroke();}
+  const sw=ship.sweep||0;
+  if(Math.abs(sw)>.25){
+    const rx=ship.x-OX,ry=ship.y-OY,d=Math.hypot(rx,ry),a=Math.atan2(ry,rx);
+    G.globalAlpha=.12+.3*Math.abs(sw)/TAU;G.strokeStyle=col;G.lineWidth=1;G.setLineDash([3,6]);
+    G.beginPath();G.arc(OX,OY,d,sw>0?a-sw:a,sw>0?a:a-sw);G.stroke();G.setLineDash([]);
+  }
+  G.restore();
 }
 function inHole(o,pad){for(const b of bodies){const dx=o.x-b.x,dy=o.y-b.y;if(dx*dx+dy*dy<(b.hr+pad)**2)return b;}return null;}
 function tidalBody(r){for(const b of bodies){if(b.m<=0)continue;const rr=b.hr*4.5+r.r*.5,dx=r.x-b.x,dy=r.y-b.y;if(dx*dx+dy*dy<rr*rr)return b;}return null;}
@@ -1065,7 +1158,7 @@ function startGame(mode='arcade',ss=false,keepRun=false){
   gameMode=mode;gScreen='playing';paused=false;pauseSel=0;score=0;lives=RUN&&RUN.p.lives||3;level=1;invT=HYINV;gMax=RUN&&RUN.p.gcd||GCD;
   shootCd=0;mPlaceCd=0;sentryReadyT=0;streak=0;streakT=0;scoreVel=0;scoreVelT=0;
   shake=0;shakeX=0;shakeY=0;multFlash=0;newRecord=false;keys.Space=0;keys.Enter=0;
-  gCd=0;gPulse=0;warpCd=0;mult=1;multT=0;
+  gCd=0;gPulse=0;warpCd=0;mult=1;multT=0;orbitChain=0;
   minesH=0;activeMines=[];minePUs=[];spreadPUs=[];spreadT=0;
   hyperC=0;hypPUs=[];shieldActive=false;shieldT=0;
   gWells=[];comets=[];ufos=[];pulsers=[];swirls=[];hexes=[];particles=[];popups=[];if(gameMode==='quarantine')resetQRing();
@@ -1113,7 +1206,13 @@ function doGravity(){
   const fromC=screensaver||!ship||(gameMode==='sentry'&&!hasHole());
   const cx=fromC?OX:ship.x,cy=fromC?OY:ship.y;
   gPX=cx;gPY=cy;
-  const push=(o,m)=>{const dx=o.x-cx,dy=o.y-cy,d=Math.sqrt(dx*dx+dy*dy)||1;const s2=4.5*m*(1-Math.min(d/220,1));if(s2>0){o.vx+=dx/d*s2;o.vy+=dy/d*s2;if(o.sz)o.pf=9;}};
+  // With a hole, part of the shove turns prograde around it, so rocks are flung
+  // up into wider orbits and swirl instead of shooting straight at the rim
+  const spin=hasHole()&&!pulsarPushing()?PUSH_SPIN:0;
+  const push=(o,m)=>{const dx=o.x-cx,dy=o.y-cy,d=Math.sqrt(dx*dx+dy*dy)||1;const s2=4.5*m*(1-Math.min(d/220,1));if(s2>0){
+    o.vx+=dx/d*s2*(1-spin*.5);o.vy+=dy/d*s2*(1-spin*.5);
+    if(spin){const rx=o.x-OX,ry=o.y-OY,rd=Math.sqrt(rx*rx+ry*ry)||1,sg=rx*o.vy-ry*o.vx>=0?1:-1;o.vx+=-ry/rd*sg*s2*spin;o.vy+=rx/rd*sg*s2*spin;}
+    if(o.sz)o.pf=9;}};
   rocks.forEach(r=>push(r,1));comets.forEach(c=>push(c,.5));activeMines.forEach(m=>push(m,.35));minePUs.forEach(p=>push(p,.4));hypPUs.forEach(p=>push(p,.4));spreadPUs.forEach(p=>push(p,.4));
   if(!simple){const gpx=cx,gpy=cy;for(let i=0;i<14;i++){const a=Math.random()*TAU,s2=rn(1.5,5);particles.push({x:gpx,y:gpy,vx:Math.cos(a)*s2,vy:Math.sin(a)*s2,life:rn(14,40),col:P.mag,sz:1.6});}}
 }
@@ -1178,7 +1277,7 @@ function killShip(){
   }
   burst(ship.x,ship.y,14,isColor()?P.sky:P.wht,true);addShake(8);
   if(!simple)for(let i=0;i<3;i++)particles.push({x:ship.x,y:ship.y,vx:0,vy:0,life:10+i*5,col:isColor()?P.sky:P.wht,sz:1,ring:true,rr:20+i*18,grow:4+i*2});
-  mult=1;multT=0;
+  mult=1;multT=0;orbitChain=0;
   // Death gravity wave, pushes rocks outward, doesn't reset gCd
   {const sx=ship.x,sy=ship.y;rocks.forEach(r=>{const dx=r.x-sx,dy=r.y-sy,d=Math.sqrt(dx*dx+dy*dy)||1;const f=3.5*(1-Math.min(d/200,1));if(f>0){r.vx+=dx/d*f;r.vy+=dy/d*f;}});}
   // Dying clears warp charges and mine PU in arcade/sweep
@@ -1301,7 +1400,7 @@ function update(){
       if(keys['ArrowLeft']||keys['KeyA'])ship.a-=.07;
       if(keys['ArrowRight']||keys['KeyD'])ship.a+=.07;
       if(keys['ArrowUp']||keys['KeyW']){ship.vx+=Math.cos(ship.a)*.15;ship.vy+=Math.sin(ship.a)*.15;}
-      if(hasHole()&&!pulsarPushing()){const L=(ship.x-OX)*ship.vy-(ship.y-OY)*ship.vx,o=orbitV(ship.x,ship.y,L>=0?1:-1);ship.vx=o[0]+(ship.vx-o[0])*.985;ship.vy=o[1]+(ship.vy-o[1])*.985;}
+      if(hasHole()&&!pulsarPushing()){const th=keys['ArrowUp']||keys['KeyW'];circularize(ship,th?.996:SHIP_KR,th?1:SHIP_KT);capFlow(ship,SHIP_VMAX);}
       else{ship.vx*=.985;ship.vy*=.985;}
       ship.x+=ship.vx;ship.y+=ship.vy;wrapO(ship);
     }
@@ -1372,17 +1471,18 @@ function update(){
   // Central mass: pull everything, then tear and swallow
   if(hasHole()){
     updateBodies();
-    bullets.forEach(b=>grav(b,1));ufoBullets.forEach(b=>grav(b,1));
+    bullets.forEach(b=>grav(b,1.6));ufoBullets.forEach(b=>grav(b,1));
     rocks.forEach(r=>grav(r,1));comets.forEach(c=>grav(c,.6));
-    // Rocks settle slowly toward circular orbits and are speed-capped by size, so
-    // fragments flung from the well don't spray the rim
+    // Rocks settle slowly toward circular orbits and are capped by size against the
+    // orbital flow, so fragments flung from the well don't spray the rim but a
+    // pushed rock keeps its new, higher orbit
     for(const r of rocks){
-      if(!pulsarPushing()){const L=(r.x-OX)*r.vy-(r.y-OY)*r.vx,o=orbitV(r.x,r.y,L>=0?1:-1);r.vx=o[0]+(r.vx-o[0])*.996;r.vy=o[1]+(r.vy-o[1])*.996;}
-      const mv=RMAXV[r.sz],v2=r.vx*r.vx+r.vy*r.vy;if(v2>mv*mv){const k=mv/Math.sqrt(v2);r.vx*=k;r.vy*=k;}
+      if(!pulsarPushing()){circularize(r,.994,.997);rimTurn(r);}
+      capFlow(r,RMAXV[r.sz]);
     }
     ufos.forEach(u=>grav(u,.35));pulsers.forEach(o=>grav(o,.35));hexes.forEach(o=>grav(o,.35));swirls.forEach(o=>grav(o,.5));
-    activeMines.forEach(m=>grav(m,.6));minePUs.forEach(p=>grav(p,.5));hypPUs.forEach(p=>grav(p,.5));spreadPUs.forEach(p=>grav(p,.5));
-    if(ship&&gameMode!=='sentry')grav(ship,1);
+    activeMines.forEach(m=>grav(m,.6,0));minePUs.forEach(p=>grav(p,.5,0));hypPUs.forEach(p=>grav(p,.5,0));spreadPUs.forEach(p=>grav(p,.5,0));
+    if(ship&&gameMode!=='sentry'){grav(ship,1);trackOrbit();}
     swallowAll();
   }
   // Bullets
@@ -1774,6 +1874,7 @@ function drawGame(){
   G.save();G.translate(shakeX,shakeY);
   G.save();G.beginPath();G.arc(OX,OY,R,0,TAU);G.clip();
   drawBodies();
+  drawOrbitPath();
 
   // Gravity shockwave, from ship position, or field centre in sentry/screensaver
   if(gPulse>0){
@@ -2562,6 +2663,7 @@ function drawStats(){
     ['WARPS',  STATS.warpsUsed,  P.sky],
     ['SHIELDS',STATS.shields,    P.grn],
     ['MINES',  STATS.minesPlaced,P.yel],
+    ['ORBITS', STATS.orbits,     P.lav],
   ];
   actionRows.forEach(([lbl,val,col],i)=>{
     const ay=actY+lsp(16)+i*lsp(20);
