@@ -58,19 +58,19 @@ html.mobile .tc-deck{display:flex}
 <canvas id="c"></canvas>
 <div class="tc-deck">
   <div class="tc-side">
-    <button class="tc-btn" id="btn-thrust" data-key="ArrowUp" aria-label="Thrust">▲</button>
+    <button class="tc-btn" id="btn-thrust" data-act="thrust" aria-label="Thrust">▲</button>
     <div class="tc-row">
-      <button class="tc-btn" id="btn-rotL" data-key="ArrowLeft" aria-label="Rotate left">◀</button>
-      <button class="tc-btn" id="btn-rotR" data-key="ArrowRight" aria-label="Rotate right">▶</button>
+      <button class="tc-btn" id="btn-rotL" data-act="left" aria-label="Rotate left">◀</button>
+      <button class="tc-btn" id="btn-rotR" data-act="right" aria-label="Rotate right">▶</button>
     </div>
   </div>
-  <button class="tc-btn small" id="btn-pause" data-key="KeyX" aria-label="Pause">II</button>
+  <button class="tc-btn small" id="btn-pause" data-act="pause" aria-label="Pause">II</button>
   <div class="tc-side">
     <div class="tc-row">
-      <button class="tc-btn small" id="btn-grav" data-key="KeyV" aria-label="Gravity push">V</button>
-      <button class="tc-btn small" id="btn-warp" data-key="KeyC" aria-label="Warp / shield">C</button>
+      <button class="tc-btn small" id="btn-grav" data-act="push" aria-label="Gravity push">V</button>
+      <button class="tc-btn small" id="btn-warp" data-act="warp" aria-label="Warp / shield">C</button>
     </div>
-    <button class="tc-btn big" id="btn-fire" data-key="Space" aria-label="Fire">●</button>
+    <button class="tc-btn big" id="btn-fire" data-act="fire" aria-label="Fire">●</button>
   </div>
 </div>
 <script>
@@ -169,13 +169,13 @@ const SFX_VOL={shot:.3,menuNav:.28,menuSelect:.45,crash:.28,explodeS:.42,explode
   gameOver:.8,destroyed:.8,gravPush:.75,mineDrop:.3,hexMine:.35,ufo:.5,pulserPulse:.45,swallow:.55,tidal:.5,cometHit:.5,multUp:.5};
 const SFX_JIT={shot:.06,explodeS:.08,explodeM:.06,explodeL:.05,crash:.1,cometHit:.06,tidal:.08,mineDrop:.08,swallow:.06};
 const SFX_GAP={crash:220,tidal:90,swallow:140,cometHit:60,explodeS:60}; // ms between repeats
-let sfxOn=true,AC=null,master=null;
+let AC=null,master=null;
 const BUF={},_sfxLast={};
 // Browsers only allow audio after a tap or key press, so the mixer starts on the first one
 function audioUnlock(){
   if(AC){if(AC.state==='suspended')AC.resume();return;}
   const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
-  AC=new C();master=AC.createGain();master.gain.value=.8;master.connect(AC.destination);
+  AC=new C();master=AC.createGain();master.gain.value=vol/10;master.connect(AC.destination);
   for(const k in SFX_DATA){
     const bin=atob(SFX_DATA[k]),u=new Uint8Array(bin.length);
     for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
@@ -186,7 +186,7 @@ document.addEventListener('pointerdown',audioUnlock,true);
 document.addEventListener('keydown',audioUnlock,true);
 document.addEventListener('touchstart',audioUnlock,true);
 function sfx(name){
-  if(!sfxOn||!AC||!BUF[name])return;
+  if(!vol||!AC||!BUF[name])return;
   const now=performance.now();
   if(now-(_sfxLast[name]||0)<(SFX_GAP[name]||45))return; // one copy per burst, not ten stacked
   _sfxLast[name]=now;
@@ -201,9 +201,40 @@ function playExplode(sz=2){if(sz>=4)SFX.explodeL();else if(sz>=3)SFX.explodeM();
 // Glow comes from one bloom pass over the whole frame (see bloom()). Simple mode,
 // an opt-in low-power toggle in Options, skips it.
 let simple=false;
-function addShake(n){shake=Math.max(shake,n);}
+// Options. starsMode and guide are 0 full / 1 reduced / 2 off.
+let vol=8,lensOn=true,starsMode=0,shakeOn=true,flashOn=true,guide=0;
+function setVol(v){vol=v;if(master)master.gain.value=vol/10;}
+function addShake(n){if(shakeOn)shake=Math.max(shake,n);}
 function freeze(n){hitStop=Math.max(hitStop,n);}
-function flash(col,n){flashCol=col;flashT=Math.max(flashT,n);}
+function flash(col,n){if(flashOn){flashCol=col;flashT=Math.max(flashT,n);}}
+
+// ── Key bindings ──────────────────────────────────────────────────────────────
+// Every in-play action reads its keys from BINDS (two slots each), editable in
+// Options > Key bindings. Menus always answer to arrows / WASD, Enter / Space,
+// Esc and Backspace, and Esc always pauses, so no binding can lock you out.
+const ACTIONS=[['left','ROTATE LEFT'],['right','ROTATE RIGHT'],['thrust','THRUST'],['fire','FIRE'],['push','GRAVITY PUSH'],['warp','WARP / SHIELD'],['shield','SHIELD'],['pause','PAUSE']];
+const BIND_DEF={left:['ArrowLeft','KeyA'],right:['ArrowRight','KeyD'],thrust:['ArrowUp','KeyW'],fire:['Space','KeyJ'],push:['KeyV','KeyK'],warp:['KeyC','KeyL'],shield:['KeyE',''],pause:['KeyX','KeyP']};
+const copyBinds=b=>JSON.parse(JSON.stringify(b));
+let BINDS=copyBinds(BIND_DEF);
+const MENU_KEYS=new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','Space','Enter','NumpadEnter','Escape','Backspace','Delete']);
+const latch=new Set(); // keys pressed since the last update, so a tap shorter than a tick still counts
+const tcAct={};        // actions held on the touch deck
+function act(a){
+  if(tcAct[a])return true;
+  const b=BINDS[a];if(!b)return false;
+  for(const k of b)if(k&&(keys[k]||latch.has(k)))return true;
+  return false;
+}
+function actOf(c){if(!c)return null;for(const[a]of ACTIONS)if(BINDS[a].includes(c))return a;return null;}
+const KEY_NAMES={ArrowLeft:'←',ArrowRight:'→',ArrowUp:'↑',ArrowDown:'↓',Space:'SPACE',Enter:'ENTER',NumpadEnter:'NUM ENTER',Escape:'ESC',Backspace:'BKSP',Delete:'DEL',Tab:'TAB',
+  ShiftLeft:'L SHIFT',ShiftRight:'R SHIFT',ControlLeft:'L CTRL',ControlRight:'R CTRL',AltLeft:'L ALT',AltRight:'R ALT',CapsLock:'CAPS',
+  Semicolon:';',Quote:"'",Comma:',',Period:'.',Slash:'/',Backslash:'\\',BracketLeft:'[',BracketRight:']',Minus:'-',Equal:'=',Backquote:'`'};
+function keyName(c){
+  if(!c)return '—';if(KEY_NAMES[c])return KEY_NAMES[c];
+  if(c.startsWith('Key'))return c.slice(3);if(c.startsWith('Digit'))return c.slice(5);
+  if(c.startsWith('Numpad'))return 'NUM '+c.slice(6).toUpperCase();
+  return c.toUpperCase();
+}
 function ring(x,y,r0,grow,life,col){if(simple)return;particles.push({x,y,vx:0,vy:0,life,col,sz:1,ring:true,rr:r0,grow});}
 // Directional spray of short streaks
 function sparks(x,y,ang,n,col,sp=4){
@@ -241,28 +272,48 @@ function shatter(x,y,pts,col,speed=3){
 
 
 // ── Starfield ─────────────────────────────────────────────────────────────────
-// Drawn straight into the main canvas each frame: the stars actually drift now,
-// and they stay sharp at device resolution.
-const SD=['#3a2a6e','#5a1a2a','#1a3a2a','#1a2a5a','#3a1a6e','#2a1a3a','#1a2a3a','#3a1a2a'];
-function mkStar(){
-  const a=Math.random()*TAU,d=rn(3,R*.93),c=SD[ri(0,8)],op=rn(.35,.80);
-  const rgba=`rgba(${parseInt(c.slice(1,3),16)},${parseInt(c.slice(3,5),16)},${parseInt(c.slice(5,7),16)},${op})`;
-  return{x:OX+Math.cos(a)*d,y:OY+Math.sin(a)*d,a,sp:Math.max(.01,rn(.007,.048)*(d/R)),r:rn(.5,1.8),rgba};
-}
-const STARS=Array.from({length:75},mkStar);
+// Three depth layers wheel slowly round the centre in the same sense the rocks
+// orbit, the near ones faster, so the sky turns with the disc. Stars twinkle, a
+// faint two-armed nebula drifts behind them, and the hole and the push wave bend
+// their light. Positions come from the (interpolated) clock, so they move
+// smoothly in menus as well as in play.
+const STAR_COLS=['#9a82ff','#ff7d9a','#7ddcaa','#8cb5ed','#e4dbf0','#f1e038','#ffffff'];
+const STAR_LAYERS=[{n:90,r:[.35,.8],al:[.22,.5],w:.014},{n:46,r:[.6,1.2],al:[.4,.7],w:.026},{n:16,r:[1,1.8],al:[.65,.95],w:.045}];
+const STARS=[];
+STAR_LAYERS.forEach((L,k)=>{for(let i=0;i<L.n;i++)STARS.push({a0:Math.random()*TAU,d:R*.985*Math.sqrt(Math.random()),k,r:rn(L.r[0],L.r[1]),al:rn(L.al[0],L.al[1]),
+  w:L.w*rn(.85,1.15),tw:rn(1.2,3.6),ph:Math.random()*TAU,col:STAR_COLS[k===0?ri(0,4):ri(0,STAR_COLS.length)]});});
+// Nebula: soft blobs along two spiral arms, painted once at low resolution
+const NEB=(()=>{
+  const n=256,h=n/2,c=document.createElement('canvas');c.width=c.height=n;const g=c.getContext('2d');
+  const tint=[[43,101,226],[197,35,172],[200,35,42],[140,181,237]];
+  for(let arm=0;arm<2;arm++)for(let i=0;i<30;i++){
+    const t=i/30,a=arm*Math.PI+t*3.6,d=h*(.08+t*.86),x=h+Math.cos(a)*d,y=h+Math.sin(a)*d,rad=h*(.1+.16*(1-t)),[cr,cg,cb]=tint[(i+arm*2)%4];
+    const rg=g.createRadialGradient(x,y,0,x,y,rad);rg.addColorStop(0,`rgba(${cr},${cg},${cb},${.07+.05*(1-t)})`);rg.addColorStop(1,`rgba(${cr},${cg},${cb},0)`);
+    g.fillStyle=rg;g.fillRect(x-rad,y-rad,rad*2,rad*2);
+  }
+  const core=g.createRadialGradient(h,h,0,h,h,h*.3);core.addColorStop(0,'rgba(228,219,240,.1)');core.addColorStop(1,'rgba(228,219,240,0)');g.fillStyle=core;g.fillRect(0,0,n,n);
+  return c;
+})();
 function drawStars(alpha,ripple=0,lens=false){
+  if(starsMode===2)return;
+  if(starsMode===1)alpha*=.55;
   G.save();G.beginPath();G.arc(OX,OY,R,0,TAU);G.clip();
-  G.globalAlpha=alpha;G.lineCap='round';
+  const t=menuT;
+  if(starsMode===0&&!simple){G.save();G.globalAlpha=Math.min(.3,alpha*.75);G.translate(OX,OY);G.rotate(-t*.01);G.drawImage(NEB,-R,-R,R*2,R*2);G.restore();}
+  G.lineCap='round';
   for(const s of STARS){
-    const dx=s.x-OX,dy=s.y-OY,fr=Math.sqrt(dx*dx+dy*dy)/R,sl=fr*fr*s.sp*380;
-    let x=s.x,y=s.y;
+    const a=s.a0-s.w*t;let x=OX+Math.cos(a)*s.d,y=OY+Math.sin(a)*s.d;
     if(ripple){ // push wave shoves stars outward as it passes
       const qx=x-gPX,qy=y-gPY,qd=Math.sqrt(qx*qx+qy*qy)||1,k=1-Math.abs(qd-ripple)/40;
       if(k>0){x+=qx/qd*k*8;y+=qy/qd*k*8;}
     }
     if(lens){let hid=false;for(const b of bodies){const lx=x-b.x,ly=y-b.y,ld=Math.sqrt(lx*lx+ly*ly)||1,lr=b.hr*5;if(ld<b.hr*1.2){hid=true;break;}if(ld<lr){const k=(lr-ld)/lr;x+=lx/ld*k*b.hr*1.6;y+=ly/ld*k*b.hr*1.6;}}if(hid)continue;}
-    if(sl>1.1){G.strokeStyle=s.rgba;G.lineWidth=s.r*.55;G.beginPath();G.moveTo(x-Math.cos(s.a)*sl,y-Math.sin(s.a)*sl);G.lineTo(x,y);G.stroke();}
-    else{G.fillStyle=s.rgba;G.beginPath();G.arc(x,y,Math.max(.3,s.r*(fr*.5+.5)),0,TAU);G.fill();}
+    const tw=simple?1:.68+.32*Math.sin(t*s.tw+s.ph);
+    G.globalAlpha=alpha*s.al*tw;G.fillStyle=s.col;
+    if(s.r<.9)G.fillRect(x-s.r,y-s.r,s.r*2,s.r*2);
+    else{G.beginPath();G.arc(x,y,s.r,0,TAU);G.fill();}
+    // The brightest near stars glint as they peak
+    if(s.k===2&&tw>.9&&!simple){const gl=2+(tw-.9)*50;G.strokeStyle=s.col;G.lineWidth=.6;G.beginPath();G.moveTo(x-gl,y);G.lineTo(x+gl,y);G.moveTo(x,y-gl);G.lineTo(x,y+gl);G.stroke();}
   }
   G.restore();
 }
@@ -274,7 +325,7 @@ function statRock(sz){if(sz>=1&&sz<=5)STATS.rocks[sz]++;}
 function recScore(v,mode){const t=LB[mode];t.push(v);t.sort((a,b)=>b-a);t.length=Math.min(t.length,10);}
 // Scores, lifetime stats and options persist between visits.
 const SAVE_KEY='oumuamua.v1';
-function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({lb:LB,stats:screensaver&&ssStats?JSON.parse(ssStats):STATS,opt:{simple,sfx:sfxOn},camp:CAMP}));}catch(e){}}
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({lb:LB,stats:screensaver&&ssStats?JSON.parse(ssStats):STATS,opt:{simple,vol,lens:lensOn,stars:starsMode,shake:shakeOn,flash:flashOn,guide,binds:BINDS},camp:CAMP}));}catch(e){}}
 function loadSave(){try{
   const d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(!d)return;
   if(d.lb)for(const k in LB)if(Array.isArray(d.lb[k]))LB[k]=d.lb[k].filter(Number.isFinite).slice(0,10);
@@ -282,7 +333,13 @@ function loadSave(){try{
     if(k==='rocks'){if(Array.isArray(d.stats.rocks))STATS.rocks=[0,1,2,3,4,5].map(i=>+d.stats.rocks[i]||0);}
     else if(Number.isFinite(d.stats[k]))STATS[k]=d.stats[k];
   }
-  if(d.opt){simple=!!d.opt.simple;sfxOn=d.opt.sfx!==false;}
+  if(d.opt){
+    const o=d.opt,tri=v=>v===0||v===1||v===2;
+    simple=!!o.simple;vol=Number.isFinite(o.vol)?Math.max(0,Math.min(10,o.vol|0)):o.sfx===false?0:8;
+    lensOn=o.lens!==false;shakeOn=o.shake!==false;flashOn=o.flash!==false;
+    if(tri(o.stars))starsMode=o.stars;if(tri(o.guide))guide=o.guide;
+    if(o.binds)for(const[a]of ACTIONS){const b=o.binds[a];if(Array.isArray(b)&&b.length===2&&b.every(k=>typeof k==='string'))BINDS[a]=b.slice();}
+  }
   if(d.camp&&typeof d.camp==='object')for(const k in d.camp){const i=+k,v=d.camp[k]|0;if(i>=0&&i<35)CAMP[i]=v&7;}
 }catch(e){}}
 
@@ -655,6 +712,7 @@ function capFlow(o,mv){
 // Laps of the hole are tracked and paid: each full sweep scores (double for a deep
 // lap, more again as laps chain), refunds a third of the push, and every third lap
 // in a chain lifts the multiplier. A fast, close pass by the hole is a slingshot.
+const ROT_MIN=.04,ROT_MAX=.075,ROT_RAMP=5;
 const SHIP_KR=.985,SHIP_KT=.996,SHIP_VMAX=7,PUSH_SPIN=.6;
 const ORBIT_PTS=150,SLING_PTS=200,PRED_N=120;
 let orbitChain=0;
@@ -693,7 +751,8 @@ function slingDone(){
 // the path falls in, and a dashed arc round the hole showing this lap's progress
 function drawOrbitPath(){
   if(!ship||screensaver||gameMode==='sentry'||!hasHole()||deathT>0)return;
-  const th=keys['ArrowUp']||keys['KeyW'],push=pulsarPushing(),o={x:ship.x,y:ship.y,vx:ship.vx,vy:ship.vy},col=isColor()?P.lav:P.wht;
+  if(guide===2)return;
+  const th=act('thrust'),push=pulsarPushing(),o={x:ship.x,y:ship.y,vx:ship.vx,vy:ship.vy},col=isColor()?P.lav:P.wht;
   G.save();G.fillStyle=col;
   let hit=null;
   for(let i=1;i<=PRED_N;i++){
@@ -705,7 +764,7 @@ function drawOrbitPath(){
   }
   if(hit){G.globalAlpha=.55+.35*Math.sin(menuT*12);G.strokeStyle=P.red;G.lineWidth=1.5;G.beginPath();G.arc(hit.x,hit.y,7,0,TAU);G.stroke();}
   const sw=ship.sweep||0;
-  if(Math.abs(sw)>.25){
+  if(guide===0&&Math.abs(sw)>.25){
     const rx=ship.x-OX,ry=ship.y-OY,d=Math.hypot(rx,ry),a=Math.atan2(ry,rx);
     G.globalAlpha=.12+.3*Math.abs(sw)/TAU;G.strokeStyle=col;G.lineWidth=1;G.setLineDash([3,6]);
     G.beginPath();G.arc(OX,OY,d,sw>0?a-sw:a,sw>0?a:a-sw);G.stroke();G.setLineDash([]);
@@ -880,8 +939,7 @@ let menuBack=['',1]; // where quitting a game returns to
 let menuScoreMode='arcade'; // which mode scores to show in bg
 
 // ── Input ─────────────────────────────────────────────────────────────────────
-const GAME_KEYS=new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Enter','Escape','KeyW','KeyA','KeyS','KeyD','KeyV','KeyC','KeyE','KeyX','KeyP']);
-function releaseAll(){for(const k in keys)keys[k]=0;document.querySelectorAll('.tc-btn.pressed').forEach(b=>b.classList.remove('pressed'));}
+function releaseAll(){for(const k in keys)keys[k]=0;for(const a in tcAct)tcAct[a]=false;latch.clear();document.querySelectorAll('.tc-btn.pressed').forEach(b=>b.classList.remove('pressed'));}
 function backToMenu(sub,sel){gScreen='menu';subMenu=sub;menuSel=sel;paused=false;RUN=null;}
 function exitScreensaver(){
   screensaver=false;
@@ -904,16 +962,39 @@ function chooseMenu(i){
     else if(i===1){gScreen='scores';scoreSel=0;}
     else if(i===2)gScreen='stats';
     else if(i===3)startGame('arcade',true);
-    else if(i===4)gScreen='controls';
+    else if(i===4){if(isMobile)gScreen='controls';else openBinds('extra');}
     else if(i===5)gScreen='credits';
     else backToMenu('',3);
   }
 }
 function chooseOption(i){
   const r=optRows()[i];
-  if(r==='simple'){simple=!simple;save();}
-  else if(r==='sfx'){sfxOn=!sfxOn;save();}
-  else leaveOptions();
+  if(r==='keys')openBinds('options');
+  else if(r==='back')leaveOptions();
+  else if(r==='vol'){setVol((vol+1)%11);SFX.menuNav();save();}
+  else optStep(r,1);
+}
+function optStep(k,d){
+  if(k==='vol'){const v=Math.max(0,Math.min(10,vol+d));if(v!==vol){setVol(v);SFX.menuNav();save();}return;}
+  const O=OPT[k];if(!O||!O.vals)return;
+  const n=O.vals.length;O.set((O.get()+d+n)%n);SFX.menuNav();save();
+}
+// ── Key binding panel ─────────────────────────────────────────────────────────
+let bindSel=0,bindSlot=0,bindCap=false,bindFrom='options',bindMsg=null;
+function openBinds(from){bindFrom=from;gScreen='binds';bindSel=0;bindSlot=0;bindCap=false;bindMsg=null;}
+function leaveBinds(){bindCap=false;if(bindFrom==='options'){gScreen='options';optSel=optRows().indexOf('keys');}else backToMenu('extra',4);}
+function bindChoose(){
+  if(bindSel<ACTIONS.length){bindCap=true;SFX.menuSelect();}
+  else if(bindSel===ACTIONS.length){BINDS=copyBinds(BIND_DEF);save();SFX.menuSelect();bindMsg={txt:'DEFAULTS RESTORED',t:75};}
+  else leaveBinds();
+}
+// The next key pressed takes the selected slot; it leaves any other slot it held
+function captureKey(c){
+  bindCap=false;
+  if(c==='Escape'||/^(Meta|OS)/.test(c))return;
+  const a=ACTIONS[bindSel][0];
+  for(const[b,lbl]of ACTIONS)BINDS[b].forEach((k,i)=>{if(k===c&&!(b===a&&i===bindSlot)){BINDS[b][i]='';if(b!==a)bindMsg={txt:keyName(c)+' MOVED FROM '+lbl,t:90};}});
+  BINDS[a][bindSlot]=c;save();SFX.menuSelect();
 }
 function leaveOptions(){
   if(optFrom==='pause'){gScreen='playing';paused=true;pauseSel=2;}
@@ -924,27 +1005,36 @@ function leaveOptions(){
 function handleKey(c){
   const up=c==='ArrowUp'||c==='KeyW',down=c==='ArrowDown'||c==='KeyS';
   const left=c==='ArrowLeft'||c==='KeyA',right=c==='ArrowRight'||c==='KeyD';
-  const ok=c==='Space'||c==='Enter',back=c==='Escape'||c==='KeyX';
+  const ok=c==='Space'||c==='Enter'||c==='NumpadEnter',back=c==='Escape'||c==='KeyX'||c==='Backspace';
   if(gScreen==='playing'){
-    if(screensaver){if(c==='KeyV')doGravity();else exitScreensaver();return;}
-    if(c==='KeyX'||c==='Escape'||c==='KeyP'){if(paused)paused=false;else pauseGame();return;}
+    const a=actOf(c);
+    if(screensaver){if(a==='push')doGravity();else exitScreensaver();return;}
+    if(c==='Escape'||a==='pause'){if(paused)paused=false;else pauseGame();return;}
     if(paused){
-      if(up)pauseSel=(pauseSel+2)%3;
-      else if(down)pauseSel=(pauseSel+1)%3;
+      if(up){pauseSel=(pauseSel+2)%3;SFX.menuNav();}
+      else if(down){pauseSel=(pauseSel+1)%3;SFX.menuNav();}
       else if(ok)choosePause(pauseSel);
+      else if(c==='Backspace')paused=false;
       return;
     }
-    if(c==='Space'){fireBullet();shootCd=12;}
-    else if(c==='KeyV'){if(gameMode!=='purist')doGravity();}
-    else if(c==='KeyC'){if(gameMode==='purist'||gameMode==='sentry')doPuristWarp();else doHyperOrShield();}
-    else if(c==='KeyE'){if(gameMode!=='purist'&&gameMode!=='sentry')doShield();}
+    doAction(a);
+    return;
+  }
+  if(gScreen==='binds'){
+    const n=ACTIONS.length+2;
+    if(up){bindSel=(bindSel-1+n)%n;SFX.menuNav();}
+    else if(down){bindSel=(bindSel+1)%n;SFX.menuNav();}
+    else if((left||right)&&bindSel<ACTIONS.length){bindSlot=left?0:1;SFX.menuNav();}
+    else if(ok)bindChoose();
+    else if((c==='Delete'||c==='Backspace')&&bindSel<ACTIONS.length){BINDS[ACTIONS[bindSel][0]][bindSlot]='';save();SFX.menuNav();}
+    else if(c==='Escape'||c==='KeyX')leaveBinds();
     return;
   }
   if(gScreen==='over'){
     if(overT>0)return; // a held fire button can't skip the result screen
     const n=MENUS.over.length;
-    if(up)menuSel=(menuSel-1+n)%n;
-    else if(down)menuSel=(menuSel+1)%n;
+    if(up){menuSel=(menuSel-1+n)%n;SFX.menuNav();}
+    else if(down){menuSel=(menuSel+1)%n;SFX.menuNav();}
     else if(ok){SFX.menuSelect();if(!menuSel){if(RUN)startPlanet(RUN.id);else startGame(gameMode);}else{if(RUN)openMap();else backToMenu(...menuBack);}}
     return;
   }
@@ -955,7 +1045,7 @@ function handleKey(c){
     return;
   }
   if(gScreen==='brief'){
-    if(up||down)briefSel^=1;
+    if(up||down){briefSel^=1;SFX.menuNav();}
     else if(ok){if(briefSel===1)gScreen='map';else if(unlocked(mapSel)){SFX.menuSelect();startPlanet(mapSel);}}
     else if(back)gScreen='map';
     return;
@@ -969,27 +1059,44 @@ function handleKey(c){
     return;
   }
   if(gScreen==='options'){
-    const rows=optRows();
-    if(up)optSel=(optSel-1+rows.length)%rows.length;
-    else if(down)optSel=(optSel+1)%rows.length;
-    else if(ok||((left||right)&&rows[optSel]!=='back'))chooseOption(optSel);
+    const rows=optRows(),r=rows[optSel];
+    if(up){optSel=(optSel-1+rows.length)%rows.length;SFX.menuNav();}
+    else if(down){optSel=(optSel+1)%rows.length;SFX.menuNav();}
+    else if((left||right)&&(r==='vol'||OPT[r]&&OPT[r].vals))optStep(r,left?-1:1);
+    else if(ok)chooseOption(optSel);
     else if(back)leaveOptions();
     return;
   }
   if(gScreen==='scores'){
-    if(left)scoreSel=(scoreSel+4)%5;
-    else if(right)scoreSel=(scoreSel+1)%5;
+    if(left){scoreSel=(scoreSel+4)%5;SFX.menuNav();}
+    else if(right){scoreSel=(scoreSel+1)%5;SFX.menuNav();}
     else if(ok||back)backToMenu('extra',1);
     return;
   }
   if(ok||back)backToMenu('extra',gScreen==='stats'?2:gScreen==='credits'?5:4); // stats / controls / credits
 }
 
+// In-play actions fire once per press (auto-repeat used to burn warps and
+// double-fire); in menus, holding a direction repeats it.
+function doAction(a){
+  if(a==='fire'){fireBullet();shootCd=12;}
+  else if(a==='push'){if(gameMode!=='purist'){if(gCd>0)inBuf.push=8;else doGravity();}}
+  else if(a==='warp'){if(gameMode==='purist'||gameMode==='sentry'){if(warpCd>0)inBuf.warp=8;else doPuristWarp();}else doHyperOrShield();}
+  else if(a==='shield'){if(gameMode!=='purist'&&gameMode!=='sentry')doShield();}
+}
+const inBuf={push:0,warp:0}; // a push or warp pressed just before it recharges goes off when it does
+function menuRepeat(c){
+  const ud=c==='ArrowUp'||c==='ArrowDown'||c==='KeyW'||c==='KeyS',lr=c==='ArrowLeft'||c==='ArrowRight'||c==='KeyA'||c==='KeyD';
+  if(ud&&gScreen!=='scores'||lr&&(gScreen==='map'||gScreen==='scores'||gScreen==='options'&&optRows()[optSel]==='vol'))handleKey(c);
+}
 document.addEventListener('keydown',e=>{
-  if(e.ctrlKey||e.metaKey||e.altKey||!GAME_KEYS.has(e.code))return;
+  const mod=/^(Control|Alt|Meta|OS)/.test(e.code);
+  if((e.ctrlKey||e.metaKey||e.altKey)&&!mod)return; // leave browser shortcuts alone
+  if(bindCap){e.preventDefault();if(!e.repeat)captureKey(e.code);return;}
+  if(!actOf(e.code)&&!MENU_KEYS.has(e.code))return;
   e.preventDefault();keys[e.code]=1;
-  if(e.repeat)return; // auto-repeat used to burn warps and double-fire
-  requestFS();handleKey(e.code);
+  if(e.repeat){if(gScreen!=='playing'||paused)menuRepeat(e.code);return;}
+  latch.add(e.code);requestFS();handleKey(e.code);
 });
 document.addEventListener('keyup',e=>{keys[e.code]=0;});
 window.addEventListener('blur',()=>{releaseAll();pauseGame();});
@@ -998,15 +1105,15 @@ window.addEventListener('pagehide',save);
 
 // ── Touch controls ────────────────────────────────────────────────────────────
 // Real DOM buttons in the deck below the canvas; menus are tapped directly.
-function tcActivate(key,down){
-  keys[key]=down?1:0;
+function tcActivate(a,down){
+  tcAct[a]=down;
   if(!down||gScreen!=='playing')return;
   if(screensaver){exitScreensaver();return;}
-  if(key==='KeyX'){if(paused)paused=false;else pauseGame();return;}
-  if(!paused)handleKey(key);
+  if(a==='pause'){if(paused)paused=false;else pauseGame();return;}
+  if(!paused)doAction(a);
 }
 function wireTCBtn(el){
-  const key=el.dataset.key;
+  const key=el.dataset.act;
   const dn=e=>{e.preventDefault();e.stopPropagation();requestFS();el.classList.add('pressed');tcActivate(key,true);};
   const up=e=>{e.preventDefault();e.stopPropagation();el.classList.remove('pressed');tcActivate(key,false);};
   el.addEventListener('pointerdown',dn,{passive:false});
@@ -1046,13 +1153,20 @@ function overLayout(){
     ?{topY,label:topY+56,score:topY+130,rec:topY+180,sep:topY+204,items:topY+254}
     :{topY,label:topY+36,score:topY+86,rec:topY+108,sep:topY+122,items:topY+160};
 }
-function optRows(){return['simple','sfx','back'];}
-function optYs(){
-  const sp=isMobile?78:56,base=OY-R*.35,n=optRows().length,ys=[];
-  for(let i=0;i<n-1;i++)ys.push(base+i*sp);
-  ys.push(base+(n-1)*sp+12);
-  return ys;
-}
+function optRows(){return isMobile?['simple','lens','stars','shake','flash','guide','vol','back']:['simple','lens','stars','shake','flash','guide','vol','keys','back'];}
+function optSp(){return isMobile?44:30;}
+function optYs(){const sp=optSp(),base=OY-R*(isMobile?.46:.42);return optRows().map((r,i)=>base+i*sp+(r==='back'?10:0));}
+const VOL_X0=OX+R*.1,VOL_X1=OX+R*.4;
+const OPT={
+  simple:{label:'SIMPLE MODE',vals:['OFF','ON'],cols:[P.grn,P.mag],get:()=>+simple,set:v=>{simple=!!v;},desc:['Full glow, particles and effects','Flat drawing, best performance']},
+  lens:{label:'RIM LENS',vals:['OFF','ON'],cols:[P.red,P.grn],get:()=>+lensOn,set:v=>{lensOn=!!v;},desc:['The rim of the field stays flat','The rim bends light like a gravity lens']},
+  stars:{label:'STARFIELD',vals:['FULL','DIM','OFF'],cols:[P.grn,P.yel,P.red],get:()=>starsMode,set:v=>{starsMode=v;},desc:['Turning stars and a drifting nebula','Fainter stars, no nebula','A plain black sky']},
+  shake:{label:'SCREEN SHAKE',vals:['OFF','ON'],cols:[P.red,P.grn],get:()=>+shakeOn,set:v=>{shakeOn=!!v;},desc:['The camera holds still','Impacts shake the camera']},
+  flash:{label:'SCREEN FLASHES',vals:['OFF','ON'],cols:[P.red,P.grn],get:()=>+flashOn,set:v=>{flashOn=!!v;},desc:['No full-screen flashes','Big hits flash the screen']},
+  guide:{label:'ORBIT GUIDE',vals:['FULL','PATH','OFF'],cols:[P.grn,P.yel,P.red],get:()=>guide,set:v=>{guide=v;},desc:['Predicted path and lap progress arc','Predicted path only','No orbit guide']},
+  vol:{label:'SOUND VOLUME',desc:()=>vol?'Sound effects at '+vol*10+'%':'Sound off'},
+  keys:{label:'KEY BINDINGS',desc:()=>'Two keys for every action  ·  click or press Enter'},
+};
 function scoreTabs(){
   const y1=OY-R*.62,y2=y1+lsp(22);
   return[{i:0,x:OX-R*.52,y:y1},{i:1,x:OX,y:y1},{i:2,x:OX+R*.52,y:y1},{i:3,x:OX-R*.26,y:y2},{i:4,x:OX+R*.26,y:y2}];
@@ -1085,7 +1199,7 @@ function tapAt(x,y){
   }
   if(gScreen==='options'){
     const ys=optYs();
-    for(let i=0;i<ys.length;i++)if(Math.abs(y-ys[i])<lsp(26)){optSel=i;chooseOption(i);return;}
+    for(let i=0;i<ys.length;i++)if(Math.abs(y-ys[i])<optSp()/2){optSel=i;if(optRows()[i]==='vol'&&x>VOL_X0-12)volAt(x);else chooseOption(i);return;}
     return;
   }
   if(gScreen==='scores'){
@@ -1104,6 +1218,76 @@ CVS.addEventListener('touchstart',e=>{
   }
   const r2=CVS.getBoundingClientRect();
   tapAt((t.clientX-r2.left)*(S/r2.width),(t.clientY-r2.top)*(S/r2.height));
+},{passive:false});
+// ── Mouse (menus only; flying stays on the keys) ──────────────────────────────
+// Hover selects, left click confirms, right click or the back button goes back,
+// the wheel steps through lists. The cursor hides while you play.
+function canvasXY(e){const r2=CVS.getBoundingClientRect();return[(e.clientX-r2.left)*(S/r2.width),(e.clientY-r2.top)*(S/r2.height)];}
+function volAt(x){const v=Math.round(Math.max(0,Math.min(1,(x-VOL_X0)/(VOL_X1-VOL_X0)))*10);if(v!==vol){setVol(v);SFX.menuNav();save();}}
+// What a pointer at (x,y) lands on in the current screen, or null
+function pickAt(x,y){
+  const inCol=Math.abs(x-OX)<R*.62;
+  if(gScreen==='playing'){if(!paused||screensaver)return null;const i=hitRow(y,OY-PAUSE_SP,PAUSE_SP,3);return i>=0&&inCol?{k:'pause',i}:null;}
+  if(gScreen==='over'){const i=hitRow(y,overLayout().items,OVER_SP,MENUS.over.length);return i>=0&&inCol?{k:'over',i}:null;}
+  if(gScreen==='menu'){const L=menuLayout(),i=hitRow(y,L.start,MENU_SP,L.items.length);return i>=0&&inCol?{k:'menu',i}:null;}
+  if(gScreen==='map'){let hit=-1,bd=26*26;NODES.forEach((N,i)=>{const d=(N.x-x)**2+(N.y-y)**2;if(d<bd){bd=d;hit=i;}});return hit>=0?{k:'map',i:hit}:null;}
+  if(gScreen==='brief'){const i=hitRow(y,briefY(),MENU_SP,2);return i>=0&&inCol?{k:'brief',i}:null;}
+  if(gScreen==='options'){const ys=optYs();for(let i=0;i<ys.length;i++)if(Math.abs(y-ys[i])<optSp()/2&&Math.abs(x-OX)<R*.58)return{k:'opt',i};return null;}
+  if(gScreen==='binds'){
+    const L=bindLayout();
+    for(let i=0;i<L.ys.length;i++){
+      if(Math.abs(y-L.ys[i])>=L.sp/2)continue;
+      if(i<ACTIONS.length){for(let k=0;k<2;k++)if(Math.abs(x-L.sx[k])<L.sw/2)return{k:'bind',i,s:k};if(x>L.lx-10&&x<L.sx[0])return{k:'bind',i,s:-1};}
+      else if(inCol)return{k:'bind',i,s:-1};
+    }
+    return null;
+  }
+  if(gScreen==='scores'){for(const t of scoreTabs())if(Math.abs(y-t.y)<lsp(13)&&Math.abs(x-t.x)<R*.2)return{k:'tab',i:t.i};return{k:'back'};}
+  return{k:'back'}; // stats, controls, credits: a click anywhere goes back
+}
+// Move the selection to what the pointer is on; a hover blip when it changes
+function applyPick(p,sound){
+  let ch=false;const to=(cur,v)=>{if(cur!==v)ch=true;return v;};
+  if(p.k==='pause')pauseSel=to(pauseSel,p.i);
+  else if(p.k==='over'||p.k==='menu')menuSel=to(menuSel,p.i);
+  else if(p.k==='map')mapSel=to(mapSel,p.i);
+  else if(p.k==='brief')briefSel=to(briefSel,p.i);
+  else if(p.k==='opt')optSel=to(optSel,p.i);
+  else if(p.k==='bind'){bindSel=to(bindSel,p.i);if(p.s>=0)bindSlot=to(bindSlot,p.s);}
+  if(ch&&sound)SFX.menuNav();
+}
+let cursorKind='';
+function setCursor(k){if(k!==cursorKind){cursorKind=k;CVS.style.cursor=k;}}
+CVS.addEventListener('mousemove',e=>{
+  if(gScreen==='playing'&&!paused){setCursor(screensaver?'default':'none');return;}
+  const[x,y]=canvasXY(e),p=pickAt(x,y);
+  if(p&&p.k!=='back'&&p.k!=='tab'&&!bindCap)applyPick(p,true);
+  setCursor(p&&p.k!=='back'?'pointer':'default');
+});
+CVS.addEventListener('mousedown',e=>{
+  if(e.button===2||e.button===3){e.preventDefault();if(bindCap)bindCap=false;else handleKey('Escape');return;}
+  if(e.button!==0)return;
+  if(gScreen==='playing'&&!paused){if(screensaver)exitScreensaver();return;}
+  if(bindCap){bindCap=false;return;} // a click cancels a rebind in progress
+  const[x,y]=canvasXY(e),p=pickAt(x,y);if(!p)return;
+  if(p.k==='back'){handleKey('Escape');return;}
+  if(p.k==='tab'){if(scoreSel!==p.i){scoreSel=p.i;SFX.menuNav();}return;}
+  applyPick(p,false);
+  if(p.k==='pause'){choosePause(p.i);return;}
+  if(p.k==='opt'&&optRows()[p.i]==='vol'&&x>VOL_X0-12){volAt(x);return;}
+  if(p.k==='bind'&&p.s<0&&p.i<ACTIONS.length)return; // the label only selects the row
+  handleKey('Enter');
+});
+CVS.addEventListener('contextmenu',e=>e.preventDefault());
+let wheelAcc=0;
+CVS.addEventListener('wheel',e=>{
+  if(gScreen==='playing'&&!paused)return;
+  e.preventDefault();wheelAcc+=e.deltaY;
+  if(Math.abs(wheelAcc)<40)return;
+  const dn=wheelAcc>0;wheelAcc=0;
+  if(gScreen==='options'&&optRows()[optSel]==='vol'){optStep('vol',dn?-1:1);return;}
+  if(gScreen==='scores'){handleKey(dn?'ArrowRight':'ArrowLeft');return;}
+  handleKey(dn?'ArrowDown':'ArrowUp');
 },{passive:false});
 CVS.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
 CVS.addEventListener('touchend',e=>e.preventDefault(),{passive:false});
@@ -1157,7 +1341,7 @@ function startGame(mode='arcade',ss=false,keepRun=false){
   screensaver=ss;ssStats=ss?JSON.stringify(STATS):null;
   gameMode=mode;gScreen='playing';paused=false;pauseSel=0;score=0;lives=RUN&&RUN.p.lives||3;level=1;invT=HYINV;gMax=RUN&&RUN.p.gcd||GCD;
   shootCd=0;mPlaceCd=0;sentryReadyT=0;streak=0;streakT=0;scoreVel=0;scoreVelT=0;
-  shake=0;shakeX=0;shakeY=0;multFlash=0;newRecord=false;keys.Space=0;keys.Enter=0;
+  shake=0;shakeX=0;shakeY=0;multFlash=0;newRecord=false;keys.Space=0;keys.Enter=0;for(const k of BINDS.fire)if(k)keys[k]=0;latch.clear();inBuf.push=inBuf.warp=0;
   gCd=0;gPulse=0;warpCd=0;mult=1;multT=0;orbitChain=0;
   minesH=0;activeMines=[];minePUs=[];spreadPUs=[];spreadT=0;
   hyperC=0;hypPUs=[];shieldActive=false;shieldT=0;
@@ -1388,8 +1572,8 @@ function update(){
   if(ship&&!screensaver){
     if(gameMode==='sentry'){
       // Rotate around field edge with L/R
-      if(keys['ArrowLeft']||keys['KeyA'])sentryAngle-=.045;
-      if(keys['ArrowRight']||keys['KeyD'])sentryAngle+=.045;
+      if(act('left'))sentryAngle-=.045;
+      if(act('right'))sentryAngle+=.045;
       sentryAngle=((sentryAngle%TAU)+TAU)%TAU;
       const sr=R-ship.r-2;
       ship.x=OX+Math.cos(sentryAngle)*sr;
@@ -1397,15 +1581,17 @@ function update(){
       ship.a=sentryAngle+Math.PI; // always points toward centre
       ship.vx=0;ship.vy=0;
     } else {
-      if(keys['ArrowLeft']||keys['KeyA'])ship.a-=.07;
-      if(keys['ArrowRight']||keys['KeyD'])ship.a+=.07;
-      if(keys['ArrowUp']||keys['KeyW']){ship.vx+=Math.cos(ship.a)*.15;ship.vy+=Math.sin(ship.a)*.15;}
-      if(hasHole()&&!pulsarPushing()){const th=keys['ArrowUp']||keys['KeyW'];circularize(ship,th?.996:SHIP_KR,th?1:SHIP_KT);capFlow(ship,SHIP_VMAX);}
+      // Turning eases in: a tap nudges a couple of degrees for fine aim, a hold
+      // ramps to full speed within a few ticks
+      const rl=act('left'),rr=act('right');
+      if(rl!==rr){ship.rh=(ship.rh||0)+1;const rs=ROT_MIN+(ROT_MAX-ROT_MIN)*Math.min(1,(ship.rh-1)/ROT_RAMP);ship.a+=rl?-rs:rs;}else ship.rh=0;
+      if(act('thrust')){ship.vx+=Math.cos(ship.a)*.15;ship.vy+=Math.sin(ship.a)*.15;}
+      if(hasHole()&&!pulsarPushing()){const th=act('thrust');circularize(ship,th?.996:SHIP_KR,th?1:SHIP_KT);capFlow(ship,SHIP_VMAX);}
       else{ship.vx*=.985;ship.vy*=.985;}
       ship.x+=ship.vx;ship.y+=ship.vy;wrapO(ship);
     }
     // Thrust trail
-    if((keys['ArrowUp']||keys['KeyW'])&&gameMode!=='sentry'&&!simple&&Math.random()<.55){
+    if(act('thrust')&&gameMode!=='sentry'&&!simple&&Math.random()<.55){
       const ta=ship.a+Math.PI+rn(-.3,.3);const ts=rn(.4,1.6);
       particles.push({x:ship.x-Math.cos(ship.a)*10,y:ship.y-Math.sin(ship.a)*10,vx:Math.cos(ta)*ts,vy:Math.sin(ta)*ts,life:rn(4,10),col:isColor()?P.red:P.wht,sz:rn(.6,1.4)});
     }
@@ -1416,13 +1602,15 @@ function update(){
   if(gPulse>0)gPulse--;if(multT>0)multT--;if(spreadT>0)spreadT--;if(multFlash>0)multFlash--;
   if(shieldActive){shieldT--;if(shieldT<=0)shieldActive=false;}
   shootCd--;
-  if(keys['Space']&&shootCd<=0&&ship)fireBullet(),shootCd=12;
+  if(act('fire')&&shootCd<=0&&ship)fireBullet(),shootCd=12;
+  if(inBuf.push>0){inBuf.push--;if(gCd<=0){inBuf.push=0;doGravity();}}
+  if(inBuf.warp>0){inBuf.warp--;if(warpCd<=0){inBuf.warp=0;doPuristWarp();}}
 
   // Mine drop (arcade w/ mines / sweep)
   if(gameMode!=='purist'&&gameMode!=='sentry'){
     const canDrop=gameMode==='sweep'||(minesH>0);
     const dropCd=gameMode==='sweep'?22:MPC;
-    if(ship&&canDrop&&mPlaceCd<=0&&(keys['ArrowUp']||keys['KeyW'])){
+    if(ship&&canDrop&&mPlaceCd<=0&&act('thrust')){
       activeMines.push({x:ship.x-Math.cos(ship.a)*18,y:ship.y-Math.sin(ship.a)*18,r:MR2,life:MF,armed:false,ac:MA,vx:0,vy:0});
       SFX.mineDrop();STATS.minesPlaced++;if(gameMode!=='sweep')minesH--;mPlaceCd=dropCd;
     }
@@ -1465,8 +1653,6 @@ function update(){
     beatedTopScore=true;lives++;lifeGain=20;SFX.extraLife();burst(OX,OY,14,P.yel,true);
     popups.push({x:OX,y:OY-R*.1,txt:'NEW BEST!',vy:-.5,life:80,ml:80,col:P.yel,big:true});}
 
-  // Stars drift
-  STARS.forEach(s=>{s.x+=Math.cos(s.a)*s.sp;s.y+=Math.sin(s.a)*s.sp;if((s.x-OX)**2+(s.y-OY)**2>R*.97*R*.97){s.a=Math.random()*TAU;const d=rn(2,R*.08);s.x=OX+Math.cos(s.a)*d;s.y=OY+Math.sin(s.a)*d;s.sp=Math.max(.01,rn(.007,.048)*(d/R));}});
 
   // Central mass: pull everything, then tear and swallow
   if(hasHole()){
@@ -1865,6 +2051,34 @@ function drawSpreadPU(p){
 function drawMinePU(p){const pl=Math.sin(p.p)*2.2;G.save();G.translate(p.x,p.y);puPre(p);for(let i=0;i<4;i++){const a=i/4*TAU+p.p*.3;G.strokeStyle=`rgba(241,224,56,${.5+.38*Math.sin(p.p+i)})`;G.lineWidth=1.4;G.beginPath();G.moveTo(Math.cos(a)*(5+pl),Math.sin(a)*(5+pl));G.lineTo(Math.cos(a+Math.PI)*(5+pl),Math.sin(a+Math.PI)*(5+pl));G.stroke();}G.fillStyle=P.yel;G.beginPath();G.arc(0,0,2.2,0,TAU);G.fill();G.restore();}
 function drawHypPU(p){const pl=Math.sin(p.p*1.2)*1.8;G.save();G.translate(p.x,p.y);puPre(p);G.rotate(p.p*.04);const hs=9+pl*.3;G.fillStyle='rgba(44,101,226,.55)';G.fillRect(-hs,-hs,hs*2,hs*2);G.strokeStyle=P.sky;G.lineWidth=1.5;G.strokeRect(-hs,-hs,hs*2,hs*2);G.strokeStyle='rgba(140,181,237,.4)';G.lineWidth=.8;G.beginPath();G.moveTo(-hs,0);G.lineTo(hs,0);G.stroke();G.beginPath();G.moveTo(0,-hs);G.lineTo(0,hs);G.stroke();G.restore();}
 
+// ── Rim lens ──────────────────────────────────────────────────────────────────
+// The rim behaves like a gravity lens. The world is drawn a little past the edge,
+// then the outer band is redrawn in thin rings, each sampling the frame from
+// further out: things approaching the rim squash into an arc along it, dragged a
+// touch in the orbital direction, and a faint second image of them shows on the
+// far side, which is where they will come back in.
+const LENS_BAND=64,LENS_OUT=42,LENS_N=14,LENS_TWIST=.05;
+const LC=document.createElement('canvas');LC.width=LC.height=CVS.width;const LCg=LC.getContext('2d',{alpha:false});
+function lensActive(){return lensOn&&!simple&&!lowFps;}
+function rimLens(){
+  LCg.drawImage(CVS,0,0);
+  G.save();G.setTransform(DPR,0,0,DPR,0,0);
+  const R0=R-LENS_BAND,tw=LENS_TWIST*(1+.3*Math.sin(menuT*.7));
+  for(let i=0;i<LENS_N;i++){
+    const r1=R0+LENS_BAND*i/LENS_N,r2=R0+LENS_BAND*(i+1)/LENS_N,t=((r1+r2)/2-R0)/LENS_BAND;
+    const src=R0+LENS_BAND*t+LENS_OUT*Math.pow(t,2.5),sc=(r1+r2)/2/src;
+    G.save();G.beginPath();G.arc(OX,OY,r2+.6,0,TAU);G.arc(OX,OY,r1,0,TAU,true);G.clip();
+    G.translate(OX,OY);G.rotate(-tw*t*t);G.scale(sc,sc);G.translate(-OX,-OY);
+    G.drawImage(LC,0,0,S,S);
+    const ga=.38*t*t;
+    if(ga>.02){G.globalCompositeOperation='lighter';G.globalAlpha=ga;G.translate(OX,OY);G.rotate(Math.PI);G.translate(-OX,-OY);G.drawImage(LC,0,0,S,S);}
+    G.restore();
+  }
+  // Clear the strip past the rim that only existed to feed the lens
+  G.fillStyle='#000';G.beginPath();G.arc(OX,OY,R+LENS_OUT+4,0,TAU);G.arc(OX,OY,R,0,TAU,true);G.fill();
+  G.restore();
+}
+
 // ── Draw game ─────────────────────────────────────────────────────────────────
 function drawGame(){
   G.fillStyle='#000';G.fillRect(0,0,S,S);
@@ -1872,7 +2086,7 @@ function drawGame(){
 
   // Screenshake translate
   G.save();G.translate(shakeX,shakeY);
-  G.save();G.beginPath();G.arc(OX,OY,R,0,TAU);G.clip();
+  G.save();G.beginPath();G.arc(OX,OY,R+(lensActive()?LENS_OUT:0),0,TAU);G.clip();
   drawBodies();
   drawOrbitPath();
 
@@ -2024,7 +2238,7 @@ function drawGame(){
     if(ship.born>0){const k=ship.born/20;G.globalAlpha=k*.8;G.strokeStyle=isColor()?P.sky:P.wht;G.lineWidth=1.2;G.beginPath();G.arc(ship.x,ship.y,12+k*40,0,TAU);G.stroke();G.globalAlpha=1;}
     G.save();G.translate(ship.x,ship.y);G.rotate(ship.a);
     if(ship.born>0){const k=ship.born/20;G.globalAlpha=1-k;G.scale(1+k*1.6,1+k*1.6);}
-    const th=(keys['ArrowUp']||keys['KeyW'])&&gameMode!=='sentry';
+    const th=act('thrust')&&gameMode!=='sentry';
     if(th){const fl=Math.random()*2.2;G.strokeStyle=isColor()?'rgba(200,35,42,.65)':'rgba(255,255,255,.6)';G.lineWidth=1.5;G.beginPath();G.moveTo(-5,4);G.lineTo(-10-fl,0);G.lineTo(-5,-4);G.stroke();G.strokeStyle=isColor()?'rgba(241,224,56,.85)':'rgba(255,255,255,.9)';G.lineWidth=1;G.beginPath();G.moveTo(-5,2);G.lineTo(-8-fl*.5,0);G.lineTo(-5,-2);G.stroke();}
     const sc=shieldActive?P.grn:(isColor()?P.lav:P.wht);const shipGC=shieldActive?P.grn:(isColor()?P.sky:P.wht);
     G.strokeStyle=sc;G.lineWidth=1.6;G.beginPath();G.moveTo(12,0);G.lineTo(-8,7);G.lineTo(-5,0);G.lineTo(-8,-7);G.closePath();G.stroke();
@@ -2103,6 +2317,8 @@ function drawGame(){
     G.fillText(p.txt,0,0);
     G.restore();
   });G.globalAlpha=1;
+
+  if(lensActive())rimLens();
 
   // ── In-field HUD, hidden in screensaver ─────────────────────────────────
   if(screensaver){G.restore();G.restore();return;} // skip all HUD; restore shake+clip
@@ -2542,31 +2758,66 @@ function drawGameOverMenu(){
 
 function drawOptions(){
   menuBg();G.textAlign='center';G.textBaseline='middle';
-  G.font=`bold italic ${fpx(24)}px `+FN;G.fillStyle=P.sky;G.fillText('OPTIONS',OX,OY-R*.52);
-  const tl=OY-R*.52+(isMobile?24:18);
+  G.font=`bold italic ${fpx(24)}px `+FN;G.fillStyle=P.sky;G.fillText('OPTIONS',OX,OY-R*.62);
+  const tl=OY-R*.62+(isMobile?24:18);
   G.strokeStyle='rgba(43,101,226,.3)';G.lineWidth=1;G.beginPath();G.moveTo(OX-R*.42,tl);G.lineTo(OX+R*.42,tl);G.stroke();
-
-  const defs={
-    simple:{label:'SIMPLE MODE',val:simple,on:'Flat, best performance',off:'Full glow and effects',vc:[P.mag,P.grn]},
-    sfx:{label:'SOUND FX',val:sfxOn,on:'Sound on',off:'Sound off',vc:[P.red,P.grn]}
-  };
-  const rows=optRows(),ys=optYs(),dOff=isMobile?26:16,lOff=isMobile?16:10;
+  const rows=optRows(),ys=optYs(),sp=optSp(),lx=OX-R*.5,rx=OX+R*.5;
   rows.forEach((k,i)=>{
-    const oy=ys[i],sel=optSel===i;
+    const y=ys[i],sel=optSel===i;
     if(k==='back'){
       G.textAlign='center';
-      if(sel){G.font=`bold italic ${fpx(14)}px `+FN;G.fillStyle=P.mag;G.fillText('← BACK',OX,oy);}
-      else{G.font=`italic ${fpx(12)}px `+FN;G.fillStyle='rgba(197,35,172,.55)';G.fillText('← BACK',OX,oy);}
+      if(sel){G.font=`bold italic ${fpx(14)}px `+FN;G.fillStyle=P.mag;G.fillText('← BACK',OX,y);}
+      else{G.font=`italic ${fpx(12)}px `+FN;G.fillStyle='rgba(197,35,172,.55)';G.fillText('← BACK',OX,y);}
       return;
     }
-    const{label,val,on,off,vc}=defs[k];
-    
-    G.textAlign='left';G.font=(sel?'bold italic ':'italic ')+fpx(12)+'px '+FN;G.fillStyle=sel?P.lav:P.sky+'99';G.fillText(label,OX-R*.44,oy);
-    G.textAlign='right';G.fillStyle=val?vc[1]:vc[0];G.fillText(val?'ON':'OFF',OX+R*.44,oy);
-    G.textAlign='left';G.font=`italic ${fpx(9)}px `+FN;G.fillStyle='rgba(140,181,237,.45)';G.fillText(val?on:off,OX-R*.44,oy+dOff);
-    if(sel){G.strokeStyle=P.yel+'20';G.lineWidth=1;G.beginPath();G.moveTo(OX-R*.44,oy-lOff);G.lineTo(OX+R*.44,oy-lOff);G.stroke();}
+    const O=OPT[k];
+    if(sel){G.fillStyle='rgba(241,224,56,.05)';G.fillRect(lx-10,y-sp/2+3,rx-lx+20,sp-6);G.fillStyle=P.yel;G.fillRect(lx-10,y-sp/2+3,2,sp-6);}
+    G.textAlign='left';G.font=(sel?'bold italic ':'italic ')+fpx(12)+'px '+FN;G.fillStyle=sel?P.lav:P.sky+'99';G.fillText(O.label,lx,y);
+    G.textAlign='right';
+    if(k==='vol'){
+      const w=(VOL_X1-VOL_X0)/10;
+      for(let j=0;j<10;j++){G.fillStyle=j<vol?(sel?P.yel:P.grn):'rgba(140,181,237,.16)';G.fillRect(VOL_X0+j*w+1,y-(isMobile?7:5),w-2,isMobile?14:10);}
+      G.fillStyle=vol?P.lav:P.red;G.fillText(vol?String(vol*10):'OFF',rx,y);
+    }else if(k==='keys'){G.fillStyle=sel?P.yel:P.sky+'99';G.fillText('EDIT  ▸',rx,y);}
+    else{const v=O.get();G.fillStyle=O.cols[v];G.fillText(sel?'◂  '+O.vals[v]+'  ▸':O.vals[v],rx,y);}
   });
-  hint('↑↓  NAVIGATE  ·  ← →  TOGGLE','TAP TO TOGGLE');
+  const O=OPT[rows[optSel]];
+  if(O){G.textAlign='center';G.font=`italic ${fpx(9)}px `+FN;G.fillStyle='rgba(140,181,237,.6)';G.fillText(typeof O.desc==='function'?O.desc():O.desc[O.get()],OX,OY+R*(isMobile?.7:.6));}
+  hint('↑↓  SELECT  ·  ← →  CHANGE  ·  ESC  BACK  ·  MOUSE OK','TAP TO CHANGE');
+}
+
+function bindLayout(){
+  const sp=lsp(25),y0=OY-R*.42,ys=[];
+  for(let i=0;i<ACTIONS.length;i++)ys.push(y0+i*sp);
+  ys.push(y0+(ACTIONS.length+.6)*sp,y0+(ACTIONS.length+1.6)*sp);
+  return{ys,sp,lx:OX-R*.52,sx:[OX+R*.14,OX+R*.42],sw:R*.25};
+}
+function drawBinds(){
+  menuBg();G.textAlign='center';G.textBaseline='middle';
+  G.font=`bold italic ${fpx(22)}px `+FN;G.fillStyle=P.sky;G.fillText('KEY BINDINGS',OX,OY-R*.62);
+  G.strokeStyle=P.sky+'33';G.lineWidth=1;const ul=OY-R*.62+(isMobile?22:16);G.beginPath();G.moveTo(OX-R*.5,ul);G.lineTo(OX+R*.5,ul);G.stroke();
+  const L=bindLayout();
+  G.font=`italic ${fpx(8)}px `+FN;G.fillStyle='rgba(140,181,237,.45)';
+  G.fillText('KEY 1',L.sx[0],L.ys[0]-L.sp*.85);G.fillText('KEY 2',L.sx[1],L.ys[0]-L.sp*.85);
+  ACTIONS.forEach(([a,lbl],i)=>{
+    const y=L.ys[i],sel=bindSel===i;
+    if(sel){G.fillStyle='rgba(241,224,56,.05)';G.fillRect(L.lx-10,y-L.sp/2+2,L.sx[1]+L.sw/2-L.lx+14,L.sp-4);}
+    G.textAlign='left';G.font=(sel?'bold italic ':'italic ')+fpx(11)+'px '+FN;G.fillStyle=sel?P.lav:P.sky+'aa';G.fillText(lbl,L.lx,y);
+    G.textAlign='center';
+    for(let k=0;k<2;k++){
+      const x=L.sx[k],on=sel&&bindSlot===k,cap=on&&bindCap,code=BINDS[a][k];
+      if(on){G.strokeStyle=cap?P.yel:P.yel+'88';G.lineWidth=1.2;G.strokeRect(x-L.sw/2,y-L.sp/2+3,L.sw,L.sp-6);}
+      if(cap){G.globalAlpha=.55+.45*Math.sin(menuT*8);G.font=`bold italic ${fpx(9)}px `+FN;G.fillStyle=P.yel;G.fillText('PRESS A KEY',x,y);G.globalAlpha=1;}
+      else{G.font=`bold ${fpx(11)}px `+FN;G.fillStyle=code?(on?P.yel:P.lav):'rgba(140,181,237,.3)';G.fillText(keyName(code),x,y);}
+    }
+  });
+  ['RESET DEFAULTS','← BACK'].forEach((t,j)=>{
+    const i=ACTIONS.length+j,y=L.ys[i],sel=bindSel===i;
+    G.font=(sel?'bold italic ':'italic ')+fpx(sel?13:11)+'px '+FN;G.fillStyle=sel?(j?P.mag:P.yel):j?'rgba(197,35,172,.55)':'rgba(140,181,237,.55)';G.fillText(t,OX,y);
+  });
+  if(bindMsg){G.globalAlpha=Math.min(1,bindMsg.t/20);G.font=`bold italic ${fpx(9)}px `+FN;G.fillStyle=P.yel;G.fillText(bindMsg.txt,OX,OY+R*.62);G.globalAlpha=1;}
+  else{G.font=`italic ${fpx(8)}px `+FN;G.fillStyle='rgba(140,181,237,.4)';G.fillText('ESC ALWAYS PAUSES  ·  MENUS USE ARROWS, WASD, ENTER AND ESC',OX,OY+R*.62);}
+  hint(bindCap?'PRESS A KEY  ·  ESC CANCELS':'↑↓ ← →  SELECT  ·  ENTER  REBIND  ·  DEL  CLEAR  ·  ESC  BACK','');
 }
 
 function drawStats(){
@@ -2808,7 +3059,7 @@ function drawControls(){
 // The game simulates at a fixed 30 Hz and draws at up to 60 fps, blending each
 // object between its last two positions so motion stays smooth.
 const STEP=1000/30;let last=0,acc=0,lastDraw=0,rAvg=0,gapAvg=16.7,lowFps=false;
-const lerpLists=()=>[rocks,bullets,ufoBullets,comets,ufos,pulsers,hexes,swirls,activeMines,minePUs,hypPUs,spreadPUs,particles,popups,STARS];
+const lerpLists=()=>[rocks,bullets,ufoBullets,comets,ufos,pulsers,hexes,swirls,activeMines,minePUs,hypPUs,spreadPUs,particles,popups];
 function snap(){
   for(const L of lerpLists())for(const o of L){o._ix=o.x;o._iy=o.y;}
   for(const r of rocks)r.prot=r.rot;
@@ -2834,11 +3085,12 @@ function lerpOff(){
 }
 function tick(){
   menuT+=.038;if(overT>0)overT--;
+  if(bindMsg&&--bindMsg.t<=0)bindMsg=null;
   if(gScreen==='playing'&&!paused){
-    if(hitStop>0)hitStop--;else update();
+    if(hitStop>0)hitStop--;else{update();latch.clear();}
     if(slowMo>0)slowMo--;
     ageFx();
-  }
+  }else latch.clear();
 }
 function render(al){
   if(isMobile)updateTCVis();
@@ -2856,6 +3108,7 @@ function render(al){
   else if(gScreen==='map')drawMap();
   else if(gScreen==='credits')drawCredits();
   else if(gScreen==='brief')drawBrief();
+  else if(gScreen==='binds')drawBinds();
   else drawScores();
   if(live)lerpOff();
   menuT=mt;
