@@ -112,9 +112,22 @@ function lsp(n){return isMobile?Math.round(n*1.3):n;}
 function hpx(n){return isMobile?Math.round(n*1.3):n;}
 // Footer hint line: keyboard wording on desktop, touch wording on phones.
 function hint(desk,mob){
-  G.textAlign='center';G.textBaseline='middle';
-  G.font=`italic ${fpx(isMobile?9:8)}px `+FN;G.fillStyle='rgba(140,181,237,.5)';
-  G.fillText(isMobile?mob:desk,OX,isMobile?OY+R*.86:OY+R-22);
+  const t=isMobile?mob:desk;if(!t)return;
+  G.font=`italic ${fpx(isMobile?9:8)}px `+FN;G.fillStyle='rgba(140,181,237,.55)';
+  arcText(t,R-(isMobile?24:18),Math.PI/2,isMobile?1:1.5);
+}
+// Text set along a circle round the centre of the disc, centred on angle ang.
+// Along the top it reads clockwise; along the bottom it flips so it still reads left to right.
+function arcText(str,r,ang,track=0){
+  const bottom=Math.sin(ang)>.2,ch=[...str],ws=ch.map(c=>G.measureText(c).width+track),tot=ws.reduce((a,b)=>a+b,0)-track;
+  G.save();G.textAlign='center';G.textBaseline='middle';
+  let cum=0;
+  for(let i=0;i<ch.length;i++){
+    const m=bottom?ang+tot/(2*r)-(cum+ws[i]/2)/r:ang-tot/(2*r)+(cum+ws[i]/2)/r;
+    G.save();G.translate(OX+Math.cos(m)*r,OY+Math.sin(m)*r);G.rotate(bottom?m-Math.PI/2:m+Math.PI/2);G.fillText(ch[i],0,0);G.restore();
+    cum+=ws[i];
+  }
+  G.restore();
 }
 const TAU=Math.PI*2,rn=(a,b)=>a+Math.random()*(b-a),ri=(a,b)=>a+(Math.random()*(b-a))|0;
 
@@ -587,6 +600,7 @@ function drawBrief(){
   const y0=briefY(),items=[u?'START':lockText(mapSel),'← BACK'];
   items.forEach((it,i)=>{
     const iy=y0+i*MENU_SP,sel=i===briefSel,lk=i===0&&!u;
+    if(sel){menuSel_(iy);G.textAlign='center';G.textBaseline='middle';}
     if(sel){G.font=`bold italic ${fpx(lk?11:i?14:20)}px `+FN;G.fillStyle=lk?P.red:P.yel;}
     else{G.font=`italic ${fpx(lk?10:i?12:16)}px `+FN;G.fillStyle='rgba(100,140,220,.65)';}
     G.fillText(it,OX,iy);
@@ -1311,11 +1325,15 @@ function updateTCVis(){
 }
 
 // ── Shared layouts (drawing and tap hit-testing read the same numbers) ───────
+// Menu lists part round the black hole at the centre: the first half above it,
+// the rest below, so nothing sits on the singularity
 function menuLayout(){
-  const items=subMenu?MENUS[subMenu]:MENUS.menu;
-  const c=subMenu?OY+R*(isMobile?.14:.08):OY+R*.06;
-  return{items,start:c-(items.length-1)*MENU_SP/2};
+  const items=subMenu?MENUS[subMenu]:MENUS.menu,n=items.length,h=Math.ceil(n/2),gap=106;
+  const sp=Math.min(MENU_SP,(R*1.3-gap)/(n-1)); // long lists tighten to stay clear of the title
+  const ys=items.map((_,i)=>i<h?OY-gap/2-(h-1-i)*sp:OY+gap/2+(i-h)*sp);
+  return{items,ys,sp};
 }
+function hitYs(y,ys,sp){for(let i=0;i<ys.length;i++)if(Math.abs(y-ys[i])<sp/2)return i;return -1;}
 function overLayout(){
   const topY=OY-R*(isMobile?.56:.5);
   // Campaign results carry a row of marks under the score, so they get more room
@@ -1368,10 +1386,7 @@ const OPT={
   turnEase:cfgOpt('turnEase','TURN EASING',ON_OFF,RG,['Constant turning speed','Taps nudge for fine aim, holds ramp up']),
   holdFire:cfgOpt('holdFire','HOLD TO FIRE',ON_OFF,RG,['One shot per press','Hold fire to keep shooting']),
 };
-function scoreTabs(){
-  const y1=OY-R*.62,y2=y1+lsp(22);
-  return[{i:0,x:OX-R*.52,y:y1},{i:1,x:OX,y:y1},{i:2,x:OX+R*.52,y:y1},{i:3,x:OX-R*.26,y:y2},{i:4,x:OX+R*.26,y:y2}];
-}
+function scoreTabs(){const y=OY-R*.58;return[0,1,2,3,4].map(i=>({i,x:OX+(i-2)*R*.3,y}));}
 function hitRow(y,start,sp,n){const i=Math.round((y-start)/sp);return i>=0&&i<n&&Math.abs(y-(start+i*sp))<sp/2?i:-1;}
 
 function tapAt(x,y){
@@ -1383,7 +1398,7 @@ function tapAt(x,y){
     return;
   }
   if(gScreen==='menu'){
-    const L=menuLayout(),i=hitRow(y,L.start,MENU_SP,L.items.length);
+    const L=menuLayout(),i=hitYs(y,L.ys,L.sp);
     if(i>=0){menuSel=i;SFX.menuSelect();chooseMenu(i);}
     return;
   }
@@ -1431,7 +1446,7 @@ function pickAt(x,y){
   const inCol=Math.abs(x-OX)<R*.62;
   if(gScreen==='playing'){if(!paused||screensaver)return null;const i=hitRow(y,OY-PAUSE_SP,PAUSE_SP,3);return i>=0&&inCol?{k:'pause',i}:null;}
   if(gScreen==='over'){const i=hitRow(y,overLayout().items,OVER_SP,MENUS.over.length);return i>=0&&inCol?{k:'over',i}:null;}
-  if(gScreen==='menu'){const L=menuLayout(),i=hitRow(y,L.start,MENU_SP,L.items.length);return i>=0&&inCol?{k:'menu',i}:null;}
+  if(gScreen==='menu'){const L=menuLayout(),i=hitYs(y,L.ys,L.sp);return i>=0&&inCol?{k:'menu',i}:null;}
   if(gScreen==='map'){let hit=-1,bd=26*26;NODES.forEach((N,i)=>{const d=(N.x-x)**2+(N.y-y)**2;if(d<bd){bd=d;hit=i;}});return hit>=0?{k:'map',i:hit}:null;}
   if(gScreen==='brief'){const i=hitRow(y,briefY(),MENU_SP,2);return i>=0&&inCol?{k:'brief',i}:null;}
   if(gScreen==='options'){
@@ -2767,8 +2782,8 @@ function drawGame(){
     pauseItems.forEach((item,i)=>{
       const py=pauseStart+i*PAUSE_SP,sel=pauseSel===i;
       if(sel){
+        menuSel_(py);G.textAlign='center';
         G.font=`bold italic ${fpx(20)}px `+FN;G.fillStyle=P.yel;G.fillText(item,OX,py);
-        G.strokeStyle=P.yel+'22';G.lineWidth=1;G.beginPath();G.moveTo(OX-R*.3,py+(isMobile?20:14));G.lineTo(OX+R*.3,py+(isMobile?20:14));G.stroke();
       }else{G.font=`italic ${fpx(15)}px `+FN;G.fillStyle=P.blu+'88';G.fillText(item,OX,py);}
     });
     hint('↑↓  NAVIGATE  ·  SPACE  SELECT  ·  X  RESUME','TAP TO SELECT  ·  II  RESUMES');
@@ -2778,187 +2793,100 @@ function drawGame(){
 
 // ── Menu system ───────────────────────────────────────────────────────────────
 // Y2K-inspired: italic, large, arcs, scanlines, decorative circles
-function menuBg(){
+// Ghost rocks circling the menu's black hole: the menus sit in the same space as the game
+const MENU_ROCKS=Array.from({length:7},(_,i)=>{const n=ri(7,11),sz=rn(6,17),pts=[];for(let k=0;k<n;k++){const t=k/n*TAU,d=sz*rn(.75,1.2);pts.push([Math.cos(t)*d,Math.sin(t)*d]);}
+  const r=R*rn(.5,.93);return{r,a0:Math.random()*TAU,w:.02*Math.pow(160/r,.5)*rn(.85,1.1),pts,rot:Math.random()*TAU,spin:rn(-.04,.04),col:TINTS[i%TINTS.length]};});
+function menuHole(){
+  const hr=13,t=menuT;
+  G.lineCap='round';
+  for(let k=0;k<4;k++){const rr=hr*(1.7+k*.55),a0=t*1.6/(1+k*.6)+k*1.7;G.globalAlpha=.5-k*.08;G.strokeStyle=k<2?P.yel:k<4?P.red:P.mag;G.lineWidth=k<2?1.5:1;
+    G.beginPath();G.arc(OX,OY,rr,a0,a0+1.6+k*.25);G.stroke();G.beginPath();G.arc(OX,OY,rr,a0+Math.PI,a0+Math.PI+1.1);G.stroke();}
+  G.globalAlpha=.9;G.strokeStyle=P.lav;G.lineWidth=1.4;G.beginPath();G.arc(OX,OY,hr*1.18,0,TAU);G.stroke();
+  G.fillStyle='#000';G.globalAlpha=1;G.beginPath();G.arc(OX,OY,hr*(1+.035*Math.sin(t*1.7)),0,TAU);G.fill();
+}
+function menuBg(hole=false){
   G.fillStyle='#000';G.fillRect(0,0,S,S);
-
   G.save();G.beginPath();G.arc(OX,OY,R,0,TAU);G.clip();
-  drawStars(.4);
-
+  drawStars(.5);
   if(!simple){
-    // Layered radial atmosphere: two overlapping pulses for depth
-    const t1=Math.sin(menuT),t2=Math.sin(menuT*1.3+1.1);
+    // Faint atmosphere
     const rg=G.createRadialGradient(OX,OY,R*.05,OX,OY,R);
-    rg.addColorStop(0,`rgba(43,101,226,${(t1*.5+.5)*.09})`);
-    rg.addColorStop(.55,`rgba(197,35,172,${(t2*.5+.5)*.04})`);
-    rg.addColorStop(1,'rgba(0,0,0,0)');
-    G.fillStyle=rg;G.fillRect(-R,-R,S+R*2,S+R*2);
-
-    // Nested concentric rings at varying radii and opacities, vector depth
-    [.94,.78,.60,.42].forEach((rf,idx)=>{
-      const pulse=Math.sin(menuT*.8+idx*.9)*.5+.5;
-      G.strokeStyle=`rgba(43,101,226,${.04+pulse*.06})`;
-      G.lineWidth=idx===0?1.5:1;
-      G.beginPath();G.arc(OX,OY,R*rf,0,TAU);G.stroke();
-    });
-
-    // Two slow counter-rotating dashed arcs, neo-70s vinyl record feel
-    G.setLineDash([5,12]);
-    G.strokeStyle=`rgba(197,35,172,${.06+Math.sin(menuT*.6)*.03})`;G.lineWidth=1;
-    G.beginPath();G.arc(OX,OY,R*.70,menuT*.10,menuT*.10+Math.PI*1.3);G.stroke();
-    G.strokeStyle=`rgba(43,101,226,${.06+Math.sin(menuT*.7+2)*.03})`;
-    G.beginPath();G.arc(OX,OY,R*.70,-menuT*.07,-menuT*.07+Math.PI*1.0);G.stroke();
+    rg.addColorStop(0,`rgba(43,101,226,${(Math.sin(menuT)*.5+.5)*.07})`);rg.addColorStop(.6,`rgba(197,35,172,${(Math.sin(menuT*1.3+1.1)*.5+.5)*.03})`);rg.addColorStop(1,'rgba(0,0,0,0)');
+    G.fillStyle=rg;G.fillRect(0,0,S,S);
+    // Orbit lanes
+    [.5,.72,.93].forEach((rf,i)=>{G.strokeStyle=`rgba(43,101,226,${.05+.03*Math.sin(menuT*.8+i)})`;G.lineWidth=1;G.setLineDash([2,10]);G.lineDashOffset=-menuT*(6-i*2);G.beginPath();G.arc(OX,OY,R*rf,0,TAU);G.stroke();});
     G.setLineDash([]);
-
-    // Subtle radial spokes from centre (like a vinyl label)
-    G.strokeStyle='rgba(43,101,226,.03)';G.lineWidth=1;
-    for(let i=0;i<12;i++){
-      const a=i/12*TAU+menuT*.02;
-      G.beginPath();G.moveTo(OX+Math.cos(a)*R*.08,OY+Math.sin(a)*R*.08);
-      G.lineTo(OX+Math.cos(a)*R*.92,OY+Math.sin(a)*R*.92);G.stroke();
-    }
+    // Ghost rocks in orbit
+    G.lineWidth=1.1;
+    for(const m of MENU_ROCKS){const a=m.a0-m.w*menuT,x=OX+Math.cos(a)*m.r,y=OY+Math.sin(a)*m.r;G.globalAlpha=.16;G.strokeStyle=m.col;
+      G.save();G.translate(x,y);G.rotate(m.rot+m.spin*menuT);G.beginPath();m.pts.forEach(([px,py],k)=>k?G.lineTo(px,py):G.moveTo(px,py));G.closePath();G.stroke();G.restore();}
+    G.globalAlpha=1;
   }
-  // Floating background score numbers, dim, decorative
-  {const scores=LB[menuScoreMode]||[];if(scores.length){
-    G.textBaseline='middle';G.textAlign='center';
-    scores.slice(0,5).forEach((v,i)=>{
-      const a=menuT*.06+i/5*TAU,d=R*(0.28+i*.1);
-      const nx=OX+Math.cos(a)*d,ny=OY+Math.sin(a)*d;
-      const sz=Math.round(9+i*2); // largest entry = largest text
-      G.font=`italic ${sz}px `+FN;
-      const modeCol={'arcade':P.sky,'sweep':P.yel,'purist':P.wht,'sentry':P.mag,'quarantine':P.grn}[menuScoreMode]||P.sky;
-      G.fillStyle=modeCol+'18';G.fillText(v.toLocaleString(),nx,ny);
-    });
-  }}
-
+  if(hole)menuHole();
   G.restore();
-
-  // Outer ring, glowing frame
-  
-  G.strokeStyle=`rgba(43,101,226,${.35+Math.sin(menuT)*.1})`;G.lineWidth=1.5;
-  G.beginPath();G.arc(OX,OY,R,0,TAU);G.stroke();
-  // Black mask outside
+  // Dial: ticks round the rim turning slowly, every sixth one longer
+  if(!simple){G.strokeStyle='rgba(140,181,237,.22)';G.lineWidth=1;G.beginPath();
+    for(let i=0;i<96;i++){const a=i/96*TAU+menuT*.015,l=i%6?4:9;G.moveTo(OX+Math.cos(a)*(R-2),OY+Math.sin(a)*(R-2));G.lineTo(OX+Math.cos(a)*(R-2-l),OY+Math.sin(a)*(R-2-l));}G.stroke();}
+  G.strokeStyle=`rgba(43,101,226,${.35+Math.sin(menuT)*.1})`;G.lineWidth=1.5;G.beginPath();G.arc(OX,OY,R,0,TAU);G.stroke();
   G.strokeStyle='#000';G.lineWidth=8;G.beginPath();G.arc(OX,OY,R+4,0,TAU);G.stroke();
 }
-
+// Half-width of the disc at height y: highlights run rim to rim
+function chordHalf(y){const dy=y-OY;return Math.sqrt(Math.max(0,R*R-dy*dy));}
+// Selection: a band that spans the disc at that height, ending at the rim, with
+// your ship riding the left rim to point at it
+let selShipY=null;
+function selBand(y,h,col=P.yel){
+  if(selShipY===null||Math.abs(selShipY-y)>R)selShipY=y;
+  selShipY+=(y-selShipY)*ease(.3);
+  const sy=selShipY,hw=chordHalf(sy)-6;
+  G.save();G.beginPath();G.arc(OX,OY,R-1,0,TAU);G.clip();
+  const g=G.createLinearGradient(OX-hw,0,OX+hw,0);g.addColorStop(0,col+'00');g.addColorStop(.25,col+'18');g.addColorStop(.75,col+'18');g.addColorStop(1,col+'00');
+  G.fillStyle=g;G.fillRect(OX-hw,sy-h/2,hw*2,h);
+  const g2=G.createLinearGradient(OX-hw,0,OX+hw,0);g2.addColorStop(0,col+'00');g2.addColorStop(.5,col+'88');g2.addColorStop(1,col+'00');
+  G.fillStyle=g2;G.fillRect(OX-hw,sy-h/2,hw*2,1);G.fillRect(OX-hw,sy+h/2-1,hw*2,1);
+  // the ship, nose toward the item, a flicker of thrust behind it
+  const sx=OX-chordHalf(sy)+22;G.translate(sx,sy);G.strokeStyle=P.lav;G.lineWidth=1.5;
+  G.beginPath();G.moveTo(10,0);G.lineTo(-7,6);G.lineTo(-4,0);G.lineTo(-7,-6);G.closePath();G.stroke();
+  const fl=2+Math.random()*3+Math.abs(y-sy)*.2;G.strokeStyle=P.red;G.lineWidth=1.2;G.beginPath();G.moveTo(-5,3);G.lineTo(-6-fl,0);G.lineTo(-5,-3);G.stroke();
+  G.restore();
+}
+// Items fade and slide in one after another when a menu opens
+let menuIn=0,menuKey='';
+function itemIn(i){const k=Math.max(0,Math.min(1,(menuIn-i*2.2)/7));return k;}
+const MENU_DESC={CAMPAIGN:'Thirty-five planets, each with its own rules',ARCADE:'Endless waves round the black hole',MODES:'Minesweeper, Sentry, Purist and Quarantine',EXTRA:'Options, scores, achievements and more',
+  MINESWEEPER:'Thrust lays mines, fire sets them all off',SENTRY:'Hold the rim and defend the core',PURIST:'Classic rules: no hole, no power-ups',QUARANTINE:'Stay outside the ring as it grows',
+  OPTIONS:'Graphics, effects, sound and controls',SCORES:'Top ten in every mode',STATS:'Lifetime totals',ACHIEVEMENTS:()=>ACH_DEF.filter(a=>ACH[a[0]]).length+' of '+ACH_DEF.length+' unlocked',
+  SCREENSAVER:'Let the field play itself',CONTROLS:()=>isMobile?'The touch layout':'Rebind every key',CREDITS:'Who made the sounds'};
 function drawMainMenu(){
-  menuBg();
-  G.textAlign='center';G.textBaseline='middle';
-
-  if(!simple){
-    // 4 rotating crosshair markers at cardinal disc positions, vector targeting feel
-    for(let i=0;i<4;i++){
-      const oa=menuT*.28+i/4*TAU,od=R*.91;
-      const cx2=OX+Math.cos(oa)*od,cy2=OY+Math.sin(oa)*od;
-      const pulse=.4+.35*Math.sin(menuT*1.8+i*1.6);
-      G.save();G.translate(cx2,cy2);G.rotate(menuT*.5+i);
-      G.strokeStyle=`rgba(43,101,226,${pulse})`;G.lineWidth=1;
-      // crosshair
-      const chs=5;
-      G.beginPath();G.moveTo(-chs,0);G.lineTo(-chs*.3,0);G.stroke();
-      G.beginPath();G.moveTo(chs*.3,0);G.lineTo(chs,0);G.stroke();
-      G.beginPath();G.moveTo(0,-chs);G.lineTo(0,-chs*.3);G.stroke();
-      G.beginPath();G.moveTo(0,chs*.3);G.lineTo(0,chs);G.stroke();
-      G.beginPath();G.arc(0,0,chs*.3,0,TAU);G.stroke();
-      G.restore();
-    }
-    // 2 slow ghost triangles orbiting at mid-radius
-    for(let i=0;i<2;i++){
-      const oa=-menuT*.18+i*Math.PI,od=R*.55;
-      const tx=OX+Math.cos(oa)*od,ty=OY+Math.sin(oa)*od;
-      const alpha=.06+.05*Math.sin(menuT+i);
-      G.save();G.translate(tx,ty);G.rotate(oa+Math.PI*.5);
-      G.strokeStyle=`rgba(228,219,240,${alpha})`;G.lineWidth=1;
-      G.beginPath();G.moveTo(0,-7);G.lineTo(-5,5);G.lineTo(-1.5,2.5);G.lineTo(1.5,2.5);G.lineTo(5,5);G.closePath();G.stroke();
-      G.restore();
-    }
-  }
-
-  // Title, letter-spaced vector text, no external image asset
-  const titY=OY-R*(subMenu&&isMobile?.58:.50);
-  
-  G.font=`bold italic ${fpx(29)}px `+FN;G.fillStyle=P.lav;G.textAlign='left';
-  const titleStr="ʻOUMUAMUA",track=fpx(3);
-  let trackedW=-track;for(const ch of titleStr)trackedW+=G.measureText(ch).width+track;
-  let tx=OX-trackedW/2;
-  for(const ch of titleStr){G.fillText(ch,tx,titY);tx+=G.measureText(ch).width+track;}
-  G.textAlign='center';
-  // Underline flourish + tagline, consistent with the bracket/rule motifs used elsewhere
-  G.strokeStyle=P.mag+'50';G.lineWidth=1;
-  const uw=trackedW*.5+16;
-  const ul=titY+(isMobile?26:15);
-  G.beginPath();G.moveTo(OX-uw,ul);G.lineTo(OX+uw,ul);G.stroke();
+  menuBg(true);
+  // Title along the top rim, subtitle (or the submenu's name) just inside it
+  G.font=`bold italic ${fpx(28)}px `+FN;G.fillStyle=P.lav;arcText('ʻOUMUAMUA',R-(isMobile?40:34),-Math.PI/2,fpx(5));
+  G.font=`italic ${fpx(8)}px `+FN;G.fillStyle=subMenu?'rgba(140,181,237,.7)':'rgba(197,35,172,.65)';
+  arcText(subMenu?(subMenu==='modes'?'·  M O D E S  ·':'·  E X T R A  ·'):'I N T E R S T E L L A R   V E C T O R   A R C A D E',R-(isMobile?74:60),-Math.PI/2,1);
+  // Best scores ride the orbit lanes on the root menu
   if(!subMenu){
-    G.font=`italic ${fpx(8)}px `+FN;G.fillStyle='rgba(197,35,172,.5)';
-    G.fillText('I N T E R S T E L L A R   V E C T O R   A R C A D E',OX,titY+(isMobile?42:27));
-  }
-
-  // Current sub-menu
-  const activeMenu=subMenu?MENUS[subMenu]:MENUS.menu;
-  const subLabel={'modes':'MODES','extra':'EXTRA'}[subMenu]||'';
-
-  menuScoreMode='arcade';
-  // Arcade best score at bottom of main menu
-  if(!subMenu){
-    // Best scores rotate on the concentric rings, 4 modes, each on its own radius
-    const ringModes=[
-      {k:'arcade',    c:P.sky,rf:.91,spd:.055},
-      {k:'sweep',     c:P.yel,rf:.80,spd:-.04},
-      {k:'purist',    c:P.wht,rf:.68,spd:.032},
-      {k:'sentry',    c:P.mag,rf:.56,spd:-.025},
-      {k:'quarantine',c:P.grn,rf:.44,spd:.02},
-    ];
     G.textBaseline='middle';G.textAlign='center';
-    ringModes.forEach(({k,c,rf,spd},ri)=>{
-      const val=(LB[k]&&LB[k][0])||0;
-      if(!val)return;
-      const a=menuT*spd+ri*1.4; // stagger starting angles
-      const nx=OX+Math.cos(a)*R*rf,ny=OY+Math.sin(a)*R*rf;
-      // Mode label tiny
-      G.font='italic 7px '+FN;G.fillStyle=c+'55';
-      G.fillText(k.toUpperCase(),nx,ny-9);
-      // Score number
-      const fsz=9+Math.max(0,Math.floor(Math.log10(val||1))-2); // scale with digits
-      G.font=`bold italic ${fsz}px `+FN;G.fillStyle=c+'cc';
-      G.fillText(val.toLocaleString(),nx,ny+2);
+    [{k:'arcade',c:P.sky,rf:.93,spd:.03},{k:'sweep',c:P.yel,rf:.72,spd:-.025},{k:'sentry',c:P.mag,rf:.5,spd:.02}].forEach(({k,c,rf,spd},i)=>{
+      const v=(LB[k]&&LB[k][0])||0;if(!v)return;const a=menuT*spd+i*2.1+.8;
+      G.font=`bold italic ${fpx(8)}px `+FN;G.fillStyle=c+'66';G.fillText(k.toUpperCase()+'  '+v.toLocaleString(),OX+Math.cos(a)*R*rf,OY+Math.sin(a)*R*rf);
     });
   }
-
-  // Menu items, centred in lower portion, sub-menu label above block
-  const spacing=MENU_SP,blockStart=menuLayout().start;
-  // Sub-menu label above the block
-  if(subMenu){
-    G.font=`bold italic ${fpx(10)}px `+FN;G.fillStyle='rgba(140,181,237,.45)';
-    G.fillText(subLabel,OX,blockStart-(isMobile?38:18));
-    G.strokeStyle='rgba(43,101,226,.2)';G.lineWidth=1;
-    const sl=blockStart-(isMobile?24:8);
-    G.beginPath();G.moveTo(OX-R*.28,sl);G.lineTo(OX+R*.28,sl);G.stroke();
-  }
-  activeMenu.forEach((item,i)=>{
-    const iy=blockStart+i*spacing,sel=i===menuSel;
-    const isBack=item==='← BACK';
-    const selSz=fpx(isBack?14:22);
-    if(sel){
-      
-      G.font='bold italic '+selSz+'px '+FN;G.fillStyle=isBack?P.sky:P.yel;G.fillText(item,OX,iy);
-      if(!isBack){
-        const tw0=G.measureText(item).width*.5+16,mk=subMenu||'root';
-        if(selA.k!==mk){selA.k=mk;selA.y=iy;selA.w=tw0;}
-        selA.y+=(iy-selA.y)*ease(.35);selA.w+=(tw0-selA.w)*ease(.35);
-        const tw=selA.w,by=selA.y;
-        G.strokeStyle=P.yel+'99';G.lineWidth=1.3;
-        const bh=isMobile?17:10,bw=isMobile?14:11;
-        G.beginPath();G.moveTo(OX-tw,by-bh);G.lineTo(OX-tw-bw,by-bh);G.lineTo(OX-tw-bw,by+bh);G.lineTo(OX-tw,by+bh);G.stroke();
-        G.beginPath();G.moveTo(OX+tw,by-bh);G.lineTo(OX+tw+bw,by-bh);G.lineTo(OX+tw+bw,by+bh);G.lineTo(OX+tw,by+bh);G.stroke();
-      }
-    } else {
-      const dist=Math.abs(i-menuSel),nearFade=dist===1?.58:.36;
-      const baseSz=isBack?12:dist===1?16:14;
-      G.font=`italic ${fpx(baseSz)}px `+FN;
-      G.fillStyle=`rgba(${isBack?'43,101,226':'100,140,220'},${isBack?.38:nearFade})`;
-      G.fillText(item,OX,iy);
-    }
+  const L=menuLayout(),items=L.items;
+  menuSel_(L.ys[menuSel],Math.min(isMobile?40:32,L.sp-4));
+  items.forEach((item,i)=>{
+    const iy=L.ys[i],sel=i===menuSel,isBack=item==='← BACK',k=itemIn(i);
+    G.globalAlpha=k;G.textAlign='center';G.textBaseline='middle';
+    const dx=(1-k)*24;
+    if(sel){G.font='bold italic '+fpx(isBack?14:22)+'px '+FN;G.fillStyle=isBack?P.sky:P.yel;}
+    else{const dist=Math.abs(i-menuSel);G.font=`italic ${fpx(isBack?12:dist===1?16:14)}px `+FN;G.fillStyle=`rgba(${isBack?'43,101,226':'140,170,230'},${isBack?.45:dist===1?.7:.45})`;}
+    G.fillText(item,OX+dx,iy);
   });
+  G.globalAlpha=1;
+  const d=MENU_DESC[items[menuSel]];
+  if(d){G.font=`italic ${fpx(9)}px `+FN;G.fillStyle='rgba(228,219,240,.6)';G.textAlign='center';G.fillText(typeof d==='function'?d():d,OX,L.ys[items.length-1]+L.sp*.9);}
+  hint('↑↓  SELECT  ·  ENTER  OPEN'+(subMenu?'  ·  ESC  BACK':''),'TAP TO SELECT');
 }
+function menuSel_(y,h){selBand(y,h||(isMobile?40:32));}
 
 function drawGameOverMenu(){
   menuBg();G.textAlign='center';G.textBaseline='middle';
@@ -2974,6 +2902,7 @@ function drawGameOverMenu(){
   
   const drop=overT/20;G.globalAlpha=1-drop*.9;
   G.font=`bold italic ${fpx(34)}px `+FN;G.fillStyle=goCol;G.fillText(RUN?(RUN.won?'CLEARED':'FAILED'):'GAME OVER',OX,L.topY-drop*30);G.globalAlpha=1;
+  if(!simple&&CFG.anim){const k=(menuIn%90)/90;G.strokeStyle=goCol;G.globalAlpha=(1-k)*.25;G.lineWidth=1.5;G.beginPath();G.arc(OX,L.score,40+k*R*.8,0,TAU);G.stroke();G.globalAlpha=1;}
 
   const modeLabel={'purist':'✦ PURIST ✦','sweep':'✦ MINESWEEPER ✦','sentry':'◆ SENTRY ◆','quarantine':'◆ QUARANTINE ◆'}[gameMode]||'◆ ARCADE ◆';
   const modeCol={'purist':P.wht,'sweep':P.yel,'sentry':P.mag,'quarantine':P.grn}[gameMode]||P.sky;
@@ -3001,8 +2930,8 @@ function drawGameOverMenu(){
   (RUN?['CONTINUE','RETRY']:MENUS.over).forEach((item,i)=>{
     const iy=L.items+i*OVER_SP,sel=i===menuSel;G.globalAlpha=overT>0?.3:1;
     if(sel){
+      if(overT<=0)menuSel_(iy);G.textAlign='center';
       G.font=`bold italic ${fpx(18)}px `+FN;G.fillStyle=P.yel;G.fillText(item,OX,iy);
-      G.strokeStyle=P.yel+'22';G.lineWidth=1;G.beginPath();G.moveTo(OX-R*.3,iy+ulo);G.lineTo(OX+R*.3,iy+ulo);G.stroke();
     }else{G.font=`italic ${fpx(14)}px `+FN;G.fillStyle=P.blu+'aa';G.fillText(item,OX,iy);}
   });G.globalAlpha=1;
   hint('↑↓  NAVIGATE  ·  SPACE  SELECT','TAP TO SELECT');
@@ -3259,48 +3188,14 @@ function drawScores(){
   const cur=modes[scoreSel];
   const entries=LB[cur.key];
 
-  // ── Tab selector: 5 modes in two rows (3 top, 2 bottom) ──
-  // Use abbreviated labels so they fit within the disc chord
-  const tabAbbr=['ARC','SWEEP','PURIST','SENTRY','QRTN'];
-  const tabRow1=[0,1,2], tabRow2=[3,4]; // indices split across rows
-  const tabY1=OY-R*.62, tabY2=tabY1+lsp(22);
-
-  // Row 1: 3 tabs
-  tabRow1.forEach(ti=>{
-    const {col}=modes[ti];
-    const tx=OX+(ti-1)*R*.52;
-    const tsel=ti===scoreSel;
-    G.textAlign='center';
-    if(tsel){
-      
-      G.font=`bold italic ${fpx(13)}px `+FN;G.fillStyle=col;G.fillText(tabAbbr[ti],tx,tabY1);
-      G.strokeStyle=col;G.lineWidth=2;
-      const tw2=G.measureText(tabAbbr[ti]).width*.5+6;
-      G.beginPath();G.moveTo(tx-tw2,tabY1+10);G.lineTo(tx+tw2,tabY1+10);G.stroke();
-    } else {
-      G.font=`italic ${fpx(11)}px `+FN;G.fillStyle=col+'55';G.fillText(tabAbbr[ti],tx,tabY1);
-    }
+  // ── Tabs, one row ──
+  const tabAbbr=['ARCADE','SWEEP','PURIST','SENTRY','QRTN'],tabY2=OY-R*.58;
+  G.font=`bold italic ${fpx(16)}px `+FN;G.fillStyle=cur.col;G.fillText('HIGH SCORES',OX,OY-R*.72);
+  scoreTabs().forEach(({i,x,y})=>{
+    const {col}=modes[i],on=i===scoreSel;
+    G.font=(on?'bold italic ':'italic ')+fpx(on?11:10)+'px '+FN;G.fillStyle=on?col:col+'66';G.fillText(tabAbbr[i],x,y);
+    if(on){const w=G.measureText(tabAbbr[i]).width/2+4;G.strokeStyle=col;G.lineWidth=1.5;G.beginPath();G.moveTo(x-w,y+(isMobile?13:10));G.lineTo(x+w,y+(isMobile?13:10));G.stroke();}
   });
-  // Row 2: 2 tabs
-  tabRow2.forEach((ti,ri)=>{
-    const {col}=modes[ti];
-    const tx=OX+(ri-.5)*R*.52;
-    const tsel=ti===scoreSel;
-    G.textAlign='center';
-    if(tsel){
-      
-      G.font=`bold italic ${fpx(13)}px `+FN;G.fillStyle=col;G.fillText(tabAbbr[ti],tx,tabY2);
-      G.strokeStyle=col;G.lineWidth=2;
-      const tw2=G.measureText(tabAbbr[ti]).width*.5+6;
-      G.beginPath();G.moveTo(tx-tw2,tabY2+10);G.lineTo(tx+tw2,tabY2+10);G.stroke();
-    } else {
-      G.font=`italic ${fpx(11)}px `+FN;G.fillStyle=col+'55';G.fillText(tabAbbr[ti],tx,tabY2);
-    }
-  });
-
-  // ◀▶ nav hint compact
-  G.font=`italic ${fpx(9)}px `+FN;G.fillStyle='rgba(43,101,226,.35)';
-  if(!isMobile)G.fillText('◀  ▶',OX,tabY2+14);
 
   // ── Separator below both rows ──
   const sepY=tabY2+lsp(22);
@@ -3409,7 +3304,7 @@ function lerpOff(){
   if(ship&&ship._a!==undefined){ship.a=ship._a;ship._a=undefined;}
 }
 function tick(){
-  menuT+=.038;if(overT>0)overT--;
+  menuT+=.038;if(overT>0)overT--;menuIn++;
   if(bindMsg&&--bindMsg.t<=0)bindMsg=null;
   if(gScreen==='playing'&&!paused){
     if(hitStop>0)hitStop--;else{update();latch.clear();}
@@ -3421,6 +3316,7 @@ function render(al){
   if(isMobile)updateTCVis();
   pauseA+=((gScreen==='playing'&&paused?1:0)-pauseA)*ease(.3);
   if(gScreen!==scrKey){if(scrKey)iris=1;scrKey=gScreen;}
+  const mk=gScreen+'|'+subMenu+'|'+(gScreen==='playing'&&paused);if(mk!==menuKey){menuKey=mk;menuIn=0;selShipY=null;}
   const mt=menuT,live=gScreen==='playing';
   ral=live?(hitStop>0?1:al):0;menuT+=al*.038;
   if(live)lerpOn(ral);
