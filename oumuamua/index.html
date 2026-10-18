@@ -63,6 +63,7 @@ html.mobile .tc-deck{display:flex}
       <button class="tc-btn" id="btn-rotL" data-act="left" aria-label="Rotate left">◀</button>
       <button class="tc-btn" id="btn-rotR" data-act="right" aria-label="Rotate right">▶</button>
     </div>
+    <button class="tc-btn small" id="btn-brake" data-act="brake" aria-label="Gravity brake">▼</button>
   </div>
   <button class="tc-btn small" id="btn-pause" data-act="pause" aria-label="Pause">II</button>
   <div class="tc-side">
@@ -230,8 +231,8 @@ function flash(col,n){if(flashOn){flashCol=col;flashT=Math.max(flashT,n);}}
 // Every in-play action reads its keys from BINDS (two slots each), editable in
 // Options > Key bindings. Menus always answer to arrows / WASD, Enter / Space,
 // Esc and Backspace, and Esc always pauses, so no binding can lock you out.
-const ACTIONS=[['left','ROTATE LEFT'],['right','ROTATE RIGHT'],['thrust','THRUST'],['fire','FIRE'],['push','GRAVITY PUSH'],['warp','WARP / SHIELD'],['shield','SHIELD'],['pause','PAUSE']];
-const BIND_DEF={left:['ArrowLeft','KeyA'],right:['ArrowRight','KeyD'],thrust:['ArrowUp','KeyW'],fire:['Space','KeyJ'],push:['KeyV','KeyK'],warp:['KeyC','KeyL'],shield:['KeyE',''],pause:['KeyX','KeyP']};
+const ACTIONS=[['left','ROTATE LEFT'],['right','ROTATE RIGHT'],['thrust','THRUST'],['brake','GRAVITY BRAKE'],['fire','FIRE'],['push','GRAVITY PUSH'],['warp','WARP / SHIELD'],['shield','SHIELD'],['pause','PAUSE']];
+const BIND_DEF={left:['ArrowLeft','KeyA'],right:['ArrowRight','KeyD'],thrust:['ArrowUp','KeyW'],brake:['ArrowDown','KeyS'],fire:['Space','KeyJ'],push:['KeyV','KeyK'],warp:['KeyC','KeyL'],shield:['KeyE',''],pause:['KeyX','KeyP']};
 const copyBinds=b=>JSON.parse(JSON.stringify(b));
 let BINDS=copyBinds(BIND_DEF);
 const MENU_KEYS=new Set(['Tab','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','Space','Enter','NumpadEnter','Escape','Backspace','Delete']);
@@ -640,11 +641,12 @@ const ACH={},ACHP={},TIPSEEN={};
 // Shown once each, the first time the thing they explain turns up, in Arcade and
 // the first five campaign planets. Options > HUD > Tips turns them off (or, back
 // on, replays them).
-const KEY_GLYPH={left:'◀',right:'▶',thrust:'▲',fire:'●',push:'V',warp:'C',shield:'C'};
+const KEY_GLYPH={left:'◀',right:'▶',thrust:'▲',brake:'▼',fire:'●',push:'V',warp:'C',shield:'C'};
 function kl(a){return isMobile?KEY_GLYPH[a]:keyName(BINDS[a][0]||BINDS[a][1]);}
 const TIPS=[
   ['move',()=>tipT>45,()=>kl('left')+' '+kl('right')+' TURN  ·  '+kl('thrust')+' THRUST  ·  '+kl('fire')+' FIRE',"Blast the asteroids. Big ones split into smaller, faster ones."],
   ['orbit',()=>tipT>330&&hasHole(),()=>'YOU ARE IN ORBIT',"Thrust along your motion to climb, against it to dive. The dots show where you'll drift."],
+  ['brake',()=>TIPSEEN.orbit&&tipT>600&&hasHole(),()=>kl('brake')+'  GRAVITY BRAKE',"Hold to bleed off drift and settle into a clean orbit right where you are."],
   ['push',()=>gCd<=0&&ship&&rocks.some(r=>Math.hypot(r.x-ship.x,r.y-ship.y)<r.r+90),()=>kl('push')+'  GRAVITY PUSH',"Shoves everything nearby away, flinging rocks into wider orbits. The magenta rim arc shows the recharge."],
   ['lap',()=>STATS.orbits>0&&tipLap,()=>'ORBIT BONUS',"Every full lap of the hole scores, refunds a third of your push, and every third lap in a row raises the multiplier."],
   ['warp',()=>hypPUs.length>0,()=>'WARPS  ·  BLUE SQUARES',()=>"Fly through to collect. "+kl('warp')+" jumps you somewhere random. Hold 5 and "+kl('warp')+" raises a shield instead."],
@@ -841,6 +843,7 @@ const ROT_MIN=.04,ROT_MAX=.075,ROT_RAMP=5,ROT_FLAT=.07;
 // Thrust. Tight (default) ramps to full power within a few ticks and bleeds off
 // sideways drift, measured against the orbital flow so burns don't fight the
 // orbit: the ship goes where it points. Classic is the old flat push.
+const BRAKE_KR=.85,BRAKE_KT=.9,BRAKE_FLAT=.93;
 const THR_ACC0=.12,THR_ACC1=.17,THR_RAMP=4,THR_GRIP=.84,THR_CLASSIC=.15;
 // Invulnerability after starting, between waves, after a respawn and after a warp
 const START_INV=90,WAVE_INV=30,RESPAWN_INV=300,WARP_INV=300; // respawn and warp keep their full 10 s
@@ -1326,7 +1329,7 @@ function updateTCVis(){
   const on=gScreen==='playing'&&!screensaver,live=on&&!paused;
   DECK.style.visibility=on?'visible':'hidden';
   const vis=(id,v)=>{const el=document.getElementById(id);if(el)el.style.visibility=v?'':'hidden';};
-  vis('btn-thrust',live&&gameMode!=='sentry');
+  vis('btn-thrust',live&&gameMode!=='sentry');vis('btn-brake',live&&gameMode!=='sentry');
   vis('btn-rotL',live);vis('btn-rotR',live);vis('btn-fire',live);vis('btn-warp',live);
   vis('btn-grav',live&&gameMode!=='purist');
 }
@@ -1839,6 +1842,11 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
           ship.vx=fx+hx*(al+ac)-hy*pe;ship.vy=fy+hy*(al+ac)+hx*pe;
         }else{ship.vx+=hx*THR_CLASSIC;ship.vy+=hy*THR_CLASSIC;}
       }else ship.th=0;
+      // Gravity brake: bleeds off whatever motion is out of step with the local
+      // orbit, so the ship settles into a clean circular orbit where it is
+      // (without a hole it is a plain gradual slowdown)
+      const brk=act('brake')&&!act('thrust');ship.brk=Math.max(0,Math.min(1,(ship.brk||0)+(brk?.2:-.12)));
+      if(brk){if(hasHole()&&!pulsarPushing())circularize(ship,BRAKE_KR,BRAKE_KT);else{ship.vx*=BRAKE_FLAT;ship.vy*=BRAKE_FLAT;}}
       if(hasHole()&&!pulsarPushing()){const th=act('thrust');circularize(ship,th?.996:SHIP_KR,th?1:SHIP_KT);capFlow(ship,SHIP_VMAX);}
       else{ship.vx*=.985;ship.vy*=.985;}
       ship.x+=ship.vx;ship.y+=ship.vy;wrapO(ship);
@@ -2506,6 +2514,8 @@ function drawGame(){
         G.beginPath();G.moveTo(i?tr[i].x:ship.x,i?tr[i].y:ship.y);G.lineTo(tr[i+1].x,tr[i+1].y);G.stroke();}
       G.globalAlpha=1;
     }
+    if(ship.brk>0&&!simple){G.strokeStyle=isColor()?P.lav:P.wht;G.lineWidth=1.2;
+      for(let k=0;k<3;k++){const ph=(menuT*1.6+k/3)%1;G.globalAlpha=ship.brk*ph*.55;G.beginPath();G.arc(ship.x,ship.y,13+(1-ph)*26,0,TAU);G.stroke();}G.globalAlpha=1;}
     G.save();G.translate(ship.x,ship.y);G.rotate(ship.a);
     // Bank into turns (the hull narrows as it rolls) and kick back on each shot
     if(CFG.anim){if(ship.rec>0)G.translate(-ship.rec*.9,0);const bk=Math.abs(ship.bank||0);if(bk>.02)G.scale(1,1-bk*.3);}
@@ -3270,6 +3280,7 @@ function drawControls(){
   // Two columns: key | action
   const rows=isMobile?[
     ['▲','THRUST'],
+    ['▼','GRAVITY BRAKE'],
     ['◀  ▶','ROTATE  /  ORBIT'],
     ['●','FIRE  /  DETONATE'],
     ['V','GRAVITY PUSH'],
@@ -3279,6 +3290,7 @@ function drawControls(){
     ['A / ←', 'ROTATE LEFT'],
     ['D / →', 'ROTATE RIGHT'],
     ['W / ↑', 'THRUST  /  LAY MINES (MINESWEEPER)'],
+    ['S / ↓', 'GRAVITY BRAKE'],
     ['SPACE',  'FIRE  /  SWEEP DETONATE'],
     ['V',      'GRAVITY PUSH'],
     ['C',      'WARP  /  SHIELD ×5'],
