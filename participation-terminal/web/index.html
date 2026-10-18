@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Participation Terminal</title>
+  <link rel="stylesheet" href="css/shell.css">
+</head>
+<body>
+  <main class="stage">
+    <section class="device-wrap" aria-label="Simulated Nintendo DSi XL">
+      <div class="device" id="device">
+        <div class="lid">
+          <div class="speaker"></div>
+          <div class="bezel"><canvas id="top" width="256" height="192" aria-label="Upper screen"></canvas></div>
+          <div class="speaker"></div>
+        </div>
+        <div class="hinge" title="Physical gap between the two screens"></div>
+        <div class="base">
+          <button class="hw shoulder l" data-btn="l">L</button>
+          <button class="hw shoulder r" data-btn="r">R</button>
+          <div class="controls left">
+            <div class="dpad">
+              <button class="hw up" data-btn="up" aria-label="Up"></button>
+              <button class="hw left" data-btn="left" aria-label="Left"></button>
+              <button class="hw right" data-btn="right" aria-label="Right"></button>
+              <button class="hw down" data-btn="down" aria-label="Down"></button>
+            </div>
+          </div>
+          <div class="bezel touch"><canvas id="bottom" width="256" height="192" aria-label="Touchscreen"></canvas></div>
+          <div class="controls right">
+            <div class="abxy">
+              <button class="hw x" data-btn="x">X</button>
+              <button class="hw y" data-btn="y">Y</button>
+              <button class="hw a" data-btn="a">A</button>
+              <button class="hw b" data-btn="b">B</button>
+            </div>
+            <div class="ss">
+              <button class="hw pill" data-btn="start">START</button>
+              <button class="hw pill" data-btn="select">SELECT</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">Lower screen is the touchscreen. Hold <b>L+R</b> (keys Q+W) for staff access.</p>
+    </section>
+
+    <aside class="dev" id="dev">
+      <header>
+        <h1>Participation Terminal</h1>
+        <p>Browser prototype · not the DS build</p>
+      </header>
+
+      <details open>
+        <summary>Device</summary>
+        <div class="row">
+          <label>Scale
+            <select id="opt-scale">
+              <option value="1">1×</option>
+              <option value="2" selected>2×</option>
+              <option value="3">3×</option>
+              <option value="fit">Fit window</option>
+            </select>
+          </label>
+          <label>Screen gap
+            <select id="opt-gap">
+              <option value="78" selected>DSi XL (realistic)</option>
+              <option value="24">Compact</option>
+              <option value="0">None</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <button id="hold-lr" class="btn">Hold for L+R</button>
+          <span class="hint">Default PIN 1234</span>
+        </div>
+      </details>
+
+      <details open>
+        <summary>SD card &amp; power (simulated)</summary>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="sim-missing"> Card missing</label>
+          <label class="check"><input type="checkbox" id="sim-full"> Card full</label>
+        </div>
+        <div class="row">
+          <label>Capacity
+            <select id="sim-capacity">
+              <option value="524288">512 KB</option>
+              <option value="65536">64 KB</option>
+              <option value="16384">16 KB</option>
+              <option value="6144">6 KB</option>
+            </select>
+          </label>
+        </div>
+        <div class="row wrap">
+          <button class="btn" id="sim-cut">Power cut now</button>
+          <button class="btn" id="sim-cut-next">Cut power on next write</button>
+          <button class="btn" id="sim-corrupt">Corrupt data.json</button>
+          <button class="btn" id="sim-resetpin">Drop RESETPIN.TXT</button>
+        </div>
+        <p class="hint" id="sim-status"></p>
+      </details>
+
+      <details>
+        <summary>Test data</summary>
+        <div class="row wrap">
+          <button class="btn" id="data-votes">+10 votes</button>
+          <button class="btn" id="data-sugs">+3 suggestions</button>
+          <button class="btn" id="data-comments">+8 comments</button>
+          <button class="btn danger" id="data-wipe">Wipe SD card</button>
+        </div>
+        <p class="hint">Test data goes through the same journal as real submissions.</p>
+      </details>
+
+      <details open>
+        <summary>SD card files</summary>
+        <ul class="files" id="files"></ul>
+        <pre class="peek" id="peek" hidden></pre>
+      </details>
+
+      <details>
+        <summary>Storage log</summary>
+        <ol class="log" id="log"></ol>
+      </details>
+
+      <details>
+        <summary>Keys</summary>
+        <table class="keys">
+          <tr><td>Touch</td><td>Mouse / finger on the lower screen</td></tr>
+          <tr><td>D-pad</td><td>Arrow keys (scroll lists)</td></tr>
+          <tr><td>A / B</td><td>X / Z (B = back)</td></tr>
+          <tr><td>X / Y</td><td>S / A</td></tr>
+          <tr><td>L / R</td><td>Q / W</td></tr>
+          <tr><td>Start / Select</td><td>Enter / Shift</td></tr>
+          <tr><td>Typing</td><td>Physical keyboard works on text screens</td></tr>
+        </table>
+      </details>
+    </aside>
+  </main>
+
+  <script src="js/font.js"></script>
+  <script src="js/gfx.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/hash.js"></script>
+  <script src="js/sdcard.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/keyboard.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/scenes/public.js"></script>
+  <script src="js/scenes/admin.js"></script>
+  <script src="js/devpanel.js"></script>
+  <script>
+    PPT.App.init(document.getElementById('top'), document.getElementById('bottom'));
+  </script>
+</body>
+</html>
