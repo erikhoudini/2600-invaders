@@ -3368,15 +3368,19 @@ function render(al){
 }
 // Bloom: shrink the finished frame in halving steps, then add the soft copies back
 // on top. One cheap pass replaces dozens of per-shape blurs.
-const BL=[1,2,3].map(k=>{const c=document.createElement('canvas');c.width=c.height=Math.max(1,(S*DPR/2**k)|0);const g=c.getContext('2d',{alpha:false});g.imageSmoothingEnabled=true;return{c,g};});
+const BL=[1,2,3,4].map(k=>{const c=document.createElement('canvas');c.width=c.height=Math.max(1,(S*DPR/2**k)|0);const g=c.getContext('2d',{alpha:false});g.imageSmoothingEnabled=true;return{c,g};});
+// The frame shrinks by halves four times (each halving is a soft average), then
+// each level is added back into the one above it on the way up, so every
+// stretch is only 2x and the halo stays smooth instead of showing blocks.
 function bloom(){
   if(simple||!CFG.glow)return;
   const gk=[0,.5,1,1.35][CFG.glow];
   let src=CVS;
-  for(const b of BL){b.g.drawImage(src,0,0,b.c.width,b.c.height);src=b.c;}
+  for(const b of BL){b.g.globalCompositeOperation='source-over';b.g.globalAlpha=1;b.g.drawImage(src,0,0,b.c.width,b.c.height);src=b.c;}
+  for(let i=BL.length-1;i>0;i--){const up=BL[i-1];up.g.globalCompositeOperation='lighter';up.g.globalAlpha=.75;up.g.drawImage(BL[i].c,0,0,up.c.width,up.c.height);}
   G.save();G.setTransform(1,0,0,1,0,0);G.globalCompositeOperation='lighter';G.imageSmoothingEnabled=true;
-  G.globalAlpha=Math.min(1,.65*gk);G.drawImage(BL[1].c,0,0,CVS.width,CVS.height);
-  G.globalAlpha=Math.min(1,.8*gk);G.drawImage(BL[2].c,0,0,CVS.width,CVS.height);
+  G.globalAlpha=Math.min(1,.42*gk);G.drawImage(BL[0].c,0,0,CVS.width,CVS.height);
+  G.globalAlpha=Math.min(1,.38*gk);G.drawImage(BL[1].c,0,0,CVS.width,CVS.height);
   G.restore();
 }
 // Scanlines and vignette, painted once at device resolution
