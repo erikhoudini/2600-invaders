@@ -38,7 +38,7 @@
     ['Loved it', 'Liked it', 'Meh', 'Not for me'],
   ];
 
-  function now() { return Date.now(); }
+  function now() { return PPT.Clock.now(); }
 
   function makePinRecord(pin, isDefault) {
     const salt = randomHex(8);
@@ -65,6 +65,7 @@
         adminTimeout: 120,
         suggestLimit: 200,
         suggestPrompt: 'Got an idea for us?',
+        calendar: defaultCalendar(),
       },
       security: makePinRecord(DEFAULT_PIN, true),
       activePollId: 'p1',
@@ -87,7 +88,31 @@
       suggestions: [],
       comments: [],
       notices: [],
+      schedule: {},          // 'YYYY-MM-DD' -> poll id, or null for "no poll that day"
+      lastScheduleDay: null, // the day the schedule was last applied
+      daily: {},             // 'YYYY-MM-DD' -> { v: { pollId: [counts] }, s: suggestions, c: comments }
     };
+  }
+
+  // Calendar features are all off by default; daily tallies are always kept.
+  function defaultCalendar() {
+    return {
+      schedule: false,       // switch polls automatically from the schedule
+      dayStart: 0,           // hour the terminal's "day" begins (bars may want 4 or 6)
+      unscheduled: 'keep',   // on days with nothing scheduled: 'keep' current poll or 'none'
+      rest: false,           // closed hours: visitors see a resting screen
+      restFrom: 22,
+      restTo: 7,
+      showDate: false,       // show the date in the visitor header
+    };
+  }
+
+  // Bring data saved by older versions up to date.
+  function migrate(st) {
+    st.settings.calendar = Object.assign(defaultCalendar(), st.settings.calendar || {});
+    st.schedule = st.schedule || {};
+    st.daily = st.daily || {};
+    if (st.lastScheduleDay === undefined) st.lastScheduleDay = null;
   }
 
   function serialize(state) {
@@ -148,6 +173,7 @@
           }
           st = this.state;
         } else {
+          migrate(st);
           this.state = st;
           this.report.push('Loaded ' + source + (source !== 'data.json' ? ' (recovered)' : ''));
         }
@@ -254,15 +280,21 @@
     },
 
     _apply(st, rec) {
+      const day = this.dayKey(rec.t, st);
+      const d = st.daily[day] || (st.daily[day] = { v: {}, s: 0, c: 0 });
       if (rec.type === 'vote') {
         const p = st.polls.find((x) => x.id === rec.poll);
         if (p && rec.choice >= 0 && rec.choice < p.counts.length) {
           p.counts[rec.choice]++;
           p.lastVoteAt = rec.t;
+          const dv = d.v[p.id] || (d.v[p.id] = p.choices.map(() => 0));
+          dv[rec.choice]++;
         }
       } else if (rec.type === 'suggest') {
+        d.s++;
         st.suggestions.push({ id: rec.sid, text: rec.text, t: rec.t, status: 'new' });
       } else if (rec.type === 'comment') {
+        d.c++;
         st.comments.push({ id: rec.sid, prompt: rec.prompt, option: rec.option, label: rec.label,
                            t: rec.t, status: 'new' });
       }
@@ -404,6 +436,7 @@
     deletePoll(id) {
       this.mutate((st) => {
         st.polls = st.polls.filter((x) => x.id !== id);
+        for (const k of Object.keys(st.schedule)) if (st.schedule[k] === id) delete st.schedule[k];
         if (st.activePollId === id) st.activePollId = null;
       });
     },
@@ -477,9 +510,80 @@
     setVenue(name) { this.mutate((st) => { st.venue = name; }); },
     dismissNotices() { this.mutate((st) => { st.notices = []; }); },
 
+    // ---------- calendar ----------
+    // The terminal's calendar day for a timestamp, honouring the "day starts at" hour.
+    dayKey(t, st = this.state) {
+      const h = st && st.settings.calendar ? st.settings.calendar.dayStart : 0;
+      return PPT.Cal.key(new Date(t - h * 3600000));
+    },
+    today() { return this.dayKey(now()); },
+    cal() { return this.state.settings.calendar; },
+    setCal(key, value) { this.mutate((st) => { st.settings.calendar[key] = value; }); },
+    // undefined = nothing scheduled; null = explicitly "no poll"; otherwise a poll id.
+    scheduled(day) { return this.state.schedule[day]; },
+    setSchedule(day, pollId) {
+      this.mutate((st) => {
+        if (pollId === undefined) delete st.schedule[day];
+        else st.schedule[day] = pollId;
+        // Changing today's slot takes effect on the next check.
+        if (day === this.today()) st.lastScheduleDay = null;
+      });
+    },
+    copyWeek(monday) {
+      return this.mutate((st) => {
+        let n = 0;
+        for (let i = 0; i < 7; i++) {
+          const from = PPT.Cal.add(monday, i);
+          if (st.schedule[from] !== undefined) { st.schedule[PPT.Cal.add(from, 7)] = st.schedule[from]; n++; }
+        }
+        return n;
+      });
+    },
+    dayStats(day) {
+      const d = this.state.daily[day];
+      if (!d) return { votes: 0, s: 0, c: 0, polls: {} };
+      let votes = 0;
+      for (const id in d.v) votes += d.v[id].reduce((a, b) => a + b, 0);
+      return { votes, s: d.s, c: d.c, polls: d.v };
+    },
+    restNow() {
+      const c = this.cal();
+      if (!c.rest || !PPT.Clock.plausible()) return false;
+      const h = PPT.Clock.date().getHours();
+      return c.restFrom < c.restTo ? h >= c.restFrom && h < c.restTo : h >= c.restFrom || h < c.restTo;
+    },
+    // Apply today's scheduled poll once per day. Manual changes later in the day stick.
+    tickSchedule() {
+      if (!this.ok) return null;
+      const c = this.cal();
+      if (!c.schedule || !PPT.Clock.plausible()) return null;
+      const day = this.today();
+      if (this.state.lastScheduleDay === day) return null;
+      const entry = this.state.schedule[day];
+      return this.mutate((st) => {
+        st.lastScheduleDay = day;
+        const cur = st.polls.find((x) => x.id === st.activePollId && x.status === 'active');
+        const p = entry ? st.polls.find((x) => x.id === entry && x.status !== 'archived') : null;
+        if (p) {
+          if (cur && cur.id !== p.id) { cur.status = 'ended'; cur.endedAt = now(); }
+          p.status = 'active';
+          p.activatedAt = p.activatedAt || now();
+          p.endedAt = null;
+          st.activePollId = p.id;
+          return 'activated ' + p.id;
+        }
+        if (entry === null || (entry === undefined && c.unscheduled === 'none') || (entry && !p)) {
+          if (cur) { cur.status = 'ended'; cur.endedAt = now(); }
+          st.activePollId = null;
+          return 'cleared';
+        }
+        return 'kept';
+      });
+    },
+
     // ---------- export & backup ----------
     _stamp() {
-      const d = new Date();
+      const d = PPT.Clock.date();
       const p = (n) => String(n).padStart(2, '0');
       return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
     },
@@ -506,12 +610,22 @@
         pr.options.forEach((o, i) => comRows.push([pr.id, pr.text, i + 1, o, counts[i],
           st.comments.filter((c) => c.prompt === pr.id && c.option === i && c.status === 'archived').length]));
       }
+      const dailyRows = [];
+      for (const day of Object.keys(st.daily).sort()) {
+        const d = st.daily[day];
+        const sched = st.schedule[day] || '';
+        const ids = Object.keys(d.v);
+        if (!ids.length) dailyRows.push([day, sched, '', '', '', d.s, d.c]);
+        ids.forEach((id) => d.v[id].forEach((n, i) => dailyRows.push([day, sched, id, i + 1, n, d.s, d.c])));
+      }
       const files = [
         [F.exportDir + 'polls-' + stamp + '.csv', rows(['poll_id', 'poll_root', 'revision', 'status', 'question',
           'choice_no', 'choice', 'votes', 'percent', 'poll_total', 'created', 'activated', 'ended'], pollRows)],
         [F.exportDir + 'suggestions-' + stamp + '.csv', rows(['id', 'submitted', 'status', 'text'], sugRows)],
         [F.exportDir + 'comments-' + stamp + '.csv', rows(['prompt_id', 'prompt', 'option_no', 'option',
           'responses_total', 'responses_archived'], comRows)],
+        [F.exportDir + 'daily-' + stamp + '.csv', rows(['date', 'scheduled_poll', 'poll_id', 'choice_no', 'votes',
+          'suggestions', 'comments'], dailyRows)],
       ];
       files.forEach(([path, text]) => SD.write(path, text));
       return files.map((f) => f[0]);
@@ -535,6 +649,7 @@
         const keepSeq = st.lastSeq;
         Object.keys(st).forEach((k) => delete st[k]);
         Object.assign(st, clone(doc.state));
+        migrate(st);
         st.lastSeq = Math.max(keepSeq, st.lastSeq); // journal seq must keep increasing
         st.notices = (st.notices || []).concat('Restored from ' + path.split('/').pop());
       });

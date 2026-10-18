@@ -16,18 +16,20 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 ```
 
 Each screen is drawn into a real 256×192 canvas and scaled with nearest-neighbour filtering
-(2× by default), with the DSi XL's gap between the screens. The lower screen is the only
-touch surface, as on hardware.
+(2× by default), with the DSi XL's gap between the screens. There is no console frame or
+on-screen buttons, just the two screens. The lower screen is the only touch surface, as on
+hardware.
 
 | Action | How |
 | --- | --- |
 | Touch | Mouse or finger on the lower screen |
-| Staff access | Hold **L+R** for 1.5 s (keys **Q+W**, the on-device shoulder buttons, or "Hold for L+R" in the panel), or hold the top-left corner of the touchscreen for 3 s |
+| Staff access | Hold **L+R** for 1.5 s (keys **Q+W**, or the "Hold for staff access" button in the panel), or hold the top-left corner of the touchscreen for 3 s |
 | Default PIN | `1234` (the admin home warns until it is changed) |
 | D-pad / A / B | Arrow keys / X / Z. B goes back on admin screens |
 | Typing | The physical keyboard works on text-entry screens, for speed |
 
-The side panel is for prototyping only: change scale and screen gap, inject SD-card faults
+The side panel is for prototyping only: change scale and screen gap, move the simulated DS clock
+(+1 hour/day/week, set a date, or simulate a flat clock battery), inject SD-card faults
 (missing, full, small capacity, power cut on the next write, corrupt `data.json`, drop the
 `RESETPIN.TXT` recovery file), add test data, and browse or download files on the virtual card.
 
@@ -97,6 +99,7 @@ web/
   js/sprites.js       original pixel-art icons
   js/mascot.js        "Tally" the mascot: procedural body, moods, actions, effects
   js/hash.js          SHA-256 + CRC-32
+  js/clock.js         DS real-time clock (simulated offset) + calendar helpers
   js/sdcard.js        virtual SD card with fault injection (mock)
   js/store.js         data model, journal/snapshot persistence, exports
   js/ui.js            immediate-mode touch regions and shared widgets
@@ -104,6 +107,7 @@ web/
   js/app.js           scene stack, main loop, buttons, timeouts, dialogs
   js/scenes/public.js visitor flows
   js/scenes/admin.js  staff flows
+  js/scenes/calendar.js  calendar, week planner, day detail, calendar options
   js/devpanel.js      prototype-only controls
   tests/check-assets.js   validates font and sprite tables (node)
   tests/smoke.js          headless walkthrough with screenshots (Playwright)
@@ -140,6 +144,33 @@ These are placeholders to test, not decisions:
 | PIN recovery | `RESETPIN.TXT` in `/ppt/` on the card resets the PIN to 1234 at boot; needs physical card access |
 | Export schema | `polls-*.csv`, `suggestions-*.csv`, `comments-*.csv`, `backup-*.json` (see `store.js`) |
 | Retention | Manual only: archive, then delete archived |
+
+## Calendar features (optional, from the DS clock)
+
+The DS has a built-in real-time clock, which the owner sets in System Settings. Everything below
+uses it, and all of it is **off by default** except the passive daily tallies.
+
+- **Daily tallies (always on):** each vote, suggestion and comment is also counted under its
+  calendar day. These are counts only; nothing personal is stored.
+- **Calendar (admin → Calendar, or the date tile):** a touchscreen month grid. Each day shows
+  activity dots, a coloured stripe for its scheduled poll, and a ring for today. The top screen
+  shows the selected day's votes per poll, suggestions and comments. Tapping a selected day opens
+  that day's breakdown and its suggestions.
+- **Week planner:** assign a poll (or "no poll") to each of the seven days, pick or create polls
+  from there, and copy a week forward. With **Poll schedule** on, the terminal switches to the
+  day's poll at the start of each day. A manual switch by staff holds until the next day. Days
+  with nothing planned either keep the current poll or show none (your choice).
+- **Day starts at:** 00:00 to 06:00, so a bar open past midnight counts late votes on the right
+  day and doesn't switch polls mid-shift.
+- **Closed hours:** outside opening times visitors see a resting screen with Tally asleep and
+  the reopening time. Staff access still works.
+- **Show date to visitors:** puts the date in the visitor header. When the schedule is on,
+  Tally's speech bubble can also say "Today's question!" or "New question tomorrow!".
+- **Per-day results:** Results & History shows votes by day for each poll, and the CSV export
+  adds `daily-*.csv`.
+- **Clock sanity:** if the clock battery dies, the DS resets to 1 Jan 2000. The terminal treats
+  any year outside 2024–2099 as unset: it warns on the admin home, and pauses the schedule and
+  closed hours rather than acting on a wrong date. Submissions still save.
 
 ## Tally, the mascot
 

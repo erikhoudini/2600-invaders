@@ -89,6 +89,16 @@
       'k.......k',
       'kkkkkkkkk',
     ],
+    iconCal: [
+      '.k....k..',
+      'kkkkkkkkk',
+      'k.......k',
+      'kkkkkkkkk',
+      'k.k.k.k.k',
+      'k.......k',
+      'k.k.k.k.k',
+      'kkkkkkkkk',
+    ],
     iconGear: [
       '....k....',
       '.k.kkk.k.',

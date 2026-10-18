@@ -81,24 +81,26 @@ fs.mkdirSync(OUT, { recursive: true });
   await expect('adminHome', 'pin unlock');
   await shot('09-admin-home');
 
-  await tap(44, 40);  await expect('polls', 'polls');  await shot('10-polls');
+  await tap(34, 42);  await expect('polls', 'polls');  await shot('10-polls');
   await tap(100, 37); await expect('pollDetail', 'poll detail'); await shot('11-poll-detail');
   await tap(26, 10);  await tap(26, 10);
-  await tap(128, 40); await expect('inbox', 'inbox'); await shot('12-inbox');
+  await tap(158, 42); await expect('inbox', 'inbox'); await shot('12-inbox');
   await tap(100, 82); await expect('suggestion', 'suggestion'); await shot('13-suggestion');
   await tap(26, 10);  await tap(26, 10);
-  await tap(212, 40); await expect('history', 'history'); await tap(100, 37); await shot('14-history-detail');
+  await tap(220, 42); await expect('history', 'history'); await tap(100, 37); await shot('14-history-detail');
   await tap(26, 10);  await tap(26, 10);
-  await tap(44, 120); await expect('appearance', 'appearance'); await shot('15-appearance');
+  await tap(34, 122); await expect('appearance', 'appearance'); await shot('15-appearance');
   await tap(100, 37); // cycle theme
   await shot('16-theme-sea');
   await tap(100, 37); // night
   await shot('17-theme-night');
   await tap(100, 37); // back to paper
   await tap(26, 10);
-  await tap(128, 120); await expect('records', 'records'); await shot('18-records');
+  await tap(96, 122); await expect('records', 'records'); await shot('18-records');
   await tap(26, 10);
-  await tap(212, 120); await expect('settings', 'settings'); await shot('19-settings');
+  await tap(158, 122); await expect('settings', 'settings'); await shot('19-settings');
+  await tap(26, 10);
+  await tap(96, 42); await expect('calendar', 'calendar'); await shot('19b-calendar');
   await tap(26, 10);
 
   // Storage failure: card full -> no false success

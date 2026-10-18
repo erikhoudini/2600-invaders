@@ -23,6 +23,7 @@
     btnPrev: {},
     lrSince: 0,
     cornerSince: 0,
+    lastTick: 0,
     halted: false,
 
     init(topCanvas, bottomCanvas) {
@@ -157,6 +158,15 @@
         if (this.cornerSince && UI.ptr.down && (now - this.cornerSince) / 1000 >= CORNER_HOLD_SECONDS) {
           this.cornerSince = 0; this.enterAdmin(); return;
         }
+      }
+
+      // Calendar: apply today's scheduled poll and closed hours, about once a second.
+      if (Store.ok && now - this.lastTick > 1000) {
+        this.lastTick = now;
+        try { Store.tickSchedule(); } catch (e) { if (e instanceof SD.PowerCut) throw e; }
+        const resting = Store.restNow();
+        if (resting && s.name === 'landing' && s.public) { this.go('resting'); return; }
+        if (!resting && s.name === 'resting') { this.go('landing'); return; }
       }
 
       // Admin auto-lock.

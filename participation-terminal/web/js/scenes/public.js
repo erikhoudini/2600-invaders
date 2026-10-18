@@ -23,6 +23,18 @@
     g.text(text, x + w / 2, y + 8, th.text, 1, 'center');
   }
 
+  // Extra invitations when the poll schedule is in use.
+  function calendarLines(poll) {
+    const cal = settings().calendar;
+    if (!cal.schedule || !PPT.Clock.plausible() || !poll) return [];
+    const today = Store.today();
+    const out = [];
+    if (Store.scheduled(today) === poll.id) out.push("Today's question!");
+    const next = Store.scheduled(PPT.Cal.add(today, 1));
+    if (next && next !== poll.id) out.push('New question tomorrow!');
+    return out;
+  }
+
   const longIdle = () => (performance.now() - App.lastInput) / 1000 > 45;
 
   // Shared so admin screens can show what visitors will see.
@@ -44,7 +56,8 @@
       const held = W.pressed();
       const m = held && /^choice-/.test(held) ? { mood: 'listen', wide: true } : { mood: 'invite' };
       W.mascot(g, key, 30, 184, 2, Object.assign({ level, longIdle: longIdle() }, m));
-      const line = level === 2 ? INVITES[Math.floor(t / 6) % INVITES.length] : INVITES[0];
+      const lines = INVITES.concat(calendarLines(poll));
+      const line = level === 2 ? lines[Math.floor(t / 6) % lines.length] : lines[0];
       bubble(g, 58, 156, 150, line);
       const bob = anim ? Math.round(Math.abs(Math.sin(t * 3)) * 3) : 0;
       g.text('\u2193', 224, 156 + bob, C.coral, 2);
@@ -456,6 +469,34 @@
       W.bg(g);
       if (W.button(g, 'err-ok', 48, 60, 160, 56, { label: 'OK', scale: 2 })) this.back();
       if (t > 15) this.back();
+    },
+  });
+
+  // Closed hours (optional, from the DS clock). Staff access still works.
+  S.resting = () => (PPT.Tally.get('resting').reset(), {
+    public: true,
+    top(g) {
+      const th = W.theme();
+      const cal = settings().calendar;
+      W.bg(g, th);
+      W.header(g, 'CLOSED');
+      W.mascot(g, 'resting', 120, 112, 3, { mood: 'sleep' });
+      g.stext('Resting for now', 128, 124, th.text, th.dots, 2, 'center');
+      g.text('Back at ' + PPT.Cal.hhmm(cal.restTo) + '. See you then!', 128, 148, th.soft, 1, 'center');
+    },
+    bottom(g, t) {
+      const th = W.theme();
+      W.bg(g, th);
+      const d = PPT.Clock.date();
+      g.text(PPT.Cal.time(d), 128, 64, th.text, 4, 'center');
+      g.text(PPT.Cal.long(PPT.Cal.key(d)), 128, 108, th.soft, 1, 'center');
+      if (settings().idle !== 'off') {
+        // A few drifting stars.
+        for (let i = 0; i < 6; i++) {
+          const x = (i * 47 + Math.floor(t * 4)) % 256, y = 20 + ((i * 29) % 30);
+          if ((Math.floor(t * 2) + i) % 3) g.rect(x, y, 1, 1, th.soft);
+        }
+      }
     },
   });
 

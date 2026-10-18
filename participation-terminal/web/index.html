@@ -8,41 +8,13 @@
 </head>
 <body>
   <main class="stage">
-    <section class="device-wrap" aria-label="Simulated Nintendo DSi XL">
+    <section class="device-wrap" aria-label="DS screens">
       <div class="device" id="device">
-        <div class="lid">
-          <div class="speaker"></div>
-          <div class="bezel"><canvas id="top" width="256" height="192" aria-label="Upper screen"></canvas></div>
-          <div class="speaker"></div>
-        </div>
-        <div class="hinge" title="Physical gap between the two screens"></div>
-        <div class="base">
-          <button class="hw shoulder l" data-btn="l">L</button>
-          <button class="hw shoulder r" data-btn="r">R</button>
-          <div class="controls left">
-            <div class="dpad">
-              <button class="hw up" data-btn="up" aria-label="Up"></button>
-              <button class="hw left" data-btn="left" aria-label="Left"></button>
-              <button class="hw right" data-btn="right" aria-label="Right"></button>
-              <button class="hw down" data-btn="down" aria-label="Down"></button>
-            </div>
-          </div>
-          <div class="bezel touch"><canvas id="bottom" width="256" height="192" aria-label="Touchscreen"></canvas></div>
-          <div class="controls right">
-            <div class="abxy">
-              <button class="hw x" data-btn="x">X</button>
-              <button class="hw y" data-btn="y">Y</button>
-              <button class="hw a" data-btn="a">A</button>
-              <button class="hw b" data-btn="b">B</button>
-            </div>
-            <div class="ss">
-              <button class="hw pill" data-btn="start">START</button>
-              <button class="hw pill" data-btn="select">SELECT</button>
-            </div>
-          </div>
-        </div>
+        <canvas id="top" width="256" height="192" aria-label="Upper screen"></canvas>
+        <div class="gap" title="Physical gap between the two screens"></div>
+        <canvas id="bottom" width="256" height="192" aria-label="Touchscreen"></canvas>
       </div>
-      <p class="caption">Lower screen is the touchscreen. Hold <b>L+R</b> (keys Q+W) for staff access.</p>
+      <p class="caption">Lower screen is the touchscreen. Hold <b>Q+W</b> (L+R) for staff access.</p>
     </section>
 
     <aside class="dev" id="dev">
@@ -71,9 +43,27 @@
           </label>
         </div>
         <div class="row">
-          <button id="hold-lr" class="btn">Hold for L+R</button>
+          <button id="hold-lr" class="btn">Hold for staff access (L+R)</button>
           <span class="hint">Default PIN 1234</span>
         </div>
+      </details>
+
+      <details open>
+        <summary>DS clock (simulated)</summary>
+        <p class="clock" id="clock-now"></p>
+        <div class="row wrap">
+          <button class="btn" data-shift="3600000">+1 hour</button>
+          <button class="btn" data-shift="86400000">+1 day</button>
+          <button class="btn" data-shift="604800000">+1 week</button>
+          <button class="btn" data-shift="-86400000">−1 day</button>
+        </div>
+        <div class="row wrap">
+          <input type="datetime-local" id="clock-set">
+          <button class="btn" id="clock-apply">Set</button>
+          <button class="btn" id="clock-reset">Real time</button>
+          <button class="btn" id="clock-dead">Flat clock battery</button>
+        </div>
+        <p class="hint">On hardware the owner sets this in DS System Settings. A flat clock battery resets it to 1 Jan 2000.</p>
       </details>
 
       <details open>
@@ -127,7 +117,7 @@
         <summary>Keys</summary>
         <table class="keys">
           <tr><td>Touch</td><td>Mouse / finger on the lower screen</td></tr>
-          <tr><td>D-pad</td><td>Arrow keys (scroll lists)</td></tr>
+          <tr><td>D-pad</td><td>Arrow keys (scroll lists, move around the calendar)</td></tr>
           <tr><td>A / B</td><td>X / Z (B = back)</td></tr>
           <tr><td>X / Y</td><td>S / A</td></tr>
           <tr><td>L / R</td><td>Q / W</td></tr>
@@ -142,6 +132,7 @@
   <script src="js/gfx.js"></script>
   <script src="js/sprites.js"></script>
   <script src="js/hash.js"></script>
+  <script src="js/clock.js"></script>
   <script src="js/sdcard.js"></script>
   <script src="js/store.js"></script>
   <script src="js/ui.js"></script>
@@ -150,6 +141,7 @@
   <script src="js/app.js"></script>
   <script src="js/scenes/public.js"></script>
   <script src="js/scenes/admin.js"></script>
+  <script src="js/scenes/calendar.js"></script>
   <script src="js/devpanel.js"></script>
   <script>
     PPT.App.init(document.getElementById('top'), document.getElementById('bottom'));

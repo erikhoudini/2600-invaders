@@ -53,10 +53,17 @@
     g.rect(0, 16, 256, 2, bandD);
     const venue = PPT.Store.state ? PPT.Store.state.venue : '';
     g.text(truncate(opts.left !== undefined ? opts.left : venue, 160), 6, 4, onColor(band));
+    let right = 250;
     if (label) {
       const w = measure(label) + 10;
       g.rrect(250 - w, 3, w, 11, bandD, 1);
       g.text(label, 245, 5, C.white, 1, 'right');
+      right = 250 - w - 6;
+    }
+    // Optional date for visitors, from the DS clock.
+    const st = PPT.Store.state;
+    if (opts.left === undefined && st && st.settings.calendar.showDate && PPT.Clock.plausible()) {
+      g.text(PPT.Cal.short(PPT.Cal.key(PPT.Clock.date())), right, 4, onColor(band), 1, 'right');
     }
   };
 

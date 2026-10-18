@@ -23,7 +23,7 @@
     $('opt-scale').value = scale;
     $('opt-gap').value = String(gap);
     if (scale === 'fit') {
-      scale = Math.max(1, (window.innerHeight - 140) / (384 + gap + 40));
+      scale = Math.max(1, (window.innerHeight - 90) / (384 + gap));
     }
     device.style.setProperty('--scale', scale);
     device.style.setProperty('--gap', gap);
@@ -33,19 +33,31 @@
   window.addEventListener('resize', () => { if (prefs().scale === 'fit') applyLayout(); });
   applyLayout();
 
-  // ---------- hardware buttons ----------
-  document.querySelectorAll('[data-btn]').forEach((el) => {
-    const name = el.dataset.btn;
-    const set = (down) => { App.setButton(name, down); el.classList.toggle('down-state', down); };
-    el.addEventListener('pointerdown', (e) => { el.setPointerCapture(e.pointerId); set(true); e.preventDefault(); });
-    el.addEventListener('pointerup', () => set(false));
-    el.addEventListener('pointercancel', () => set(false));
-  });
+  // ---------- staff access (L+R) ----------
   const lr = $('hold-lr');
   const setLR = (down) => { App.setButton('l', down); App.setButton('r', down); lr.classList.toggle('on', down); };
   lr.addEventListener('pointerdown', (e) => { lr.setPointerCapture(e.pointerId); setLR(true); });
   lr.addEventListener('pointerup', () => setLR(false));
   lr.addEventListener('pointercancel', () => setLR(false));
+
+  // ---------- DS clock ----------
+  const { Clock, Cal } = PPT;
+  const pad = (n) => String(n).padStart(2, '0');
+  const local = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  function showClock() {
+    const d = Clock.date();
+    const el = $('clock-now');
+    el.textContent = Cal.long(Cal.key(d)) + ' ' + d.getFullYear() + ', ' + Cal.time(d) + (Clock.simulated() ? '  (simulated)' : '');
+    el.className = 'clock' + (!Clock.plausible() ? ' bad' : Clock.simulated() ? ' sim' : '');
+  }
+  document.querySelectorAll('[data-shift]').forEach((el) => el.addEventListener('click', () => Clock.shift(Number(el.dataset.shift))));
+  $('clock-apply').addEventListener('click', () => { const v = $('clock-set').value; if (v) Clock.set(new Date(v).getTime()); });
+  $('clock-reset').addEventListener('click', () => Clock.reset());
+  $('clock-dead').addEventListener('click', () => Clock.set(new Date(2000, 0, 1, 0, 0).getTime()));
+  Clock.onChange(() => { showClock(); $('clock-set').value = local(Clock.date()); });
+  $('clock-set').value = local(Clock.date());
+  showClock();
+  setInterval(showClock, 1000);
 
   // ---------- SD simulation ----------
   const sim = SD.sim;

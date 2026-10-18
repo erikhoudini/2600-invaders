@@ -76,6 +76,10 @@
     const s = Store.storage();
     if (s.pct > 0.95) out.push('! Storage almost full. Export and delete old records.');
     else if (s.pct > 0.8) out.push('! Storage over 80% full.');
+    if (!PPT.Clock.plausible()) {
+      out.push('! DS clock reads ' + PPT.Cal.short(PPT.Cal.key(PPT.Clock.date())) + ' ' + PPT.Clock.date().getFullYear() +
+               '. Set it in System Settings; dates, schedules and closed hours are paused.');
+    }
     Store.report.filter((l) => l[0] === '!').forEach((l) => out.push(l));
     Store.state.notices.forEach((n) => out.push('! ' + n));
     return out;
@@ -201,6 +205,7 @@
     top(g) {
       const th = adminTop(g, 'ADMIN');
       const poll = Store.activePoll();
+      g.text(PPT.Cal.time(PPT.Clock.date()), 246, 24, th.soft, 1, 'right');
       g.text('Active poll', 10, 24, th.soft);
       if (poll) {
         g.text(truncate(poll.question, 236), 10, 35, th.text);
@@ -223,16 +228,26 @@
       const fb = Store.newFeedback();
       const tiles = [
         ['Polls', 'iconBars', 'polls'],
+        ['Calendar', 'iconCal', 'calendar'],
         ['Inbox', 'iconInbox', 'inbox', fb.suggestions + fb.comments],
         ['Results', 'iconClock', 'history'],
-        ['Appearance', 'iconStar', 'appearance'],
+        ['Display', 'iconStar', 'appearance'],
         ['Records', 'iconCard', 'records'],
         ['Settings', 'iconGear', 'settings'],
       ];
       tiles.forEach(([label, icon, scene, badge], i) => {
-        const x = 4 + (i % 3) * 84, y = 4 + Math.floor(i / 3) * 80;
-        if (W.button(g, 'home-' + scene, x, y, 80, 76, { label, icon, iconScale: 2, badge: badge || null })) App.push(scene);
+        const x = 4 + (i % 4) * 62, y = 4 + Math.floor(i / 4) * 80;
+        if (W.button(g, 'home-' + scene, x, y, 60, 76, { label, icon, iconScale: 2, badge: badge || null })) App.push(scene);
       });
+      // Eighth tile: today's date from the DS clock, like a page torn off a calendar.
+      const d = PPT.Clock.date();
+      const r = PPT.UI.region('home-today', 190, 84, 60, 76);
+      const { fy } = W.face(g, 190, 84, 60, 76, { color: C.white }, r.pressed);
+      g.rrect(193, fy + 3, 54, 14, PPT.Clock.plausible() ? C.coral : C.inkFaint, 2);
+      g.text(PPT.Cal.DAYS[(d.getDay() + 6) % 7].slice(0, 3).toUpperCase(), 220, fy + 7, C.white, 1, 'center');
+      g.text(String(d.getDate()), 220, fy + 24, C.ink, 3, 'center');
+      g.text(PPT.Cal.MONTHS[d.getMonth()].slice(0, 3) + ' ' + PPT.Cal.time(d), 220, fy + 56, C.inkSoft, 1, 'center');
+      if (r.clicked) App.push('calendar');
       if (W.button(g, 'home-lock', 4, 166, 248, 24, { label: 'Lock and return to public screen', color: C.ink, dark: C.black })) App.lock();
     },
   });
@@ -451,7 +466,12 @@
         const valid = f.question.trim() && f.choices.every((c) => c.trim());
         if (W.button(g, 'pe-save', 4, 162, 248, 28, { label: valid ? 'Save draft' : 'Fill in all fields to save', color: C.sea, dark: C.seaD, disabled: !valid })) {
           const id = App.attempt(() => Store.savePoll(src && src.id, f), 'Saved');
-          if (id) { dirty = false; if (src) App.pop(); else App.replace('pollDetail', { id }); }
+          if (id) {
+            dirty = false;
+            if (src) App.pop();
+            else if (args.pickFor) App.pop({ picked: id }); // came from the calendar's poll picker
+            else App.replace('pollDetail', { id });
+          }
         }
       },
     };
@@ -670,6 +690,7 @@
         if (p.revisionOf) info.push('Revised from ' + p.revisionOf);
         if (p.replacedBy) info.push('Replaced by ' + p.replacedBy);
         lines(g, info, 8, 30, { w: 240 });
+        drawDailyVotes(g, p, 8, 96, 240, 40);
         actions(g, [
           { label: '◀ Newer', run: () => (id = items[i - 1].id), disabled: i <= 0 },
           { label: 'Older ▶', run: () => (id = items[i + 1].id), disabled: i < 0 || i >= items.length - 1 },
@@ -677,6 +698,24 @@
       },
     };
   };
+
+  // Votes per calendar day for one poll (last 14 days with votes).
+  function drawDailyVotes(g, p, x, y, w, h) {
+    const th = W.theme();
+    const days = Object.keys(Store.state.daily).filter((k) => Store.state.daily[k].v[p.id]).sort().slice(-14);
+    if (!days.length) return;
+    const totals = days.map((k) => Store.state.daily[k].v[p.id].reduce((a, b) => a + b, 0));
+    const max = Math.max(1, ...totals);
+    const bw = Math.min(16, Math.floor(w / days.length));
+    g.text('Votes by day', x, y - 10, th.soft);
+    days.forEach((k, i) => {
+      const bh = Math.max(1, Math.round((totals[i] / max) * (h - 20)));
+      g.rect(x + i * bw, y + h - 10 - bh, bw - 2, bh, CHOICE[1].base);
+      if (bw >= 14) g.text(String(totals[i]), x + i * bw + (bw - 2) / 2, y + h - 18 - bh, th.soft, 1, 'center');
+    });
+    g.text(PPT.Cal.short(days[0]).slice(4), x, y + h - 7, th.soft);
+    if (days.length > 1) g.text(PPT.Cal.short(days[days.length - 1]).slice(4), x + days.length * bw - 2, y + h - 7, th.soft, 1, 'right');
+  }
 
   // ---------- Appearance & behaviour ----------
   const cycle = (list, cur) => list[(list.indexOf(cur) + 1) % list.length];
@@ -1041,4 +1080,5 @@
       if (W.topBar(g, args.title).back) this.back();
     },
   });
+  PPT.Admin = { adminTop, lines, actions, plural, dShort, dLong };
 })(window.PPT = window.PPT || {});
