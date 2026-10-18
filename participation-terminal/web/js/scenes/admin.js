@@ -86,6 +86,7 @@
     const purpose = args.purpose || 'unlock';
     const st = { digits: '', msg: '', shake: 0, stage: purpose === 'unlock' ? 'enter' : 'new', first: '' };
     const titles = { enter: 'Enter staff PIN', new: 'Choose a new PIN', confirm: 'Enter it again' };
+    const tally = PPT.Tally.get('pin').reset().play('wave');
 
     function cancel() {
       if (purpose === 'unlock') App.go('landing');
@@ -99,6 +100,7 @@
         if (r === 'ok') { App.admin = true; App.go('adminHome'); return; }
         st.msg = r === 'locked' ? '' : 'Wrong PIN';
         st.shake = performance.now();
+        tally.play('shake');
       } else if (st.stage === 'new') {
         if (d.length < 4) { st.msg = 'Use at least 4 digits'; st.shake = performance.now(); return; }
         if (d === Store.DEFAULT_PIN) { st.msg = 'Choose something other than 1234'; st.shake = performance.now(); return; }
@@ -111,6 +113,7 @@
     }
     function key(k) {
       st.msg = '';
+      if (tally.action && tally.action.name === 'wave') tally.action = null; // look away at once
       if (k === 'del') st.digits = st.digits.slice(0, -1);
       else if (k === 'ok') { if (st.digits.length) submit(); }
       else if (st.digits.length < 8) st.digits += k;
@@ -130,21 +133,23 @@
         const th = W.theme();
         W.bg(g, th);
         W.header(g, 'STAFF', Object.assign({ left: Store.state.venue }, ADMIN_HEADER));
-        g.sprite('iconLock', 117, 30, { scale: 3, outline: th.text });
-        g.text(titles[st.stage], 128, 62, th.text, 2, 'center');
+        // Tally covers its eyes while digits are entered.
+        const lock = Store.pinLockRemaining();
+        const mood = lock > 0 ? { mood: 'sad' } : st.digits.length ? { mood: 'shy' } : { mood: 'idle' };
+        W.mascot(g, 'pin', 128, 62, 2, mood);
+        g.text(titles[st.stage], 128, 70, th.text, 2, 'center');
         const n = Math.max(4, st.digits.length);
         const since = (performance.now() - st.shake) / 1000;
         const dx = since < 0.35 ? Math.round(Math.sin(since * 60) * 4) : 0;
         const bw = 18, gap = 6, total = n * bw + (n - 1) * gap;
         for (let i = 0; i < n; i++) {
           const x = 128 - total / 2 + i * (bw + gap) + dx;
-          g.rbox(x, 92, bw, 22, th.panel, th.panelEdge, 2);
-          if (i < st.digits.length) g.rrect(x + 5, 99, 8, 8, th.text, 2);
+          g.rbox(x, 94, bw, 22, th.panel, th.panelEdge, 2);
+          if (i < st.digits.length) g.rrect(x + 5, 101, 8, 8, th.text, 2);
         }
-        const lock = Store.pinLockRemaining();
         if (lock > 0) g.textBlock('Too many attempts. Try again in ' + lock + 's.', 16, 128, 224, 24, C.coralD, { maxScale: 1 });
         else if (st.msg) g.text(st.msg, 128, 132, C.coralD, 1, 'center');
-        if (purpose === 'unlock') g.text('Default PIN: 1234 (prototype)', 128, 176, th.soft, 1, 'center');
+        if (purpose === 'unlock' && !st.digits.length) g.text('Default PIN: 1234 (prototype)', 128, 176, th.soft, 1, 'center');
       },
       bottom(g) {
         W.bg(g);
@@ -172,6 +177,7 @@
       W.bg(g, th);
       W.header(g, 'STORAGE', Object.assign({ left: 'STAFF' }, ADMIN_HEADER));
       g.text('Storage problem', 10, 26, th.text, 2);
+      W.mascot(g, 'diag', 222, 52, 2, { mood: 'worried' });
       lines(g, [SD.present() ? 'SD card detected but not usable.' : '! No SD card detected.', '',
                 ...Store.report, '', 'Insert the SD card, then tap Try again.',
                 'Visitor submissions are refused until storage works.'], 10, 52);
@@ -189,7 +195,7 @@
   });
 
   // ---------- Home ----------
-  S.adminHome = () => ({
+  S.adminHome = () => (PPT.Tally.get('admin').reset().play('wave'), {
     public: false,
     back() { App.lock(); },
     top(g) {
@@ -208,7 +214,9 @@
       const s = storageBar(g, 10, 100, 236);
       g.text('Storage ' + kb(s.used) + ' of ' + kb(s.capacity), 10, 89, th.soft);
       const warn = warnings();
-      lines(g, warn.length ? warn : ['Everything looks good.'], 10, 116, { w: 236 });
+      lines(g, warn.length ? warn : ['Everything looks good.'], 10, 116, { w: 190 });
+      const serious = Store.error || Store.storage().pct > 0.95;
+      W.mascot(g, 'admin', 224, 184, 2, { mood: serious ? 'worried' : warn.length ? 'think' : 'happy' });
     },
     bottom(g) {
       W.bg(g);
@@ -412,7 +420,7 @@
         else f.choices[r.key] = r.value;
       },
       top(g, t) {
-        PPT.Public.drawLandingTop(g, t, { poll: sample(), preview: true, idle: 'calm' });
+        PPT.Public.drawLandingTop(g, t, { poll: sample(), preview: true, idle: 'calm', key: 'edit' });
       },
       bottom(g) {
         W.bg(g);
@@ -699,7 +707,7 @@
         ];
       },
       top(g, t) {
-        PPT.Public.drawLandingTop(g, t, { poll: Store.state.settings.modes.vote ? Store.activePoll() : null });
+        PPT.Public.drawLandingTop(g, t, { poll: Store.state.settings.modes.vote ? Store.activePoll() : null, key: 'appearance' });
       },
       bottom(g) {
         W.bg(g);
@@ -941,12 +949,13 @@
         const th = W.theme();
         g.clear(ok ? C.sea : C.coral);
         if (ok) {
-          g.text('✓', 128, 34, C.white, 6, 'center');
+          W.mascot(g, 'shutdown', 128, 86, 3, { mood: 'sleep', shadowColor: C.seaD, fg: C.white });
           g.text('Safe to switch off', 128, 100, C.white, 2, 'center');
           g.textBlock('All data is saved. You can power off the console or remove the SD card.', 20, 128, 216, 40, C.white, { maxScale: 1 });
         } else {
-          g.text('Not safe yet', 128, 60, C.white, 2, 'center');
-          g.textBlock('Could not finish saving: ' + err + '. Do not remove the card.', 20, 96, 216, 50, C.white, { maxScale: 1 });
+          W.mascot(g, 'shutdown', 128, 70, 2, { mood: 'worried', shadowColor: C.coralD, fg: C.white });
+          g.text('Not safe yet', 128, 76, C.white, 2, 'center');
+          g.textBlock('Could not finish saving: ' + err + '. Do not remove the card.', 20, 100, 216, 50, C.white, { maxScale: 1 });
         }
       },
       bottom(g) {

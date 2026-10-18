@@ -151,7 +151,9 @@
     const listW = items.length > vis ? w - 22 : w;
     let hit = -1;
     if (!items.length) {
-      g.textBlock(opts.empty || 'Nothing here yet.', x, y, w, h, th.soft, { maxScale: 1 });
+      const my = y + Math.floor(h / 2) + 8;
+      if (h >= 70) W.mascot(g, 'empty', x + w / 2, my, 2, { mood: 'shrug' });
+      g.textBlock(opts.empty || 'Nothing here yet.', x, h >= 70 ? my + 8 : y, w, h >= 70 ? 20 : h, th.soft, { maxScale: 1 });
       return -1;
     }
     for (let i = 0; i < vis && i + state.scroll < items.length; i++) {
@@ -187,15 +189,14 @@
 
   W.easeOut = (p) => 1 - Math.pow(1 - Math.min(1, Math.max(0, p)), 3);
 
-  // The mascot. mood: 'idle' | 'happy'
-  W.tally = function (g, x, y, scale, t, opts = {}) {
-    const lively = opts.lively !== false;
-    let name = opts.mood === 'happy' ? 'tallyHappy' : 'tally';
-    if (name === 'tally' && lively && (t % 4.2) > 4.05) name = 'tallyBlink';
-    const bob = lively ? Math.round(Math.sin(t * (opts.mood === 'happy' ? 9 : 2.4)) * (opts.mood === 'happy' ? 3 : 1.5)) : 0;
-    const col = opts.color || CHOICE[3];
-    g.sprite(name, x, y + bob, { scale, main: col.base, shade: col.dark, flip: opts.flip });
+  // The mascot (see mascot.js). x is the centre, gy the ground line.
+  W.mascot = function (g, key, x, gy, px, opts = {}) {
+    const th = W.theme();
+    PPT.Tally.get(key).draw(g, x, gy, px, Object.assign({ shadowColor: th.panelEdge, fg: th.text }, opts));
   };
+
+  // Which button is currently held down (for previewing reactions before release).
+  W.pressed = () => (UI.ptr.down ? UI.active : null);
 
   // Results bars. progress 0..1. highlight = chosen index or -1.
   W.resultBars = function (g, labels, counts, x, y, w, h, progress, highlight = -1, palette = CHOICE) {

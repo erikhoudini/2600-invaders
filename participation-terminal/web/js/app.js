@@ -106,6 +106,7 @@
         canvas.setPointerCapture(e.pointerId);
         const [x, y] = pos(e);
         UI.pointerDown(x, y);
+        PPT.Tally.poke(x, y);
         this.touchInput();
         this.cornerSince = x < 12 && y < 12 ? performance.now() : 0;
         e.preventDefault();
@@ -163,7 +164,10 @@
 
       // Abandoned public interaction.
       if (s.timed && !this.dialog && Store.ok) {
-        if (!this.still && idle > Store.state.settings.sessionTimeout) this.still = { since: now };
+        if (!this.still && idle > Store.state.settings.sessionTimeout) {
+          this.still = { since: now };
+          PPT.Tally.get('still').reset().play('surprise');
+        }
       }
       if (this.still && (now - this.still.since) / 1000 > STILL_THERE_SECONDS) {
         this.still = null;
@@ -222,9 +226,9 @@
       const left = Math.max(0, Math.ceil(STILL_THERE_SECONDS - (now - this.still.since) / 1000));
       this._dim(g);
       g.rbox(28, 40, 200, 112, C.paper, C.ink, 3);
-      W.tally(g, 112, 52, 2, now / 1000, {});
-      g.text('Still there?', 128, 92, C.ink, 2, 'center');
-      g.text('Starting over in ' + left + '…', 128, 122, C.inkSoft, 1, 'center');
+      W.mascot(g, 'still', 128, 92, 2, { mood: 'peek', shadowColor: C.paperDD, fg: C.ink });
+      g.text('Still there?', 128, 100, C.ink, 2, 'center');
+      g.text('Starting over in ' + left + '…', 128, 126, C.inkSoft, 1, 'center');
       this._dim(b);
       if (W.button(b, 'still-here', 24, 40, 208, 70, { label: "I'm still here", scale: 2, color: C.sea, dark: C.seaD })) {
         this.still = null;

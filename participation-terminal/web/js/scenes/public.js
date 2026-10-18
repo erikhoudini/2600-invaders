@@ -8,10 +8,22 @@
   const S = PPT.Scenes;
 
   const settings = () => Store.state.settings;
-  const lively = () => settings().idle === 'lively';
 
   // Navigation inside a preview stays on the admin stack.
   const nav = (preview) => (preview ? App.replace.bind(App) : App.go.bind(App));
+
+  const INVITES = ['Tap your answer below!', 'Results show after you vote.', 'No names needed.'];
+
+  // Small speech bubble next to the mascot, tail pointing left at it.
+  function bubble(g, x, y, w, text) {
+    const th = W.theme();
+    g.rbox(x, y, w, 22, th.panel, th.panelEdge, 2);
+    g.rect(x - 2, y + 9, 3, 3, th.panelEdge);
+    g.rect(x - 1, y + 10, 2, 1, th.panel);
+    g.text(text, x + w / 2, y + 8, th.text, 1, 'center');
+  }
+
+  const longIdle = () => (performance.now() - App.lastInput) / 1000 > 45;
 
   // Shared so admin screens can show what visitors will see.
   function drawLandingTop(g, t, opts = {}) {
@@ -19,6 +31,8 @@
     const poll = opts.poll;
     const idleMode = opts.idle || settings().idle;
     const anim = idleMode !== 'off';
+    const key = opts.key || 'landing';
+    const level = idleMode === 'off' ? 0 : idleMode === 'calm' ? 1 : 2;
     W.bg(g, th);
     const modes = settings().modes;
 
@@ -26,29 +40,38 @@
       W.header(g, opts.preview ? 'PREVIEW' : 'VOTE', opts.preview ? { band: C.ink, bandD: C.black } : {});
       g.rbox(8, 24, 240, 120, th.panel, th.panelEdge, 3);
       g.textBlock(poll.question, 16, 30, 224, 108, th.text, { maxScale: 2 });
-      W.tally(g, 10, 150, 2, t, { lively: idleMode === 'lively' });
-      g.rbox(48, 154, 152, 22, th.panel, th.panelEdge, 2);
-      g.rect(46, 163, 3, 3, th.panelEdge);
-      g.text('Tap your answer below!', 124, 162, th.text, 1, 'center');
+      // Tally reacts to whichever answer is being pressed.
+      const held = W.pressed();
+      const m = held && /^choice-/.test(held) ? { mood: 'listen', wide: true } : { mood: 'invite' };
+      W.mascot(g, key, 30, 184, 2, Object.assign({ level, longIdle: longIdle() }, m));
+      const line = level === 2 ? INVITES[Math.floor(t / 6) % INVITES.length] : INVITES[0];
+      bubble(g, 58, 156, 150, line);
       const bob = anim ? Math.round(Math.abs(Math.sin(t * 3)) * 3) : 0;
-      g.text('↓', 220, 156 + bob, C.coral, 2);
+      g.text('\u2193', 224, 156 + bob, C.coral, 2);
       return;
     }
 
     W.header(g, 'HELLO');
     if (!modes.suggest && !modes.comment) {
-      W.tally(g, 112, 48, 2, t, { lively: false });
-      g.stext('Back soon!', 128, 96, th.text, th.dots, 2, 'center');
+      W.mascot(g, key, 128, 86, 3, { mood: 'sleep', level });
+      g.stext('Back soon!', 128, 100, th.text, th.dots, 2, 'center');
       g.textBlock('Participation is paused for now.', 16, 128, 224, 30, th.soft, { maxScale: 1 });
       return;
     }
-    g.stext('Have your say!', 128, 30, th.text, th.dots, 2, 'center');
-    W.tally(g, 96, 56, 4, t, { lively: idleMode === 'lively' });
-    const what = modes.suggest && modes.comment ? 'Share an idea or tell us how we’re doing.'
-      : modes.suggest ? 'Share an idea with us.' : 'Tell us how we’re doing.';
-    g.textBlock(what, 16, 128, 224, 24, th.text, { maxScale: 1 });
+    g.stext('Have your say!', 128, 26, th.text, th.dots, 2, 'center');
+    // Tally shows off the props for the enabled modes, swapping with a hop.
+    const props = [];
+    if (modes.suggest) props.push({ name: 'bulb' });
+    if (modes.comment) props.push({ name: 'speech', main: C.periL, shade: C.peri });
+    const slot = Math.floor(t / 3.5);
+    const actor = PPT.Tally.get(key);
+    if (props.length > 1 && level === 2 && actor._slot !== slot) { actor._slot = slot; actor.play('hop'); }
+    W.mascot(g, key, 112, 122, 3, { mood: 'present', prop: props[slot % props.length], level, longIdle: longIdle() });
+    const what = modes.suggest && modes.comment ? 'Share an idea or tell us how we\u2019re doing.'
+      : modes.suggest ? 'Share an idea with us.' : 'Tell us how we\u2019re doing.';
+    g.textBlock(what, 16, 134, 224, 24, th.text, { maxScale: 1 });
     const bob = anim ? Math.round(Math.abs(Math.sin(t * 3)) * 3) : 0;
-    g.text('↓ Tap below to start ↓', 128, 168 + bob, C.coralD, 1, 'center');
+    g.text('\u2193 Tap below to start \u2193', 128, 168 + bob, C.coralD, 1, 'center');
   }
 
   function choiceButtons(g, poll, area, onPick) {
@@ -106,6 +129,7 @@
   // ---------- Landing ----------
   S.landing = (args) => {
     const preview = !!args.preview;
+    if (!preview) PPT.Tally.get('landing').reset().play('enter');
     return {
       public: !preview,
       poll() {
@@ -115,7 +139,7 @@
       back() { if (preview) App.pop(); },
       top(g, t) {
         if (!preview && !PPT.SD.present()) { App.go('nosd'); return; }
-        drawLandingTop(g, t, { poll: this.poll(), preview });
+        drawLandingTop(g, t, { poll: this.poll(), preview, key: preview ? 'preview' : 'landing' });
       },
       bottom(g, t) {
         const th = W.theme();
@@ -136,7 +160,7 @@
         if (modes.suggest) items.push(['suggest', 'Suggest', 'Share an idea', 'bulb', CHOICE[3]]);
         if (modes.comment && Store.enabledPrompts().length) items.push(['comment', 'Comment', 'Quick feedback', 'speech', CHOICE[1]]);
         if (!items.length) {
-          W.tally(g, 112, 70, 2, t, { lively: false });
+          W.mascot(g, 'paused', 128, 120, 3, { mood: 'sleep' });
           return;
         }
         const gap = 6, bw = Math.floor((244 - gap * (items.length - 1)) / items.length);
@@ -167,6 +191,7 @@
   // ---------- Confirm ----------
   S.confirm = (args) => {
     const sid = Store.newSid(); // one submission id per confirm screen: repeated taps can't double count
+    PPT.Tally.get('confirm').reset().play('hop');
     let committing = false;
     const preview = !!args.preview;
     return {
@@ -179,11 +204,15 @@
         W.bg(g, th);
         W.header(g, preview ? 'PREVIEW' : 'VOTE', preview ? { band: C.ink, bandD: C.black } : {});
         g.textBlock(poll.question, 12, 22, 232, 30, th.soft, { maxScale: 1 });
-        g.text('Your answer', 128, 58, th.text, 1, 'center');
+        g.text('Your answer', 152, 58, th.text, 1, 'center');
         const col = CHOICE[args.choice];
-        g.rrect(20, 72, 216, 72, col.dark, 3);
-        g.rrect(20, 70, 216, 70, col.base, 3);
-        g.textBlock(poll.choices[args.choice], 28, 74, 200, 62, PPT.Gfx.onColor(col.base), { maxScale: 2 });
+        g.rrect(68, 72, 172, 72, col.dark, 3);
+        g.rrect(68, 70, 172, 70, col.base, 3);
+        g.textBlock(poll.choices[args.choice], 76, 74, 156, 62, PPT.Gfx.onColor(col.base), { maxScale: 2 });
+        // Tally holds up a ballot in the chosen colour; it lights up while "Count my vote" is held.
+        const held = W.pressed() === 'confirm-yes';
+        W.mascot(g, 'confirm', 34, 140, 2, { mood: held ? 'happy' : 'hold', prop: { name: 'card', color: col.base },
+                                            lookAt: held ? null : { x: 1, y: 0 } });
         g.textBlock('Results appear after you vote.', 12, 158, 232, 24, th.soft, { maxScale: 1 });
       },
       bottom(g) {
@@ -203,6 +232,7 @@
   // ---------- Results ----------
   S.results = (args) => {
     const preview = !!args.preview;
+    PPT.Tally.get('results').reset().play('jump');
     return {
       public: !preview,
       done() { preview ? App.replace('landing', { preview, pollId: args.pollId }) : App.go('landing'); },
@@ -221,9 +251,9 @@
         const th = W.theme();
         W.bg(g, th);
         if (settings().idle !== 'off') W.confetti(g, t, { x: 0, y: 0, w: 256, h: 120 });
-        g.stext(preview ? 'Preview only' : 'Thanks for voting!', 128, 18, th.text, th.dots, 2, 'center');
-        W.tally(g, 104, 48, 3, t, { mood: 'happy', lively: settings().idle !== 'off' });
-        if (preview) g.text('This vote was not counted.', 128, 106, C.coralD, 1, 'center');
+        g.stext(preview ? 'Preview only' : 'Thanks for voting!', 128, 12, th.text, th.dots, 2, 'center');
+        W.mascot(g, 'results', 128, 116, 3, { mood: 'celebrate' });
+        if (preview) g.text('This vote was not counted.', 128, 28, C.coralD, 1, 'center');
         if (W.button(g, 'results-done', 48, 124, 160, 48, { label: 'Done', scale: 2, color: C.sea, dark: C.seaD })) this.done();
         const dur = settings().resultsSeconds;
         g.rect(48, 180, 160, 3, th.panelEdge);
@@ -236,6 +266,8 @@
   // ---------- Suggest ----------
   S.suggest = (args) => {
     const kb = Keyboard.create(args.text || '', settings().suggestLimit);
+    const tally = PPT.Tally.get('suggest').reset();
+    let lastLen = kb.text.length;
     return {
       public: true,
       timed: true,
@@ -256,7 +288,7 @@
         const th = W.theme();
         W.bg(g, th);
         W.header(g, 'SUGGEST');
-        g.textBlock(settings().suggestPrompt, 10, 22, 236, 30, th.text, { maxScale: 2 });
+        g.textBlock(settings().suggestPrompt, 10, 22, 188, 30, th.text, { maxScale: 2, align: 'left' });
         g.rbox(8, 56, 240, 112, th.panel, th.panelEdge, 3);
         if (kb.text) {
           g.textBlock(kb.text, 16, 62, 224, 100, th.text, { maxScale: kb.text.length < 40 ? 2 : 1, valign: 'top', align: 'left' });
@@ -265,6 +297,11 @@
         }
         g.text('Anonymous — no names needed.', 10, 176, th.soft);
         const left = kb.max - kb.text.length;
+        // Tally sits on the text box: thinking while it's empty, nodding along as you type.
+        if (kb.text.length > lastLen) tally.play(left <= 0 ? 'surprise' : 'nod');
+        lastLen = kb.text.length;
+        const mood = !kb.text ? { mood: 'think' } : left <= 0 ? { mood: 'worried' } : { mood: 'listen', wide: left <= 20 };
+        W.mascot(g, 'suggest', 224, 58, 2, Object.assign({ shadow: false }, mood));
         g.text(left + ' left', 246, 176, left <= 10 ? C.coralD : th.soft, 1, 'right');
       },
       bottom(g) {
@@ -278,6 +315,7 @@
 
   S.suggestReview = (args) => {
     const sid = Store.newSid();
+    PPT.Tally.get('suggest').play('wave');
     let committing = false;
     return {
       public: true,
@@ -287,10 +325,12 @@
         const th = W.theme();
         W.bg(g, th);
         W.header(g, 'SUGGEST');
-        g.stext('Send this idea?', 128, 26, th.text, th.dots, 2, 'center');
+        g.stext('Send this idea?', 12, 26, th.text, th.dots, 2);
         g.rbox(8, 48, 240, 120, th.panel, th.panelEdge, 3);
         g.textBlock(args.text, 16, 54, 224, 108, th.text, { maxScale: args.text.length < 50 ? 2 : 1 });
         g.text('Only staff can read suggestions.', 128, 176, th.soft, 1, 'center');
+        const held = W.pressed() === 'sug-send';
+        W.mascot(g, 'suggest', 224, 50, 2, { shadow: false, mood: held ? 'happy' : 'present', prop: held ? null : { name: 'bulb' } });
       },
       bottom(g) {
         W.bg(g);
@@ -310,8 +350,18 @@
   };
 
   // ---------- Comment ----------
+  // Rough mood for a response label, so Tally can react. Purely decorative.
+  function sentiment(label) {
+    const l = label.toLowerCase();
+    if (/\b(meh|okay|ok|fine|so-so)\b/.test(l)) return 'flat';
+    if (/\b(not|no|too|bad|poor|didn't|don't)\b/.test(l)) return 'sad';
+    if (/\b(good|great|love|loved|like|liked|yes|perfect|right|amazing)\b/.test(l)) return 'happy';
+    return 'listen';
+  }
+
   S.comment = (args) => {
     const sid = Store.newSid();
+    PPT.Tally.get('comment').reset().play('enter');
     let committing = false;
     return {
       public: true,
@@ -324,9 +374,14 @@
         W.header(g, 'COMMENT');
         g.rbox(8, 24, 240, 120, th.panel, th.panelEdge, 3);
         g.textBlock(p.text, 16, 30, 224, 108, th.text, { maxScale: 2 });
-        W.tally(g, 10, 150, 2, t, { lively: lively(), color: CHOICE[2] });
-        g.rbox(48, 154, 152, 22, th.panel, th.panelEdge, 2);
-        g.text('Tap one below.', 124, 162, th.text, 1, 'center');
+        // Tally previews a reaction to whichever response is being pressed.
+        const held = W.pressed();
+        const i = held && /^opt-/.test(held) ? Number(held.slice(4)) : -1;
+        const feel = i >= 0 ? sentiment(p.options[i]) : null;
+        const m = feel === 'happy' ? { mood: 'happy' } : feel === 'sad' ? { mood: 'sad' }
+          : feel === 'flat' ? { mood: 'idle', mouth: 'flat' } : feel ? { mood: 'listen', wide: true } : { mood: 'invite' };
+        W.mascot(g, 'comment', 30, 184, 2, m);
+        bubble(g, 58, 156, 120, 'Tap one below.');
       },
       bottom(g) {
         const th = W.theme();
@@ -359,17 +414,17 @@
   };
 
   // ---------- Thanks ----------
-  S.thanks = (args) => ({
+  S.thanks = (args) => (PPT.Tally.get('thanks').reset().play('jump'), {
     public: true,
     back() { App.go('landing'); },
     top(g, t) {
       const th = W.theme();
       W.bg(g, th);
       W.header(g, args.kind === 'suggest' ? 'SUGGEST' : 'COMMENT');
-      g.stext('Thank you!', 128, 34, th.text, th.dots, 2, 'center');
-      W.tally(g, 96, 62, 4, t, { mood: 'happy', lively: settings().idle !== 'off' });
+      g.stext('Thank you!', 128, 24, th.text, th.dots, 2, 'center');
+      W.mascot(g, 'thanks', 128, 138, 3, { mood: 'celebrate', fx: args.kind === 'suggest' ? 'hearts' : 'sparkles' });
       g.textBlock(args.kind === 'suggest' ? 'Your idea was saved for the staff.' : 'Your feedback was saved.',
-        16, 134, 224, 30, th.text, { maxScale: 1 });
+        16, 150, 224, 30, th.text, { maxScale: 1 });
     },
     bottom(g, t) {
       const th = W.theme();
@@ -385,17 +440,17 @@
 
   // ---------- Errors ----------
   // Never claims success. Shown when a submission could not be written.
-  S.error = (args) => ({
+  S.error = (args) => (PPT.Tally.get('error').reset().play('shake'), {
     public: true,
     back() { App.go('landing'); },
     top(g) {
       const th = W.theme();
       W.bg(g, th);
       W.header(g, 'SORRY', { band: C.coral, bandD: C.coralD });
-      W.tally(g, 112, 36, 2, 0, { lively: false, color: CHOICE[0] });
-      g.stext('Not saved', 128, 76, th.text, th.dots, 2, 'center');
+      W.mascot(g, 'error', 128, 70, 2, { mood: 'worried' });
+      g.stext('Not saved', 128, 80, th.text, th.dots, 2, 'center');
       g.textBlock('Your ' + (args.what || 'response') + ' could not be saved right now. Please let a staff member know.',
-        20, 104, 216, 50, th.text, { maxScale: 1 });
+        20, 106, 216, 50, th.text, { maxScale: 1 });
     },
     bottom(g, t) {
       W.bg(g);
@@ -411,9 +466,9 @@
     top(g, t) {
       const th = W.theme();
       g.clear(th.bg);
-      W.tally(g, 112, 40, 2, t, { lively: false, color: CHOICE[2] });
-      g.stext('Taking a short break', 128, 86, th.text, th.dots, 2, 'center');
-      g.textBlock('Please let a staff member know.', 16, 116, 224, 20, th.soft, { maxScale: 1 });
+      W.mascot(g, 'nosd', 128, 84, 3, { mood: 'sleep' });
+      g.stext('Taking a short break', 128, 96, th.text, th.dots, 2, 'center');
+      g.textBlock('Please let a staff member know.', 16, 122, 224, 20, th.soft, { maxScale: 1 });
     },
     bottom(g, t) {
       const th = W.theme();

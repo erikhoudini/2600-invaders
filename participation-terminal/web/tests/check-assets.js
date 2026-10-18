@@ -5,9 +5,11 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const ctx = { window: {} };
+const fakeCanvas = () => ({ width: 0, height: 0, getContext: () => ({}) });
+const ctx = { window: {}, document: { createElement: fakeCanvas }, performance: { now: () => 0 } };
+ctx.window.PPT = { Gfx: { C: {} } };
 vm.createContext(ctx);
-for (const f of ['font.js', 'sprites.js']) {
+for (const f of ['font.js', 'sprites.js', 'mascot.js']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', f), 'utf8'), ctx);
 }
 const PPT = ctx.window.PPT;
@@ -31,5 +33,12 @@ for (const [name, rows] of Object.entries(PPT.Sprites.DATA)) {
     if (/[^kmhsw.]/.test(r)) fail(`sprite ${name} row ${i} has illegal chars`);
   });
 }
-console.log(errors ? `${errors} problem(s)` : `OK: ${Object.keys(PPT.Font.glyphs).length} glyphs, ${Object.keys(PPT.Sprites.DATA).length} sprites`);
+for (const [name, rows] of Object.entries(PPT.Tally.P)) {
+  const w = rows[0].length;
+  rows.forEach((r, i) => {
+    if (r.length !== w) fail(`mascot pattern ${name} row ${i} is ${r.length} wide, expected ${w}`);
+    if (/[^kmhswrx.]/.test(r)) fail(`mascot pattern ${name} row ${i} has illegal chars`);
+  });
+}
+console.log(errors ? `${errors} problem(s)` : `OK: ${Object.keys(PPT.Font.glyphs).length} glyphs, ${Object.keys(PPT.Sprites.DATA).length} sprites, ${Object.keys(PPT.Tally.P).length} mascot patterns`);
 process.exit(errors ? 1 : 0);

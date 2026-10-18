@@ -94,7 +94,8 @@ web/
   css/shell.css
   js/font.js          5px proportional bitmap font (converts 1:1 to a tile font)
   js/gfx.js           256×192 drawing primitives, palette, themes
-  js/sprites.js       original pixel art: "Tally" mascot, icons
+  js/sprites.js       original pixel-art icons
+  js/mascot.js        "Tally" the mascot: procedural body, moods, actions, effects
   js/hash.js          SHA-256 + CRC-32
   js/sdcard.js        virtual SD card with fault injection (mock)
   js/store.js         data model, journal/snapshot persistence, exports
@@ -112,6 +113,12 @@ The UI is immediate-mode: each frame, a scene redraws both screens and declares 
 regions. This is how a libnds main loop works (`scanKeys` / `touchRead` then redraw), so
 scene logic should port with few structural changes.
 
+To produce the single self-contained HTML file:
+
+```sh
+python3 tools/bundle.py            # writes dist/participation-terminal.html
+```
+
 ```sh
 node web/tests/check-assets.js
 NODE_PATH=$(npm root -g) node web/tests/smoke.js   # needs Playwright
@@ -123,7 +130,7 @@ These are placeholders to test, not decisions:
 
 | Open question | Prototype default |
 | --- | --- |
-| Product name | Not chosen. The mascot is called "Tally" |
+| Product name | Not chosen. The mascot is called "Tally" (see below) |
 | Active-poll policy | One at a time; activating another ends the current one |
 | Idle state | Landing stays on the question; Lively / Calm / Off setting |
 | Session timeout | 60 s, then a 10 s "Still there?" (configurable 30–120 s) |
@@ -133,6 +140,29 @@ These are placeholders to test, not decisions:
 | PIN recovery | `RESETPIN.TXT` in `/ppt/` on the card resets the PIN to 1234 at boot; needs physical card access |
 | Export schema | `polls-*.csv`, `suggestions-*.csv`, `comments-*.csv`, `backup-*.json` (see `store.js`) |
 | Retention | Manual only: archive, then delete archived |
+
+## Tally, the mascot
+
+Tally is an original speech-bubble character (not a Mii or Everybody Votes figure). Its body is
+rasterised in code, so it can squash and stretch while staying pixel-crisp. The face, floating
+mitten hands, props and effects are small pixel patterns layered on top.
+
+- **Moods** set by each screen: invite, happy, celebrate, think, listen, worried, sad, sleep,
+  shy, peek, shrug, present, hold.
+- **One-shot actions:** hop, jump, wave, point (down at the touchscreen), nod, shake,
+  surprise, and a drop-in entrance.
+- **Ambient life:** irregular blinks (sometimes a double blink), two-frame breathing, glances,
+  and a ground shadow that shrinks as Tally leaves the ground.
+- **Reacts to the visitor:** glances towards wherever the touchscreen is pressed. It previews a
+  reaction while an answer is held, nods along as you type a suggestion, shakes its head at a
+  wrong PIN, and squeezes its eyes shut while the PIN is entered.
+- **Where it appears:** the landing poll and the no-poll landing (showing the bulb and speech
+  props for the enabled modes), the confirm screen (holding a ballot in your answer's colour),
+  results, Suggest (sitting on the text box), Comment, thanks, errors, "Still there?", the
+  PIN screen, admin home, empty lists, "safe to switch off" and the storage-break screen.
+- **Idle animation setting:** Lively = everything; Calm = blinks, breathing and reactions only,
+  no attention-seeking actions; Off = still poses.
+- **Effects** (sparkles, hearts) are decorative and never stand for vote counts.
 
 ## Known gaps
 
