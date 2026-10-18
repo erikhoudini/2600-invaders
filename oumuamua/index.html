@@ -669,9 +669,16 @@ function updateTips(){
 function wrapText(txt,w){const out=[];let line='';for(const wd of txt.split(' ')){const tl=line?line+' '+wd:wd;if(G.measureText(tl).width>w&&line){out.push(line);line=wd;}else line=tl;}if(line)out.push(line);return out;}
 function drawTip(){
   if(!tip)return;
-  const k=tip.t,al=Math.min(1,k/10)*Math.min(1,(230-k)/20),y0=OY-R*.5,w=R*1.1;
+  const k=tip.t,al=Math.min(1,k/10)*Math.min(1,(230-k)/20),y0=OY-R*.5;let w;
   const head=tip.d[2](),body=typeof tip.d[3]==='function'?tip.d[3]():tip.d[3];
-  G.save();G.globalAlpha=al;G.font=`italic ${hpx(10)}px `+FN;const lines=wrapText(body,w-24),lh=hpx(14),h=hpx(22)+lines.length*lh+10;
+  G.save();G.globalAlpha=al;G.font=`italic ${hpx(10)}px `+FN;
+  // Fewest lines that fit, then the narrowest width that keeps that many, so the
+  // lines come out even (no lone word on the last one); the panel hugs the text
+  const maxW=chordHalf(y0)*2-56,n=wrapText(body,maxW).length;let lo=40,hi=maxW;
+  while(hi-lo>4){const m=(lo+hi)/2;if(wrapText(body,m).length>n)lo=m;else hi=m;}
+  const lines=wrapText(body,hi),lh=hpx(14);
+  G.font=`bold italic ${hpx(11)}px `+FN;const hw=G.measureText(head).width;G.font=`italic ${hpx(10)}px `+FN;
+  w=Math.max(hw,...lines.map(l=>G.measureText(l).width))+28;const h=hpx(22)+lines.length*lh+10;
   const yy=y0-(1-Math.min(1,k/10))*10;
   G.fillStyle='rgba(0,0,0,.72)';G.fillRect(OX-w/2,yy,w,h);G.strokeStyle='rgba(140,181,237,.45)';G.lineWidth=1;G.strokeRect(OX-w/2,yy,w,h);
   G.fillStyle=P.yel;G.fillRect(OX-w/2,yy,3,h);
