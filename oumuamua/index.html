@@ -470,7 +470,22 @@ function rulesText(p){
 }
 function allowE(k){return!RUN||!RUN.p.enemies||RUN.p.enemies.includes(k);}
 function pickupsOn(){return!RUN||RUN.p.pickups!==false;}
-function waveSize(){if(RUN&&RUN.p.rocks&&level===1)return RUN.p.rocks.length;return Math.min(16,Math.round((4+level)*1.2*(RUN&&RUN.p.rockMul||1)));}
+// Purist plays like the 1979 cabinet: three rock sizes (large, medium, small)
+// worth 20 / 50 / 100, waves of 4 rocks plus 2 a wave up to 11, four shots on
+// screen, two kinds of saucer, a heartbeat that quickens as the field thins
+const PURE=()=>gameMode==='purist';
+const PURE_PTS={5:20,3:50,1:100};
+// The heartbeat: two low alternating thumps, synthesized, quickening as rocks are cleared
+let beatT=0,beatHi=false;
+function thump(){
+  if(!AC||!vol||AC.state!=='running')return;
+  const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+  o.type='triangle';o.frequency.setValueAtTime(beatHi?58:50,t);o.frequency.exponentialRampToValueAtTime(34,t+.12);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.55,t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+.16);
+  o.connect(g);g.connect(master);o.start(t);o.stop(t+.18);beatHi=!beatHi;
+}
+function rockPts(sz){return PURE()?PURE_PTS[sz]||20:(SZ_PTS[sz]||5)*mult;}
+function waveSize(){if(PURE()&&!(RUN&&RUN.p.rocks&&level===1))return Math.min(11,2+level*2);if(RUN&&RUN.p.rocks&&level===1)return RUN.p.rocks.length;return Math.min(16,Math.round((4+level)*1.2*(RUN&&RUN.p.rockMul||1)));}
 function openMap(){RUN=null;gScreen='map';paused=false;}
 // After a mission: back to the map with the cursor on where to go next, an open
 // neighbour not yet cleared, else any open planet not yet cleared, else this one
@@ -757,7 +772,11 @@ function spawnUFO(){
   SFX.ufo();const ea=Math.random()*TAU,ex=OX+Math.cos(ea)*(R*.7),ey=OY+Math.sin(ea)*(R*.7);
   // Zigzag: move in a heading, flip Y-component periodically
   const ha=Math.random()*TAU;
-  ufos.push({x:ex,y:ey,vx:Math.cos(ha)*UFO_SPD,vy:Math.sin(ha)*UFO_SPD,r:UFO_R,hp:UFO_HP,shotCd:ri(30,70),zagT:ri(30,60),zagTMax:ri(30,60),born:16,hit:0});
+  const u={x:ex,y:ey,vx:Math.cos(ha)*UFO_SPD,vy:Math.sin(ha)*UFO_SPD,r:UFO_R,hp:UFO_HP,shotCd:ri(30,70),zagT:ri(30,60),zagTMax:ri(30,60),born:16,hit:0};
+  // Purist saucers: the big one fires at random, the small one (past 10,000,
+  // and more often as the score climbs) aims; one hit downs either
+  if(PURE()){const small=score>=10000&&Math.random()<Math.min(.85,.3+score/80000);u.kind=small?'small':'large';u.r=small?10:UFO_R;u.hp=1;u.pts=small?1000:200;}
+  ufos.push(u);
 }
 
 // ── Gravity wells ─────────────────────────────────────────────────────────────
@@ -927,7 +946,7 @@ function swallowAll(){
       const t=tidalBody(r);
       if(t){
         t.flare=Math.max(t.flare,6);burst(r.x,r.y,r.sz*2+2,r.col,r.sz>3);playExplode(r.sz);SFX.tidal();statRock(r.sz);
-        if(!screensaver){const pts=(SZ_PTS[r.sz]||5)*mult;score+=pts;popup(r.x,r.y-r.r,'+'+pts,r.col);}
+        if(!screensaver){const pts=rockPts(r.sz);score+=pts;popup(r.x,r.y-r.r,'+'+pts,r.col);}
         if(RUN)RUN.tidal++;gameTorn++;achProg('roche',gameTorn);torn.push(...split(r));return false;
       }
     }
@@ -1051,7 +1070,7 @@ function spawnHex(){
 // ── Gravity repulse ───────────────────────────────────────────────────────────
 const GCD=300;let gMax=GCD;let gCd=0,gPulse=0;
 // Purist warp (hyperspace recharge like gravity arc)
-const WARP_CD=300;let warpCd=0;
+const WARP_CD=300,HYPER_CD=24;let warpCd=0;
 
 // ── Multiplier ────────────────────────────────────────────────────────────────
 let mult=1,multT=0,multFlash=0;
@@ -1329,7 +1348,7 @@ function updateTCVis(){
   const on=gScreen==='playing'&&!screensaver,live=on&&!paused;
   DECK.style.visibility=on?'visible':'hidden';
   const vis=(id,v)=>{const el=document.getElementById(id);if(el)el.style.visibility=v?'':'hidden';};
-  vis('btn-thrust',live&&gameMode!=='sentry');vis('btn-brake',live&&gameMode!=='sentry');
+  vis('btn-thrust',live&&gameMode!=='sentry');vis('btn-brake',live&&gameMode!=='sentry'&&gameMode!=='purist');
   vis('btn-rotL',live);vis('btn-rotR',live);vis('btn-fire',live);vis('btn-warp',live);
   vis('btn-grav',live&&gameMode!=='purist');
 }
@@ -1554,9 +1573,9 @@ function mkRock(x,y,sz,pvx,pvy){
     rot:Math.random()*TAU,spin:rn(-1,1)*(.006+.05/sz),born:0,flash:0,pf:0};
 }
 function split(r){
-  const rad=SZ_R[r.sz-1],pa=Math.atan2(r.vy,r.vx)+Math.PI/2,off=rad+7;
-  const a=mkRock(r.x+Math.cos(pa)*off,r.y+Math.sin(pa)*off,r.sz-1,r.vx,r.vy);
-  const b=mkRock(r.x-Math.cos(pa)*off,r.y-Math.sin(pa)*off,r.sz-1,r.vx,-r.vy);
+  const nz=PURE()?Math.max(1,r.sz-2):r.sz-1,rad=SZ_R[nz],pa=Math.atan2(r.vy,r.vx)+Math.PI/2,off=rad+7;
+  const a=mkRock(r.x+Math.cos(pa)*off,r.y+Math.sin(pa)*off,nz,r.vx,r.vy);
+  const b=mkRock(r.x-Math.cos(pa)*off,r.y-Math.sin(pa)*off,nz,r.vx,-r.vy);
   a.vx+=Math.cos(pa)*.8;a.vy+=Math.sin(pa)*.8;b.vx-=Math.cos(pa)*.8;b.vy-=Math.sin(pa)*.8;
   if(hasHole()){a.vx=r.vx+Math.cos(pa)*.6;a.vy=r.vy+Math.sin(pa)*.6;b.vx=r.vx-Math.cos(pa)*.6;b.vy=r.vy-Math.sin(pa)*.6;}
   a.flash=b.flash=4;a.tc=b.tc=10;a.spin+=r.spin*.5;b.spin-=r.spin*.5;
@@ -1566,8 +1585,8 @@ function spawnRocks(n){
   for(let i=0;i<n;i++){
     const c5=rocks.reduce((c,r)=>c+(r.sz===5),0);
     // Wave 1 is the warm-up: one boulder to tear apart, the rest mid-sized
-    let sz=level===1?(i===0?5:3):level<=2?Math.random()<.4?5:3:level<=4?ri(3,6):Math.random()<.3?5:ri(3,5);
-    sz=Math.min(sz,5);if(sz===5&&c5>=2)sz=4;
+    let sz=PURE()?5:level===1?(i===0?5:3):level<=2?Math.random()<.4?5:3:level<=4?ri(3,6):Math.random()<.3?5:ri(3,5);
+    sz=Math.min(sz,5);if(sz===5&&c5>=2&&!PURE())sz=4;
     if(RUN&&RUN.p.rocks&&level===1)sz=RUN.p.rocks[i%RUN.p.rocks.length]; // timed planets use a fixed field
     const rr=SZ_R[sz];let x,y,t=0;
     // With a hole, rocks start in an orbit band clear of its tidal reach and (in Sentry) of the rim
@@ -1612,7 +1631,7 @@ function fireBullet(){
     const toDetonate=[...activeMines];activeMines=[];
     toDetonate.forEach(m=>mineBlast(m.x,m.y));return;
   }
-  if(bullets.length>=(RUN&&RUN.p.maxB||8))return;
+  if(bullets.length>=(RUN&&RUN.p.maxB||(PURE()?4:8)))return;
   const a=ship.a,px=Math.sin(a)*1.8,py=-Math.cos(a)*1.8;
   const spd=9;
   // Centre shot (always)
@@ -1666,7 +1685,8 @@ function doPuristWarp(){
     if(!simple)for(let i=0;i<10;i++){const aa=Math.random()*TAU,s2=rn(1,3);particles.push({x:ship.x,y:ship.y,vx:Math.cos(aa)*s2,vy:Math.sin(aa)*s2,life:rn(10,30),col:P.wht,sz:1.2});}
   } else {
     const a=Math.random()*TAU,d=rn(30,R-34),wx=ship.x,wy=ship.y;
-    SFX.warp();ship.x=OX+Math.cos(a)*d;ship.y=OY+Math.sin(a)*d;ship.vx=0;ship.vy=0;setInv(60);warpTrace(wx,wy,P.wht);
+    // Hyperspace, the old gamble: you can come out on top of a rock
+    SFX.warp();ship.x=OX+Math.cos(a)*d;ship.y=OY+Math.sin(a)*d;ship.vx=0;ship.vy=0;if(PURE())warpCd=HYPER_CD;else setInv(60);warpTrace(wx,wy,P.wht);
     if(!simple)for(let i=0;i<14;i++){const aa=Math.random()*TAU,s2=rn(1,4);particles.push({x:ship.x,y:ship.y,vx:Math.cos(aa)*s2,vy:Math.sin(aa)*s2,life:rn(14,40),col:'#fff',sz:1.4});}
   }
 }
@@ -1736,7 +1756,7 @@ function mineBlast(mx,my){
    activeMines.forEach(m=>{const dx=m.x-mx,dy=m.y-my,d=Math.sqrt(dx*dx+dy*dy)||1;if(d<mr){const f=mf*.6*(1-d/mr);m.vx+=dx/d*f;m.vy+=dy/d*f;}});
    if(ship){const dx=ship.x-mx,dy=ship.y-my,d=Math.sqrt(dx*dx+dy*dy)||1;if(d<mr){const f=mf*.5*(1-d/mr);ship.vx+=dx/d*f;ship.vy+=dy/d*f;}}}
   const frags=[];
-  rocks=rocks.filter(r=>{if((r.x-mx)**2+(r.y-my)**2<(MBR+r.r)**2){burst(r.x,r.y,r.sz*2+4,r.col);playExplode();statRock(r.sz);const pts=(SZ_PTS[r.sz]||5)*mult;score+=pts;popup(r.x,r.y-r.r,'+'+pts,r.col);if(r.sz>1)frags.push(...split(r));return false;}return true;});
+  rocks=rocks.filter(r=>{if((r.x-mx)**2+(r.y-my)**2<(MBR+r.r)**2){burst(r.x,r.y,r.sz*2+4,r.col);playExplode();statRock(r.sz);const pts=rockPts(r.sz);score+=pts;popup(r.x,r.y-r.r,'+'+pts,r.col);if(r.sz>1)frags.push(...split(r));return false;}return true;});
   rocks.push(...frags);
   comets=comets.filter(cm=>{
     if((cm.x-mx)**2+(cm.y-my)**2<(MBR+cm.r)**2){
@@ -1789,6 +1809,7 @@ function update(){
   if(deathT>0&&--deathT===0){endGame();return;}
   // Wave intermission: a short beat, then the next wave arrives
   checkGoal();
+  if(PURE()&&ship&&waveT===0&&rocks.length&&--beatT<=0){thump();beatT=Math.round(8+22*Math.min(1,rocks.length/14));}
   updateTips();
   // Running totals for the score and multiplier achievements
   if(!RUN){if(gameMode==='arcade')achProg('score25',score);if(gameMode==='purist')achProg('purist',score);achProg('score100',score);}
@@ -1833,10 +1854,10 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
       // Turning eases in: a tap nudges a couple of degrees for fine aim, a hold
       // ramps to full speed within a few ticks
       const rl=act('left'),rr=act('right');
-      if(rl!==rr){ship.rh=(ship.rh||0)+1;const rs=CFG.turnEase?ROT_MIN+(ROT_MAX-ROT_MIN)*Math.min(1,(ship.rh-1)/ROT_RAMP):ROT_FLAT;ship.a+=rl?-rs:rs;}else ship.rh=0;
+      if(rl!==rr){ship.rh=(ship.rh||0)+1;const rs=CFG.turnEase&&!PURE()?ROT_MIN+(ROT_MAX-ROT_MIN)*Math.min(1,(ship.rh-1)/ROT_RAMP):ROT_FLAT;ship.a+=rl?-rs:rs;}else ship.rh=0;
       if(act('thrust')){
         const hx=Math.cos(ship.a),hy=Math.sin(ship.a);ship.th=Math.min(THR_RAMP,(ship.th||0)+1);
-        if(CFG.thrust){
+        if(CFG.thrust&&!PURE()){
           let fx=0,fy=0;if(hasHole()&&!pulsarPushing()){const L=(ship.x-OX)*ship.vy-(ship.y-OY)*ship.vx,f=orbitV(ship.x,ship.y,L>=0?1:-1);fx=f[0];fy=f[1];}
           const rx=ship.vx-fx,ry=ship.vy-fy,al=rx*hx+ry*hy,pe=(ry*hx-rx*hy)*THR_GRIP,ac=THR_ACC0+(THR_ACC1-THR_ACC0)*ship.th/THR_RAMP;
           ship.vx=fx+hx*(al+ac)-hy*pe;ship.vy=fy+hy*(al+ac)+hx*pe;
@@ -1845,7 +1866,7 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
       // Gravity brake: bleeds off whatever motion is out of step with the local
       // orbit, so the ship settles into a clean circular orbit where it is
       // (without a hole it is a plain gradual slowdown)
-      const brk=act('brake')&&!act('thrust');ship.brk=Math.max(0,Math.min(1,(ship.brk||0)+(brk?.2:-.12)));
+      const brk=act('brake')&&!act('thrust')&&!PURE();ship.brk=Math.max(0,Math.min(1,(ship.brk||0)+(brk?.2:-.12)));
       if(brk){if(hasHole()&&!pulsarPushing())circularize(ship,BRAKE_KR,BRAKE_KT);else{ship.vx*=BRAKE_FLAT;ship.vy*=BRAKE_FLAT;}}
       if(hasHole()&&!pulsarPushing()){const th=act('thrust');circularize(ship,th?.996:SHIP_KR,th?1:SHIP_KT);capFlow(ship,SHIP_VMAX);}
       else{ship.vx*=.985;ship.vy*=.985;}
@@ -1994,7 +2015,7 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
   }
 
   // Small rock fuses
-  const fz=RUN&&RUN.p.noFire?2:1,fcap=fz>1?8:5,sc1=rocks.reduce((n,r)=>n+(r.sz<=fz),0);rocks.forEach(r=>{if(r.sz>fz)return;if(sc1<=fcap&&sc1>0){if(r.eT===null)r.eT=ri(120,300);}else r.eT=null;});
+  if(!PURE()){const fz=RUN&&RUN.p.noFire?2:1,fcap=fz>1?8:5,sc1=rocks.reduce((n,r)=>n+(r.sz<=fz),0);rocks.forEach(r=>{if(r.sz>fz)return;if(sc1<=fcap&&sc1>0){if(r.eT===null)r.eT=ri(120,300);}else r.eT=null;});}
 
   // UFOs
   ufos=ufos.filter(u=>{
@@ -2014,7 +2035,11 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
     // Shoot faster: 3 radial bullets
     if(--u.shotCd<=0){
       u.shotCd=ri(30,65);
-      for(let i=0;i<3;i++){const ba=i/3*TAU+Math.random()*.35;ufoBullets.push({x:u.x+Math.cos(ba)*UFO_R,y:u.y+Math.sin(ba)*UFO_R,vx:Math.cos(ba)*6,vy:Math.sin(ba)*6,a:ba,life:36,wr:false});}
+      if(u.kind){
+        let ba=Math.random()*TAU;
+        if(u.kind==='small'&&ship){const err=Math.max(.05,.5-score/60000);ba=Math.atan2(ship.y-u.y,ship.x-u.x)+rn(-err,err);}
+        ufoBullets.push({x:u.x+Math.cos(ba)*u.r,y:u.y+Math.sin(ba)*u.r,vx:Math.cos(ba)*6,vy:Math.sin(ba)*6,a:ba,life:40,wr:false});
+      }else for(let i=0;i<3;i++){const ba=i/3*TAU+Math.random()*.35;ufoBullets.push({x:u.x+Math.cos(ba)*UFO_R,y:u.y+Math.sin(ba)*UFO_R,vx:Math.cos(ba)*6,vy:Math.sin(ba)*6,a:ba,life:36,wr:false});}
     }
     // Collision with rocks → UFO dies no points
     for(const r of rocks)if((u.x-r.x)**2+(u.y-r.y)**2<(u.r+r.r)**2){burst(u.x,u.y,10,P.wht,true);return false;}
@@ -2042,7 +2067,7 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
       const pfr=[];rocks=rocks.filter(r=>{
         if((r.x-p2.x)**2+(r.y-p2.y)**2<(p2.r+r.r)**2){
           burst(r.x,r.y,r.sz*2,r.col);playExplode();
-          const pts=(SZ_PTS[r.sz]||5)*mult;score+=pts;popup(r.x,r.y-r.r,'+'+pts,r.col);
+          const pts=rockPts(r.sz);score+=pts;popup(r.x,r.y-r.r,'+'+pts,r.col);
           statRock(r.sz);if(r.sz>1)pfr.push(...split(r));
           return false;
         }
@@ -2073,7 +2098,7 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
       const hfr=[];rocks=rocks.filter(r=>{
         if((r.x-h.x)**2+(r.y-h.y)**2<(h.r+r.r)**2){
           burst(r.x,r.y,r.sz*2,r.col);playExplode();
-          const pts=(SZ_PTS[r.sz]||5)*mult;score+=pts;popup(r.x,r.y-r.r,'+'+pts,r.col);statRock(r.sz);
+          const pts=rockPts(r.sz);score+=pts;popup(r.x,r.y-r.r,'+'+pts,r.col);statRock(r.sz);
           if(r.sz>1)hfr.push(...split(r));return false;
         }
         return true;
@@ -2151,7 +2176,7 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
   // Bullets vs UFO
   ufos=ufos.filter(u=>{
     for(let i=nb.length-1;i>=0;i--){if((nb[i].x-u.x)**2+(nb[i].y-u.y)**2<u.r*u.r){hitFx(nb[i],'#fff');u.hit=4;nb.splice(i,1);u.hp--;burst(u.x,u.y,5,P.wht);if(u.hp<=0){
-          burst(u.x,u.y,12,P.wht,true);SFX.ufoDestroy();STATS.ufos++;const ufoPts=UFO_PTS*mult;score+=ufoPts;popup(u.x,u.y-u.r-8,'+'+ufoPts,P.wht,true);
+          burst(u.x,u.y,12,P.wht,true);SFX.ufoDestroy();STATS.ufos++;const ufoPts=u.pts||UFO_PTS*mult;score+=ufoPts;popup(u.x,u.y-u.r-8,'+'+ufoPts,P.wht,true);
           // Saucer shatter: ellipse approximated as polygon + dome
           const uPts=[];for(let k=0;k<=8;k++){const a=k/8*TAU;uPts.push([Math.cos(a)*UFO_R,Math.sin(a)*UFO_R*.38+3]);}
           uPts.push([UFO_R*.5,3],[-UFO_R*.5,3],[-UFO_R*.3,-UFO_R*.3],[UFO_R*.3,-UFO_R*.3],[UFO_R*.5,3]);
@@ -2202,7 +2227,7 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
         hitFx(fb[i],r.col);fb.splice(i,1);dst.add(ri2);burst(r.x,r.y,r.sz*3+3,r.col,r.sz>2);playExplode(r.sz);
         if(r.sz>=4){addShake(r.sz===5?5:3);if(CFG.anim){ring(r.x,r.y,r.r*.5,6,14,r.col);ring(r.x,r.y,r.r*.3,3.5,10,'#fff');}}
         statRock(r.sz);
-        const pts=(SZ_PTS[r.sz]||5)*(gameMode==='purist'?1:mult);
+        const pts=rockPts(r.sz);
         score+=pts;scoreVel+=pts;scoreVelT=18;
         streak++;streakT=45; // 1.5s streak window
         // Popup colour scales with streak depth
@@ -2217,7 +2242,8 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
     }
   });
 
-  // Rock-rock elastic
+  // Rock-rock elastic (not in Purist: the originals pass through each other)
+  if(!PURE())
   for(let i=0;i<rocks.length;i++){
     if(dst.has(i))continue;
     for(let j=i+1;j<rocks.length;j++){
@@ -2242,13 +2268,13 @@ spawnRocks(waveSize());if(!screensaver)setInv(WAVE_INV);if(gameMode==='quarantin
   if(ship){
     const hits=[];rocks.forEach((r,ri3)=>{if((ship.x-r.x)**2+(ship.y-r.y)**2<(ship.r+r.r)**2)hits.push(ri3);});
     if(hits.length){
-      if(shieldActive){const newFrags=[];hits.sort((a,b)=>b-a).forEach(ri3=>{const r=rocks[ri3];burst(r.x,r.y,r.sz*2+2,r.col);statRock(r.sz);streak++;streakT=45;const pts=(SZ_PTS[r.sz]||5)*mult;score+=pts;popup(r.x,r.y-r.r,'+'+pts,r.col);playExplode();if(r.sz>1)newFrags.push(...split(r));rocks.splice(ri3,1);});rocks.push(...newFrags);}
+      if(shieldActive){const newFrags=[];hits.sort((a,b)=>b-a).forEach(ri3=>{const r=rocks[ri3];burst(r.x,r.y,r.sz*2+2,r.col);statRock(r.sz);streak++;streakT=45;const pts=rockPts(r.sz);score+=pts;popup(r.x,r.y-r.r,'+'+pts,r.col);playExplode();if(r.sz>1)newFrags.push(...split(r));rocks.splice(ri3,1);});rocks.push(...newFrags);}
       else if(invT===0)killShip();
     }
   }
   // Endless modes don't make you hunt the last few pebbles: once only a few small
   // stragglers remain, their fuses are lit and the next wave rolls in over them
-  if(!RUN&&!screensaver&&rocks.length&&rocks.length<=3&&waveT===0&&deathT===0&&rocks.every(r=>r.sz<=2)&&rocks.reduce((a,r)=>a+r.sz,0)<=4){
+  if(!RUN&&!screensaver&&!PURE()&&rocks.length&&rocks.length<=3&&waveT===0&&deathT===0&&rocks.every(r=>r.sz<=2)&&rocks.reduce((a,r)=>a+r.sz,0)<=4){
     rocks.forEach(r=>{if(r.eT==null||r.eT>150)r.eT=ri(60,150);});
     waveT=50;banner={txt:'WAVE '+(level+1),t:50,max:50};
   }
@@ -2424,7 +2450,7 @@ function drawGame(){
 
   // UFOs: clean saucer, no tumble
   ufos.forEach(u=>{
-    G.save();G.translate(u.x,u.y);fxPre(u,'#fff');
+    G.save();G.translate(u.x,u.y);fxPre(u,'#fff');if(u.r!==UFO_R)G.scale(u.r/UFO_R,u.r/UFO_R);
     
     G.strokeStyle='#fff';G.lineWidth=1.6;
     // Lower body disc
@@ -2879,7 +2905,7 @@ function selBand(y,h,col=P.yel){
 let menuIn=0,menuKey='';
 function itemIn(i){const k=Math.max(0,Math.min(1,(menuIn-i*2.2)/7));return k;}
 const MENU_DESC={CAMPAIGN:'Thirty-five planets, each with its own rules',ARCADE:'Endless waves round the black hole',MODES:'Minesweeper, Sentry, Purist and Quarantine',EXTRA:'Options, scores, achievements and more',
-  MINESWEEPER:'Thrust lays mines, fire sets them all off',SENTRY:'Hold the rim and defend the core',PURIST:'Classic rules: no hole, no power-ups',QUARANTINE:'Stay outside the ring as it grows',
+  MINESWEEPER:'Thrust lays mines, fire sets them all off',SENTRY:'Hold the rim and defend the core',PURIST:'The 1979 rules: three rock sizes, saucers, hyperspace',QUARANTINE:'Stay outside the ring as it grows',
   OPTIONS:'Graphics, effects, sound and controls',SCORES:'Top ten in every mode',STATS:'Lifetime totals',ACHIEVEMENTS:()=>ACH_DEF.filter(a=>ACH[a[0]]).length+' of '+ACH_DEF.length+' unlocked',
   SCREENSAVER:'Let the field play itself',CONTROLS:()=>isMobile?'The touch layout':'Rebind every key',CREDITS:'Who made the sounds'};
 function drawMainMenu(){
@@ -3298,7 +3324,7 @@ function drawControls(){
     ['',''],
     ['A / D', 'SENTRY: ORBIT LEFT / RIGHT'],
     ['C',     'SENTRY: WARP TO OPPOSITE SIDE'],
-    ['C',     'PURIST: WARP (recharges)'],
+    ['C',     'PURIST: HYPERSPACE (risky)'],
   ];
   const lx=OX-R*.46,rx=OX+R*(isMobile?-.18:.05);
   const ty=OY-R*.48+16;
